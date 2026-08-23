@@ -84,19 +84,20 @@ CREATE OR REPLACE FUNCTION audit_financial_action()
 RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO audit_events (
-        table_name,
-        record_id,
+        object_type,
+        object_id,
         action,
-        old_data,
-        new_data,
-        created_at
+        changes,
+        actor
     ) VALUES (
         TG_TABLE_NAME,
         COALESCE(NEW.id, OLD.id),
         TG_OP,
-        (CASE WHEN TG_OP = 'DELETE' OR TG_OP = 'UPDATE' THEN row_to_json(OLD) ELSE NULL END),
-        (CASE WHEN TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN row_to_json(NEW) ELSE NULL END),
-        now()
+        jsonb_build_object(
+            'old', (CASE WHEN TG_OP IN ('DELETE','UPDATE') THEN row_to_json(OLD) ELSE NULL END),
+            'new', (CASE WHEN TG_OP IN ('INSERT','UPDATE') THEN row_to_json(NEW) ELSE NULL END)
+        ),
+        auth.uid()
     );
     RETURN COALESCE(NEW, OLD);
 EXCEPTION WHEN undefined_table THEN

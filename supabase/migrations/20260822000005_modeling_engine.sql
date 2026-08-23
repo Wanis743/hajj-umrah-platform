@@ -1,4 +1,4 @@
-﻿-- P2: Modeling Engine
+-- P2: Modeling Engine
 
 CREATE TABLE IF NOT EXISTS public.financial_models (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,7 +55,7 @@ CREATE OR REPLACE FUNCTION public.simulate_scenario(p_scenario_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $body
+AS $body$
 DECLARE
     v_target_pilgrims NUMERIC := 0;
     v_price NUMERIC := 0;
@@ -106,4 +106,4 @@ BEGIN
         'projected_margin_percent', v_margin_pct
     );
 END;
-$body;
+$body$;

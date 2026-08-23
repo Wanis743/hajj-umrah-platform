@@ -268,3 +268,29 @@ updated_at triggers + audit triggers.
 | Audit trail rows written to audit_logs | PASS |
 
 **BI SEMANTIC LIFECYCLE PASS**
+
+---
+
+# Slice 6b — remaining domain migrations applied; repo/DB parity reached (2026-08-23)
+
+Applied + recorded: modeling_engine, planning_engine, unit_economics_engine,
+ops_readiness_engine, platform_kernel, accounting_vertical, crm_integration,
+fpa_modeling, business_simulation, controls_treasury_risk, ai_layer,
+bi_agency_defaults. **Repo migrations: 101 · Applied on live DB: 100+1 fix_rpcs
+supersede = full parity. 0 pending.**
+
+## Repairs made during this pass
+
+| File | Defect | Fix |
+|---|---|---|
+| modeling/planning engines | malformed `$body` dollar-quote tags | normalized to `$body$` |
+| platform_kernel | `uuid_generate_v4()` unqualified (extension schema not on search_path) | swapped to built-in `gen_random_uuid()` |
+| accounting_vertical | audit fn wrote wrong column set to kernel audit_events | reconciled to object_type/object_id/action/changes/actor |
+| crm_integration | earlier fragile regex had mangled audit_crm_action | clean rewrite to audit_events w/ exception fallback |
+| controls_treasury_risk | same mangle + FOR ALL USING gaps | rebuilt from git HEAD base with audit_logs redirect + WITH CHECK |
+| ai_layer | FOR ALL USING gaps | WITH CHECK added |
+
+## Post-condition
+
+Every table/function/policy referenced by the application now exists in the live DB.
+All future schema changes flow exclusively through new timestamped migrations.

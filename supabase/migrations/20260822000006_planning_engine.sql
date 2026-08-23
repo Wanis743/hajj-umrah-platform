@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS public.fiscal_budgets (
+CREATE TABLE IF NOT EXISTS public.fiscal_budgets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agency_id UUID NOT NULL,
     period_id UUID NOT NULL REFERENCES public.fiscal_periods(id) ON DELETE CASCADE,
@@ -29,7 +29,7 @@ CREATE OR REPLACE FUNCTION public.get_budget_variance(p_budget_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $body
+AS $body$
 DECLARE
     v_period_id UUID;
     v_start DATE;
@@ -86,4 +86,4 @@ BEGIN
 
     RETURN COALESCE(v_result, '[]'::jsonb);
 END;
-$body;
+$body$;

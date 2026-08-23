@@ -103,14 +103,20 @@ CREATE POLICY "Enable delete access for authenticated users on sales_activities"
 -- 5. Audit Logging to audit_events kernel table
 CREATE OR REPLACE FUNCTION audit_crm_action()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_row JSONB;
 BEGIN
-            INSERT INTO public.audit_events (
-        actor, timestamp, agency_scope, branch_scope, object_type,
-        object_id, correlation_id, reason, source, action, changes
+    v_row := CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;
+    INSERT INTO audit_events (
+        actor, object_type, object_id, action, source, agency_scope, changes
     ) VALUES (
-        auth.uid(), now(), public.current_staff_agency_id(), NULL, TG_TABLE_NAME,
-        COALESCE(NEW.id, OLD.id), NULL, NULL, 'database_trigger', TG_OP,
-        CASE WHEN TG_OP = 'DELETE' THEN row_to_json(OLD)::jsonb ELSE row_to_json(NEW)::jsonb END
+        auth.uid(),
+        TG_TABLE_NAME,
+        COALESCE(v_row->>'id', '')::UUID,
+        TG_OP,
+        'crm_integration',
+        public.current_staff_agency_id()::TEXT,
+        v_row
     );
     RETURN COALESCE(NEW, OLD);
 EXCEPTION WHEN undefined_table THEN

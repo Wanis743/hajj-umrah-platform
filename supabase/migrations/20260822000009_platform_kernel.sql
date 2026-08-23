@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. OBJECT REGISTRY
 -------------------------------------------------------------------------------
 CREATE TABLE object_registry (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     object_type TEXT NOT NULL,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -24,7 +24,7 @@ CREATE POLICY object_registry_read ON object_registry FOR SELECT USING (true);
 -- 2. AUDIT EVENTS
 -------------------------------------------------------------------------------
 CREATE TABLE audit_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     actor UUID NOT NULL, -- references auth.users
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     agency_scope TEXT,
@@ -46,7 +46,7 @@ CREATE POLICY audit_events_insert ON audit_events FOR INSERT WITH CHECK (auth.ui
 -- 3. EVENT BUS
 -------------------------------------------------------------------------------
 CREATE TABLE event_bus (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type TEXT NOT NULL,
     payload JSONB NOT NULL DEFAULT '{}'::jsonb,
     published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -61,7 +61,7 @@ CREATE POLICY event_bus_insert ON event_bus FOR INSERT WITH CHECK (auth.uid() = 
 -- 4. JOBS
 -------------------------------------------------------------------------------
 CREATE TABLE jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     correlation_id UUID,
     status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
     progress FLOAT NOT NULL DEFAULT 0.0 CHECK (progress >= 0.0 AND progress <= 100.0),
@@ -83,7 +83,7 @@ CREATE POLICY jobs_insert ON jobs FOR INSERT WITH CHECK (auth.uid() = actor);
 -- 5. WORKSPACES
 -------------------------------------------------------------------------------
 CREATE TABLE workspaces (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id UUID NOT NULL,
     name TEXT NOT NULL,
     layout JSONB NOT NULL DEFAULT '{}'::jsonb,

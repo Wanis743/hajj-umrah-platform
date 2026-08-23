@@ -42,9 +42,9 @@ ALTER TABLE public.ai_intents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_tool_calls ENABLE ROW LEVEL SECURITY;
 
 -- Zero ANY RLS Policies
-CREATE POLICY "Zero ANY on ai_sessions" ON public.ai_sessions FOR ALL USING (agency_id = public.current_staff_agency_id());
-CREATE POLICY "Zero ANY on ai_intents" ON public.ai_intents FOR ALL USING (agency_id = public.current_staff_agency_id());
-CREATE POLICY "Zero ANY on ai_tool_calls" ON public.ai_tool_calls FOR ALL USING (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on ai_sessions" ON public.ai_sessions FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on ai_intents" ON public.ai_intents FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on ai_tool_calls" ON public.ai_tool_calls FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
 
 -- Triggers for updated_at
 DROP TRIGGER IF EXISTS update_ai_sessions_updated_at ON public.ai_sessions;

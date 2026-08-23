@@ -59,10 +59,10 @@ ALTER TABLE public.cash_positions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.risk_events ENABLE ROW LEVEL SECURITY;
 
 -- Zero ANY RLS Policies
-CREATE POLICY "Zero ANY on financial_controls" ON public.financial_controls FOR ALL USING (agency_id = public.current_staff_agency_id());
-CREATE POLICY "Zero ANY on close_tasks" ON public.close_tasks FOR ALL USING (agency_id = public.current_staff_agency_id());
-CREATE POLICY "Zero ANY on cash_positions" ON public.cash_positions FOR ALL USING (agency_id = public.current_staff_agency_id());
-CREATE POLICY "Zero ANY on risk_events" ON public.risk_events FOR ALL USING (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on financial_controls" ON public.financial_controls FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on close_tasks" ON public.close_tasks FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on cash_positions" ON public.cash_positions FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
+CREATE POLICY "Zero ANY on risk_events" ON public.risk_events FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -89,14 +89,21 @@ CREATE TRIGGER update_risk_events_updated_at BEFORE UPDATE ON public.risk_events
 CREATE OR REPLACE FUNCTION public.audit_financial_action()
 RETURNS TRIGGER AS $$
 BEGIN
-        INSERT INTO public.audit_events (
-        actor, timestamp, agency_scope, branch_scope, object_type,
-        object_id, correlation_id, reason, source, action, changes
-    ) VALUES (
-        auth.uid(), now(), public.current_staff_agency_id(), NULL, TG_TABLE_NAME,
-        COALESCE(NEW.id, OLD.id), NULL, NULL, 'database_trigger', TG_OP,
-        CASE WHEN TG_OP = 'DELETE' THEN row_to_json(OLD)::jsonb ELSE row_to_json(NEW)::jsonb END
-    );
+        INSERT INTO public.audit_logs (
+            action, resource, resource_id, details,
+            actor_id, actor_role, agency_id, branch_id
+        ) VALUES (
+            TG_OP,
+            TG_TABLE_NAME,
+            COALESCE(NEW.id::text, OLD.id::text),
+            jsonb_build_object('source','controls_treasury_risk',
+                'old', CASE WHEN TG_OP IN ('DELETE','UPDATE') THEN to_jsonb(OLD) END,
+                'new', CASE WHEN TG_OP IN ('INSERT','UPDATE') THEN to_jsonb(NEW) END),
+            auth.uid(),
+            public.staff_role(),
+            public.current_staff_agency_id(),
+            public.staff_branch_id()
+        );
     RETURN COALESCE(NEW, OLD);
 EXCEPTION WHEN undefined_table THEN
     RETURN COALESCE(NEW, OLD);
