@@ -103,23 +103,23 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
     <div className={'space-y-6 ' + (isAr ? 'rtl' : 'ltr')}>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-lg font-semibold text-[var(--text-primary)]">{t('Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø£ÙÙˆØ§Ø¬', 'Gestion des Groupes', 'Group Manager')}</h1>
-          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">{groups.length} {t('ÙÙˆØ¬', 'groupes', 'groups')}</p>
+          <h1 className="text-lg font-semibold text-[var(--text-primary)]">{t('إدارة الأفواج', 'Gestion des Groupes', 'Group Manager')}</h1>
+          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">{groups.length} {t('فوج', 'groupes', 'groups')}</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="btn btn-primary"
         >
           <Plus className="w-4 h-4" />
-          {t('ÙÙˆØ¬ Ø¬Ø¯ÙŠØ¯', 'Nouveau groupe', 'New Group')}
+          {t('فوج جديد', 'Nouveau groupe', 'New Group')}
         </button>
       </div>
 
       {showForm && (
         <div className="card p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)} placeholder={t('Ø±Ù…Ø² Ø§Ù„ÙÙˆØ¬ *', 'Code groupe *', 'Group code *')} />
-            <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('Ø§Ø³Ù… Ø§Ù„ÙÙˆØ¬', 'Nom du groupe', 'Group name')} />
+            <input className={inputCls} value={form.code} onChange={(e) => set('code', e.target.value)} placeholder={t('رمز الفوج *', 'Code groupe *', 'Group code *')} />
+            <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder={t('اسم الفوج', 'Nom du groupe', 'Group name')} />
             <Select className={inputCls} value={form.package_id} onChange={(e) => set('package_id', e.target.value)}>
               <option value="">{t('الباقة', 'Forfait', 'Package')}</option>
               {packages.map((p: GroupRow) => (
@@ -127,7 +127,7 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
               ))}
             </Select>
             <input className={inputCls} value={form.leader_name} onChange={(e) => set('leader_name', e.target.value)} placeholder={t('اسم القائد', 'Nom du chef', 'Leader name')} />
-            <input className={inputCls} value={form.leader_phone} onChange={(e) => set('leader_phone', e.target.value)} placeholder={t('Ù‡Ø§ØªÙ Ø§Ù„Ù‚Ø§Ø¦Ø¯', 'TÃ©lÃ©phone chef', 'Leader phone')} />
+            <input className={inputCls} value={form.leader_phone} onChange={(e) => set('leader_phone', e.target.value)} placeholder={t('هاتف القائد', 'Téléphone chef', 'Leader phone')} />
             <input className={inputCls} type="number" value={form.max_capacity} onChange={(e) => set('max_capacity', e.target.value)} placeholder={t('الحد الأقصى', 'Capacité max', 'Max capacity')} />
             <GlassDate className={inputCls} value={form.departure_date} onChange={(e) => set('departure_date', e.target.value)} />
             <GlassDate className={inputCls} value={form.return_date} onChange={(e) => set('return_date', e.target.value)} />
@@ -137,7 +137,7 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
           </div>
           <div className="flex gap-2">
             <button onClick={submit} className="btn btn-primary">
-              {t('Ø­ÙØ¸', 'Enregistrer', 'Save')}
+              {t('حفظ', 'Enregistrer', 'Save')}
             </button>
             <button onClick={() => setShowForm(false)} className="rounded-md bg-[var(--bg-hover)] dark:bg-[var(--bg-hover)] px-5 py-2 text-sm font-bold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] dark:hover:bg-[var(--bg-hover)] transition-all">
               {t('إلغاء', 'Annuler', 'Cancel')}
@@ -151,7 +151,7 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
       ) : groups.length === 0 ? (
         <div className="card p-10 flex flex-col items-center justify-center text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
           <AlertCircle className="w-12 h-12 mb-3 opacity-50" />
-          <p>{t('Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£ÙÙˆØ§Ø¬', 'Aucun groupe', 'No groups found')}</p>
+          <p>{t('لا توجد أفواج', 'Aucun groupe', 'No groups found')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -227,11 +227,11 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
                     )}
                     <button
                       onClick={async () => {
-                        if (await confirmDialog({ title: t('ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø­Ø°Ù', 'Confirmer la suppression', 'Confirm deletion'), message: t('Ø­Ø°Ù Ø§Ù„ÙÙˆØ¬ØŸ', 'Supprimer le groupe ?', 'Delete group?'), danger: true })) await groupCommands.remove(group.id);
+                        if (await confirmDialog({ title: t('تأكيد الحذف', 'Confirmer la suppression', 'Confirm deletion'), message: t('حذف الفوج؟', 'Supprimer le groupe ?', 'Delete group?'), danger: true })) await groupCommands.remove(group.id);
                       }}
                       className="rounded-lg bg-rose-500/10 px-2.5 py-1 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-all"
                     >
-                      <Trash2 className="w-3 h-3 inline ltr:me-1 rtl:ms-1" />{t('Ø­Ø°Ù', 'Suppr.', 'Delete')}
+                      <Trash2 className="w-3 h-3 inline ltr:me-1 rtl:ms-1" />{t('حذف', 'Suppr.', 'Delete')}
                     </button>
                   </div>
                 </div>
@@ -243,4 +243,3 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
     </div>
   );
 }
-
