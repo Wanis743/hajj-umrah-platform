@@ -44,3 +44,56 @@ Baseline comparison for lint was measured by stashing this session's changes and
 - DB/browser-dependent gates (RLS/RBAC matrix, E2E, RTL visual): **PENDING** — no Supabase
   project bound to this checkout (`.env.example` only).
 - G1/G2 UI layers still mounted; replacement happens per work-plan slices 3+.
+
+---
+
+# Slice 3 Evidence — Accounting Vertical (2026-08-23, same session)
+
+## Server capability added
+
+`supabase/migrations/20260823000010_approve_journal_entry.sql`
+- `approve_journal_entry(p_journal_id, p_correlation_id?, p_reason?)`: DRAFT→POSTED
+  approval that previously did not exist (post_journal_entry creates DRAFT only).
+- Authorization ladder mirrors close_fiscal_period: require_admin_aal2 → staff_role/has_permission →
+  row lock (FOR UPDATE) → agency-scope check.
+- Idempotent on replay (already-POSTED returns success, no mutation); VOID rejects P0002.
+- Stamps posted_at + fiscal_period_id via assert_open_fiscal_period; balance enforcement stays in the
+  existing constraint triggers (not bypassed).
+- Audited to public.audit_logs (action POST) with actor/role/scope/correlation/reason.
+
+## Client contracts verified from migrations before coding
+
+- post_journal_entry: balance + per-account agency validation + DRAFT creation; result key is
+  `journal_entry_id` (fix_rpcs) or `journal_id` (original) — parser tolerates both.
+- get_recent_journal_entries v2: entries with embedded lines {account_code, account_name, debit, credit, memo}.
+- journal_lines CHECK: exactly one of debit/credit non-zero; journal_entries.status ∈ {DRAFT,POSTED,VOID};
+  unique (agency_id, reference).
+
+## New files
+
+| Layer | Files |
+|---|---|
+| Domain service | src/platform/accounting/journalService.ts (pure: sumLines, validateDraft, buildPostArgs, parsePostResult, parseRecentEntries, rpcError, nextReference, toDraftLines, validateDraftLines) |
+| Commands | src/platform/accounting/commands.ts (kernel commands w/ injected RPC caller; permission rules: draft=none-impact, approve=material+authority-bounded) |
+| UI | JournalWorkbench.tsx + DraftEditor.tsx + EntryInspector.tsx + LibraryPanel.tsx + workbenchParts.tsx + workbenchTypes.ts + format.ts + useJournalCommands.ts |
+| Bridge | src/platform/kernelBridge.ts (singleton kernel + localStorage workspace persistence) |
+| Migration | supabase/migrations/20260823000010_approve_journal_entry.sql |
+| Tests | scripts/test-accounting-slice.ts |
+
+## Gate results (fresh, this session)
+
+| Gate | Exit | Result |
+|---|---|---|
+| Kernel tests (`scripts/test-kernel.ts`) | 0 | 36 passed / 0 failed |
+| Accounting slice tests (`scripts/test-accounting-slice.ts`) | 0 | **38 passed / 0 failed** — balance invariant, XOR lines, exact-decimal payloads, dual result keys, strict reader parsing, permission rules, confirmation two-pass flow, denial audit |
+| Typecheck | 0 | 0 errors |
+| Zero-any gate | 0 | ANY COUNT = 0 across 299 files (artifact regenerated) |
+| Production build | 0 | ✓ built in 1m09s |
+| Lint | 1 | **190 errors / 87 warnings — identical error count to post-Phase-1 state (220 at freeze); zero findings in src/platform/**. One residual warning: workbench function length 204>180 (down from 400). NOT claimed as PASS. |
+| verify:migrations | 1 | **INHERITED FAILURE** — verifier requires 20260813110000/111200/111300 which never existed in this snapshot lineage (verified failing on the untouched frozen tree). No stubs fabricated. |
+
+## Honest status (PENDING, not PASS)
+
+- DB execution of migration + RPC behavior (idempotency, AAL2 denial, period guard): requires a bound
+  Supabase project or local supabase start. supabase/tests/accounting_workflows.sql exists for this.
+- Browser E2E of the workbench: requires dev server + credentials.

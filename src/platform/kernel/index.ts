@@ -12,8 +12,8 @@ import { EventBus, type DomainEvent, type DomainEventType, type EventHandler } f
 import { JobEngine, type JobRecord } from './jobEngine.ts';
 import { ObjectRegistry, type ObjectTypeDefinition } from './objectRegistry.ts';
 import { PermissionEngine, type CommandPermissionRule } from './permissionEngine.ts';
-import type { CommandId, KernelError, MinorUnits, Principal, Result } from './types';
-import { newCorrelationId } from './types';
+import type { CommandId, KernelError, MinorUnits, Principal, Result } from './types.ts';
+import { newCorrelationId } from './types.ts';
 import { WorkspaceRegistry } from './workspaceRegistry.ts';
 
 export class PlatformKernel {
