@@ -358,3 +358,22 @@ have no agency_id column).
 
 Note: the E2E budget's variance shows a large negative % because the account carries real
 posted journal activity far above the test budget amount — the math is correct.
+
+---
+
+# Slice 9 Evidence — Ops readiness verified LIVE (2026-08-23)
+
+`get_group_readiness` RPC (applied with slice 6b batch) computes per-group
+readiness from real operational data: total pax vs visas approved, confirmed
+transport assignments, confirmed room allocations; score = (visas+flights+hotels)
+/ (pax × 3) × 100.
+
+## LIVE verification (real groups)
+
+| Group | Pax | Visas | Flights | Hotels | Score |
+|---|---|---|---|---|---|
+| Gharb 01 | 3 | 2 | 0 | 0 | **22.2** |
+| Centre 02 | 2 | 0 | 0 | 0 | **0** |
+
+**OPS READINESS PASS** — scores reflect genuine gaps (no transport/hotel assignments
+yet), not fake data.
