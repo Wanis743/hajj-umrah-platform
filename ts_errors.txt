@@ -1,0 +1,428 @@
+src/components/admin/accounting/model/useAccountingData.ts(26,54): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string | number'.
+src/components/admin/accounting/model/useAccountingData.ts(40,53): error TS2322: Type '{ date: {}; ref: {}; debit: string; credit: string; dzd: number; desc: {}; }[]' is not assignable to type '{ date: string; ref: string; debit: string; credit: string; dzd: number; desc: string; }[]'.
+  Type '{ date: {}; ref: {}; debit: string; credit: string; dzd: number; desc: {}; }' is not assignable to type '{ date: string; ref: string; debit: string; credit: string; dzd: number; desc: string; }'.
+    Types of property 'date' are incompatible.
+      Type '{}' is not assignable to type 'string'.
+src/components/admin/accounting/model/useAccountingData.ts(67,5): error TS2322: Type '{ method: unknown; count: unknown; }[]' is not assignable to type '{ method: string; dzd: number; count: number; }[]'.
+  Property 'dzd' is missing in type '{ method: unknown; count: unknown; }' but required in type '{ method: string; dzd: number; count: number; }'.
+src/components/admin/accounting/model/useAccountingData.ts(75,5): error TS2322: Type '{ date: {}; ref: {}; debit: string; credit: string; dzd: number; desc: {}; }[]' is not assignable to type '{ date: string; ref: string; debit: string; credit: string; dzd: number; desc: string; }[]'.
+  Type '{ date: {}; ref: {}; debit: string; credit: string; dzd: number; desc: {}; }' is not assignable to type '{ date: string; ref: string; debit: string; credit: string; dzd: number; desc: string; }'.
+    Types of property 'date' are incompatible.
+      Type '{}' is not assignable to type 'string'.
+src/components/admin/accounting/widgets/Tabs.tsx(24,40): error TS2322: Type '(v: Record<string, unknown>) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: Record<string, unknown>) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'Record<string, unknown>'.
+        Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+src/components/admin/accounting/widgets/Tabs.tsx(38,38): error TS2322: Type '(v: Record<string, unknown>) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: Record<string, unknown>) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'Record<string, unknown>'.
+        Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+src/components/admin/accounting/widgets/Tabs.tsx(103,38): error TS2322: Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/admin/accounting/widgets/Tabs.tsx(121,38): error TS2322: Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/admin/ActionCenter.tsx(157,43): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/admin/ActionCenter.tsx(168,111): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/admin/ActionCenter.tsx(171,113): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/admin/AdminDashboard/index.tsx(404,514): error TS2322: Type 'MutawwifGuide[]' is not assignable to type 'Record<string, string | number | string[] | null | undefined>[]'.
+  Type 'MutawwifGuide' is not assignable to type 'Record<string, string | number | string[] | null | undefined>'.
+    Index signature for type 'string' is missing in type 'MutawwifGuide'.
+src/components/admin/AdminDashboard/index.tsx(405,307): error TS2322: Type 'HajjPackage[]' is not assignable to type 'BaseRow[]'.
+  Type 'HajjPackage' is not assignable to type 'BaseRow'.
+    Index signature for type 'string' is missing in type 'HajjPackage'.
+src/components/admin/AdminDashboard/index.tsx(406,64): error TS2322: Type 'EmergencyIncident[]' is not assignable to type 'BaseRow[]'.
+  Type 'EmergencyIncident' is not assignable to type 'BaseRow'.
+    Index signature for type 'string' is missing in type 'EmergencyIncident'.
+src/components/admin/AdminDashboard/index.tsx(406,150): error TS2322: Type 'EmergencyIncident[]' is not assignable to type 'BaseRow[]'.
+  Type 'EmergencyIncident' is not assignable to type 'BaseRow'.
+    Index signature for type 'string' is missing in type 'EmergencyIncident'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(15,26): error TS2304: Cannot find name 'Settings2'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(22,28): error TS2304: Cannot find name 'Briefcase'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(30,90): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(31,91): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(32,78): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(33,85): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(34,77): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(35,104): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(48,28): error TS2304: Cannot find name 'Settings'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(57,30): error TS2304: Cannot find name 'GlassDate'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(57,47): error TS2304: Cannot find name 'departureDate'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(57,73): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/admin/AdminDashboard/SettingsTab.tsx(57,79): error TS2304: Cannot find name 'setDepartureDate'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(58,46): error TS2304: Cannot find name 'saveDepartureDate'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(58,75): error TS2304: Cannot find name 'savingDate'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(59,32): error TS2304: Cannot find name 'savingDate'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(61,30): error TS2304: Cannot find name 'dateSaved'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(63,34): error TS2304: Cannot find name 'CheckCircle2'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(94,28): error TS2304: Cannot find name 'Gauge'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(103,31): error TS2304: Cannot find name 'dashboardRealtimeStatus'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(104,31): error TS2304: Cannot find name 'dashboardRealtimeStatus'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(106,72): error TS2304: Cannot find name 'dashboardRealtimeStatus'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(106,142): error TS2304: Cannot find name 'dashboardRealtimeStatus'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(107,32): error TS2304: Cannot find name 'dashboardRealtimeStatus'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(120,95): error TS2304: Cannot find name 'agencyConfig'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(134,28): error TS2304: Cannot find name 'ShieldCheck'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(137,26): error TS2304: Cannot find name 'session'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(140,96): error TS2304: Cannot find name 'session'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(142,91): error TS2304: Cannot find name 'session'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(142,131): error TS2304: Cannot find name 'session'.
+src/components/admin/AdminDashboard/SettingsTab.tsx(146,40): error TS2304: Cannot find name 'handleLogout'.
+src/components/admin/AdvancedAnalytics.tsx(209,15): error TS2345: Argument of type '{ a: AData | null; raw: DashboardAnalyticsSnapshot | null; }' is not assignable to parameter of type 'SetStateAction<AData | null>'.
+src/components/admin/AdvancedAnalytics.tsx(272,47): error TS2322: Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/admin/AdvancedAnalytics.tsx(348,47): error TS2322: Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: number) => [string, string]' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/components/admin/AlertDashboard.tsx(60,20): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/AlertDashboard.tsx(62,20): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/AlertDashboard.tsx(144,22): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/components/admin/AlertDashboard.tsx(144,145): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/AlertDashboard.tsx(147,118): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/AlertDashboard.tsx(147,137): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AlertDashboard.tsx(149,25): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AlertDashboard.tsx(152,35): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'string | number'.
+src/components/admin/AlertDashboard.tsx(154,23): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AlertDashboard.tsx(160,93): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AlertDashboard.tsx(175,45): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/AuditLog.tsx(158,25): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/components/admin/AuditLog.tsx(160,35): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'string | number'.
+src/components/admin/AuditLog.tsx(162,106): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/AuditLog.tsx(164,128): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/AuditLog.tsx(165,27): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AuditLog.tsx(169,25): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AuditLog.tsx(170,25): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/AuditLog.tsx(170,115): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(88,38): error TS2339: Property 'full_name' does not exist on type '{}'.
+src/components/admin/BookingManager.tsx(89,28): error TS2339: Property 'toLowerCase' does not exist on type '{}'.
+src/components/admin/BookingManager.tsx(277,27): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(278,85): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(281,27): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(313,31): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(332,29): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(332,98): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(385,23): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(403,23): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(403,34): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(403,44): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/BookingManager.tsx(403,65): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/CommandCenter.tsx(49,56): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<string | null>'.
+src/components/admin/CommandCenter.tsx(50,67): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<string | null>'.
+src/components/admin/CommandCenter.tsx(51,63): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<string | null>'.
+src/components/admin/CommandCenter.tsx(124,468): error TS2339: Property 'id' does not exist on type '{ code: string; readiness_score: number; current_capacity: number; max_capacity: number; readiness_details: Record<string, unknown>; }'.
+src/components/admin/CommandCenter.tsx(132,7): error TS2322: Type '{ title: string; metric: string; rows: Record<string, unknown>[]; } | null' is not assignable to type '{ title: string; metric: string; rows: Record<string, string | number | boolean | null | undefined>[]; } | null'.
+  Type '{ title: string; metric: string; rows: Record<string, unknown>[]; }' is not assignable to type '{ title: string; metric: string; rows: Record<string, string | number | boolean | null | undefined>[]; }'.
+    Types of property 'rows' are incompatible.
+      Type 'Record<string, unknown>[]' is not assignable to type 'Record<string, string | number | boolean | null | undefined>[]'.
+        Type 'Record<string, unknown>' is not assignable to type 'Record<string, string | number | boolean | null | undefined>'.
+          'string' index signatures are incompatible.
+            Type 'unknown' is not assignable to type 'string | number | boolean | null | undefined'.
+src/components/admin/CommandPalette.tsx(124,71): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/admin/CommandPalette.tsx(133,71): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/admin/CommandPalette.tsx(142,67): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/admin/CommandPalette.tsx(151,69): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/admin/CommandPalette.tsx(160,67): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/admin/CommandPalette.tsx(169,73): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/admin/CrmManager.tsx(84,15): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/components/admin/CrmManager.tsx(90,15): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/components/admin/CrmManager.tsx(96,15): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/components/admin/CrmManager.tsx(102,15): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/components/admin/CrmManager.tsx(108,15): error TS2322: Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/components/admin/CrmManager.tsx(114,15): error TS2322: Type 'unknown' is not assignable to type 'string | number | null | undefined'.
+src/components/admin/CrmManager.tsx(185,23): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/components/admin/CrmManager.tsx(187,97): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/CrmManager.tsx(188,75): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/CrmManager.tsx(190,105): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/CrmManager.tsx(192,109): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/CrmManager.tsx(193,25): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/CrmManager.tsx(198,25): error TS2322: Type '{}' is not assignable to type 'string | number | null | undefined'.
+src/components/admin/CrmManager.tsx(199,61): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/CrmManager.tsx(200,102): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/CrmManager.tsx(208,33): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string | number'.
+src/components/admin/CrmManager.tsx(212,59): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/DataQualityDashboard.tsx(32,75): error TS2345: Argument of type 'null' is not assignable to parameter of type 'Record<string, unknown> | (() => Record<string, unknown>)'.
+src/components/admin/DataQualityDashboard.tsx(45,22): error TS2345: Argument of type '{}' is not assignable to parameter of type 'SetStateAction<Record<string, unknown>>'.
+src/components/admin/DataQualityDashboard.tsx(82,47): error TS18046: 'withPassport' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(82,62): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/admin/DataQualityDashboard.tsx(86,210): error TS18046: 'missingPhone' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(86,245): error TS18046: 'total' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(87,210): error TS18046: 'missingBirth' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(87,234): error TS18046: 'total' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(88,207): error TS18046: 'dupEmails' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(89,210): error TS18046: 'staleBookings' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(90,211): error TS18046: 'orphanBookings' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(91,211): error TS18046: 'orphanPayments' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(92,207): error TS18046: 'openAlerts' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(93,208): error TS18046: 'openIncidents' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(94,207): error TS18046: 'expiredDocs' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(94,285): error TS18046: 'soonExpiry' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(95,209): error TS18046: 'groupsNoGuide' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(96,213): error TS18046: 'groupsNoTransport' is of type 'unknown'.
+src/components/admin/DataQualityDashboard.tsx(166,51): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(o: {}): string[]', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type '{}'.
+  Overload 2 of 2, '(o: object): string[]', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'object'.
+src/components/admin/DataQualityDashboard.tsx(168,39): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(o: { [s: string]: unknown; } | ArrayLike<unknown>): [string, unknown][]', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type '{ [s: string]: unknown; } | ArrayLike<unknown>'.
+  Overload 2 of 2, '(o: {}): [string, any][]', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type '{}'.
+src/components/admin/DataQualityDashboard.tsx(169,155): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(143,141): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(146,108): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(154,19): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(154,135): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(159,29): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(163,41): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | null | undefined'.
+src/components/admin/EmergencySosManager.tsx(165,21): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(168,83): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(297,130): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(300,35): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | null | undefined'.
+src/components/admin/EmergencySosManager.tsx(303,94): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(304,19): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(307,29): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/EmergencySosManager.tsx(312,19): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/ExportCenter.tsx(128,67): error TS18046: 'e' is of type 'unknown'.
+src/components/admin/ExportCenter.tsx(160,61): error TS2304: Cannot find name 'escapeHtml'.
+src/components/admin/FinanceManager.tsx(307,25): error TS2322: Type 'unknown' is not assignable to type 'Key | null | undefined'.
+src/components/admin/FinanceManager.tsx(309,109): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/FinanceManager.tsx(310,89): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | undefined'.
+src/components/admin/FinanceManager.tsx(314,26): error TS18046: 'inv.total_sar' is of type 'unknown'.
+src/components/admin/FinanceManager.tsx(317,106): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | undefined'.
+src/components/admin/FinanceManager.tsx(317,121): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/FinanceModule.tsx(67,17): error TS1196: Catch clause variable type annotation must be 'any' or 'unknown' if specified.
+src/components/admin/FinanceModule.tsx(214,54): error TS2322: Type '(v: Record<string, unknown>) => string' is not assignable to type 'Formatter<ValueType, NameType> & ((value: ValueType, name: NameType, item: TooltipPayloadEntry, index: number, payload: TooltipPayload) => ReactNode | [...])'.
+  Type '(v: Record<string, unknown>) => string' is not assignable to type 'Formatter<ValueType, NameType>'.
+    Types of parameters 'v' and 'value' are incompatible.
+      Type 'ValueType | undefined' is not assignable to type 'Record<string, unknown>'.
+        Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+src/components/admin/FinanceModule.tsx(214,101): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(25,12): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(32,28): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(39,43): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(49,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(50,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(51,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(52,55): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(53,56): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(60,22): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ChartOfAccounts.tsx(66,22): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/CloseCenter.tsx(23,12): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/CloseCenter.tsx(26,12): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(36,28): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(37,30): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(38,36): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(39,27): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(40,28): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(41,29): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/index.tsx(93,28): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(25,12): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(32,28): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(39,43): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(49,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(50,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(51,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(52,44): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(59,22): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/JournalWorkspace.tsx(65,22): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ModelingWorkspace.tsx(11,12): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ModelingWorkspace.tsx(15,49): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ModelingWorkspace.tsx(18,43): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ReconciliationWorkspace.tsx(11,12): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ReconciliationWorkspace.tsx(15,48): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ReconciliationWorkspace.tsx(18,14): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinanceOS/ReportsWorkspace.tsx(17,10): error TS2349: This expression is not callable.
+  Type 'Translation' has no call signatures.
+src/components/admin/FinancialLedgerManager.tsx(61,75): error TS2365: Operator '+' cannot be applied to types 'number' and '{}'.
+src/components/admin/FinancialLedgerManager.tsx(62,75): error TS2365: Operator '+' cannot be applied to types 'number' and '{}'.
+src/components/admin/FinancialLedgerManager.tsx(65,45): error TS2365: Operator '+' cannot be applied to types 'number' and '{}'.
+src/components/admin/FinancialLedgerManager.tsx(68,45): error TS2365: Operator '+' cannot be applied to types 'number' and '{}'.
+src/components/admin/FinancialLedgerManager.tsx(167,19): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/FinancialLedgerManager.tsx(168,19): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/FinancialLedgerManager.tsx(175,49): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/FinancialLedgerManager.tsx(252,33): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type '{}' is not assignable to parameter of type 'string | number'.
+src/components/admin/FinancialLedgerManager.tsx(255,107): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/FinancialLedgerManager.tsx(255,119): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/FinancialLedgerManager.tsx(256,23): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/FinancialLedgerManager.tsx(256,92): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/FinancialLedgerManager.tsx(258,105): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/FinancialLedgerManager.tsx(263,25): error TS2322: Type '{}' is not assignable to type 'string | number | null | undefined'.
+src/components/admin/FinancialLedgerManager.tsx(265,100): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/FinancialLedgerManager.tsx(272,136): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/FlightManager.tsx(25,56): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(30,52): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(38,36): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(52,32): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(53,31): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(54,30): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(56,19): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(86,59): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/FlightManager.tsx(198,30): error TS2304: Cannot find name 'FlightRow'.
+src/components/admin/GroupManager.tsx(25,68): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(31,53): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(36,44): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(37,40): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(56,47): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(57,43): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(79,31): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(124,33): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/GroupManager.tsx(157,31): error TS2304: Cannot find name 'GroupRow'.
+src/components/admin/HolySitesManager.tsx(26,70): error TS2304: Cannot find name 'HolySiteCampRow'.
+src/components/admin/HolySitesManager.tsx(32,52): error TS2304: Cannot find name 'HolySiteCampRow'.
+src/components/admin/HolySitesManager.tsx(67,19): error TS2304: Cannot find name 'HolySiteCampRow'.
+src/components/admin/HolySitesManager.tsx(73,48): error TS2304: Cannot find name 'HolySiteCampRow'.
+src/components/admin/HolySitesManager.tsx(74,48): error TS2304: Cannot find name 'HolySiteCampRow'.
+src/components/admin/HolySitesManager.tsx(163,35): error TS2304: Cannot find name 'HolySiteCampRow'.
+src/components/admin/HotelHousingManager.tsx(153,25): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/HotelHousingManager.tsx(201,80): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/HotelHousingManager.tsx(283,45): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/HotelHousingManager.tsx(284,45): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/HotelHousingManager.tsx(285,49): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/HotelHousingManager.tsx(288,110): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/HotelHousingManager.tsx(291,106): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/HotelHousingManager.tsx(292,114): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/HotelHousingManager.tsx(293,119): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | number | Date | null | undefined'.
+src/components/admin/HotelHousingManager.tsx(294,119): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | number | Date | null | undefined'.
+src/components/admin/HotelHousingManager.tsx(297,110): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
+src/components/admin/HotelHousingManager.tsx(297,129): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/HotelHousingManager.tsx(300,31): error TS2322: Type '{}' is not assignable to type 'string | number | null | undefined'.
+src/components/admin/HotelManager.tsx(61,5): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/admin/HotelManager.tsx(62,5): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/admin/HotelManager.tsx(76,23): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Partial<HotelRow>'.
+  No index signature with a parameter of type 'string' was found on type 'Partial<HotelRow>'.
+src/components/admin/HotelManager.tsx(81,18): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Partial<HotelRow>'.
+  No index signature with a parameter of type 'string' was found on type 'Partial<HotelRow>'.
+src/components/admin/HotelManager.tsx(82,73): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'HotelRow'.
+  No index signature with a parameter of type 'string' was found on type 'HotelRow'.
+src/components/admin/HotelManager.tsx(85,18): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Partial<HotelRow>'.
+  No index signature with a parameter of type 'string' was found on type 'Partial<HotelRow>'.
+src/components/admin/HotelManager.tsx(93,14): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ id?: string | undefined; name?: string | undefined; name_ar?: string | undefined; city?: string | undefined; star_rating?: number | undefined; distance_to_haram_m?: number | undefined; ... 5 more ...; created_at?: string | undefined; }'.
+  No index signature with a parameter of type 'string' was found on type '{ id?: string | undefined; name?: string | undefined; name_ar?: string | undefined; city?: string | undefined; star_rating?: number | undefined; distance_to_haram_m?: number | undefined; ... 5 more ...; created_at?: string | undefined; }'.
+src/components/admin/HotelManager.tsx(99,10): error TS18048: 'form.name' is possibly 'undefined'.
+src/components/admin/HotelManager.tsx(102,13): error TS18048: 'form.name' is possibly 'undefined'.
+src/components/admin/HotelManager.tsx(103,16): error TS18048: 'form.name_ar' is possibly 'undefined'.
+src/components/admin/HotelManager.tsx(105,20): error TS2367: This comparison appears to be unintentional because the types 'number | undefined' and 'string' have no overlap.
+src/components/admin/HotelManager.tsx(106,28): error TS2367: This comparison appears to be unintentional because the types 'number | undefined' and 'string' have no overlap.
+src/components/admin/HotelManager.tsx(107,24): error TS18048: 'form.manager_contact' is possibly 'undefined'.
+src/components/admin/HotelManager.tsx(115,54): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/admin/HotelManager.tsx(115,71): error TS2322: Type 'string' is not assignable to type 'number'.
+src/components/admin/HotelManager.tsx(211,59): error TS18048: 'form.name' is possibly 'undefined'.
+src/components/admin/MutawwifManager.tsx(130,18): error TS2322: Type 'string | number | string[] | null | undefined' is not assignable to type 'Key | null | undefined'.
+  Type 'string[]' is not assignable to type 'Key | null | undefined'.
+src/components/admin/MutawwifManager.tsx(134,22): error TS2533: Object is possibly 'null' or 'undefined'.
+src/components/admin/MutawwifManager.tsx(134,67): error TS2339: Property 'charAt' does not exist on type 'string | number | string[]'.
+  Property 'charAt' does not exist on type 'number'.
+src/components/admin/MutawwifManager.tsx(163,21): error TS2322: Type 'string | number | string[]' is not assignable to type 'string | number | null | undefined'.
+  Type 'string[]' is not assignable to type 'string | number | null | undefined'.
+src/components/admin/MutawwifManager.tsx(164,45): error TS2345: Argument of type 'string | number | string[] | null | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/admin/MutawwifManager.tsx(165,132): error TS2345: Argument of type 'string | number | string[]' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+src/components/admin/MutawwifManager.tsx(184,218): error TS2345: Argument of type 'string | number | string[] | null | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(50,67): error TS2345: Argument of type 'BaseRow' is not assignable to parameter of type 'UseSupabaseDataOptions<BaseRow>'.
+  Property 'table' is missing in type 'BaseRow' but required in type 'UseSupabaseDataOptions<BaseRow>'.
+src/components/admin/PackageManager.tsx(50,67): error TS2352: Conversion of type '{ table: string; orderBy: { column: string; ascending: boolean; }; fallbackData: BaseRow[]; }' to type 'BaseRow' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'id' is missing in type '{ table: string; orderBy: { column: string; ascending: boolean; }; fallbackData: BaseRow[]; }' but required in type 'BaseRow'.
+src/components/admin/PackageManager.tsx(68,22): error TS2339: Property 'toLowerCase' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(69,25): error TS2339: Property 'includes' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(70,25): error TS2339: Property 'toLowerCase' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(71,22): error TS2339: Property 'toLowerCase' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(80,7): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(80,27): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(80,47): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(80,73): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(81,7): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(82,86): error TS2339: Property 'slice' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(82,129): error TS2339: Property 'slice' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(83,56): error TS2322: Type '{}' is not assignable to type 'string'.
+src/components/admin/PackageManager.tsx(243,23): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/PackageManager.tsx(244,101): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/components/admin/PackageManager.tsx(244,116): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/PackageManager.tsx(247,127): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/PackageManager.tsx(275,67): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/PackageManager.tsx(276,97): error TS2339: Property 'slice' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(276,142): error TS2339: Property 'slice' does not exist on type '{}'.
+src/components/admin/PackageManager.tsx(277,91): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/components/admin/PackageManager.tsx(282,77): error TS2322: Type '{}' is not assignable to type 'ReactNode'.
+src/components/admin/ReportBuilder/ReportTable.tsx(63,111): error TS2349: This expression is not callable.
+  Type 'Boolean' has no call signatures.
+src/components/admin/workspaces/BookingWorkspaceSheet.tsx(6,23): error TS2307: Cannot find module 'react-hot-toast' or its corresponding type declarations.
+src/components/admin/workspaces/BookingWorkspaceSheet.tsx(48,103): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.

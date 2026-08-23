@@ -1,0 +1,6 @@
+/supabase/ @agency-owner
+/supabase/migrations/ @agency-owner
+/supabase/tests/ @agency-owner
+/src/services/ @agency-owner
+/src/lib/ @agency-owner
+/src/components/admin/FinanceManager.tsx @agency-owner

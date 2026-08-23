@@ -1,0 +1,15 @@
+{
+  "gate": "storage_sec",
+  "status": "FAILED",
+  "commit_sha": "5680941",
+  "environment": "LOCAL_TEST",
+  "started_at": "2026-08-22T07:29:28.680Z",
+  "finished_at": "2026-08-22T07:29:29.954Z",
+  "command": "npm run verify:storage",
+  "exit_code": 2,
+  "tests_passed": 0,
+  "tests_failed": 0,
+  "stdout_sha256": "1c9fd0ef48796cc2dfef189b4f29bab6f210fcde2134e84aac4b0a35fa1a46be",
+  "stderr_sha256": "e16e319c609a817e8c8de2327a8a5c077fb840211ddab5517d6f20fe86a3770d",
+  "raw_log_artifact": "raw_log_storage_sec.txt"
+}

@@ -1,0 +1,19 @@
+project_id = "agency-erp"
+
+[api]
+port = 54321
+schemas = ["public", "private"]
+extra_search_path = ["public", "private", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://127.0.0.1:5173"
+
+[storage]
+file_size_limit = "10MiB"

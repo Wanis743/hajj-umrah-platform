@@ -1,0 +1,12 @@
+COMMAND: npm run verify:integrations
+EXIT_CODE: 0
+
+STDOUT:
+
+> agency-erp@1.1.0 verify:integrations
+> node scripts/verify-integrations.mjs
+
+Integration/fresh-db verification passed (7 artifacts checked).
+
+
+STDERR:

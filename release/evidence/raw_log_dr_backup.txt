@@ -1,0 +1,13 @@
+COMMAND: npm run verify:backup-restore
+EXIT_CODE: 1
+
+STDOUT:
+
+> agency-erp@1.1.0 verify:backup-restore
+> bash scripts/backup-restore-drill.sh
+
+
+
+STDERR:
+'bash' is not recognized as an internal or external command,
+operable program or batch file.

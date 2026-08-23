@@ -1,0 +1,13 @@
+COMMAND: npm run verify:fresh-db
+EXIT_CODE: 1
+
+STDOUT:
+
+> agency-erp@1.1.0 verify:fresh-db
+> bash ./scripts/fresh-db-replay.sh
+
+
+
+STDERR:
+'bash' is not recognized as an internal or external command,
+operable program or batch file.

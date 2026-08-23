@@ -1,0 +1,140 @@
+name: Agency Release Certification
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  toolchain:
+    name: Typecheck / Lint / Audit / Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:source
+      - run: npm run verify:migrations
+      - run: npm run verify:integrations
+      - run: npm run test:readiness
+      - run: node scripts/verify-architecture.mjs
+      - run: node scripts/verify-toolchain-config.mjs
+      - run: node scripts/verify-canonical-docs.mjs
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm audit --audit-level=high
+      - run: npm run build
+
+  fresh-db:
+    name: Fresh Supabase DB + Security + Accounting Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@46f7f98 # v3.0.0
+        with:
+          version: 2.99.0
+      - name: Reset and verify local Supabase
+        run: npm run verify:fresh-db
+
+  browser-e2e:
+    name: Browser E2E (safe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      E2E_RUN_MUTATIONS: '0'
+      E2E_ALLOW_MUTATIONS: '0'
+    steps:
+      - uses: actions/checkout@11d5960 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:e2e
+
+  browser-e2e-mutation:
+    name: Browser E2E (mutation / staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_STAGING_BASE_URL }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_STAGING_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_STAGING_TEST_PASSWORD }}
+      E2E_RUN_MUTATIONS: '1'
+      E2E_ALLOW_MUTATIONS: '1'
+    steps:
+      - uses: actions/checkout@11d5960 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:e2e
+
+  storage:
+    name: Storage Runtime Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      STORAGE_BASE_URL: ${{ secrets.E2E_STAGING_BASE_URL }}
+      STORAGE_TEST_EMAIL: ${{ secrets.E2E_STAGING_TEST_EMAIL }}
+      STORAGE_TEST_PASSWORD: ${{ secrets.E2E_STAGING_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@11d5960 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:storage
+
+  concurrency:
+    name: Reservation Concurrency (staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URL: ${{ secrets.E2E_STAGING_BASE_URL }}
+      LOAD_TEST_ENABLE: '1'
+      LOAD_TEST_ENV: 'staging'
+      TEST_PACKAGE_CODE: ${{ secrets.TEST_PACKAGE_CODE }}
+      TEST_PACKAGE_CAPACITY: '10'
+      TEST_REQUESTS: '100'
+    steps:
+      - uses: actions/checkout@11d5960 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:reservation-concurrency
+
+  status:
+    name: Certification gate
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      needs.toolchain.result == 'success' &&
+      needs.fresh-db.result == 'success' &&
+      needs.browser-e2e.result == 'success' &&
+      needs.browser-e2e-mutation.result == 'success' &&
+      needs.storage.result == 'success' &&
+      needs.concurrency.result == 'success'
+    needs: [toolchain, fresh-db, browser-e2e, browser-e2e-mutation, storage, concurrency]
+    steps:
+      - run: echo 'Agency release certification completed with all required gates.'

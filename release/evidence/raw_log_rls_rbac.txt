@@ -1,0 +1,22 @@
+COMMAND: npm run verify:behavioral-rbac
+EXIT_CODE: 1
+
+STDOUT:
+
+> agency-erp@1.1.0 verify:behavioral-rbac
+> node scripts/behavioral-rbac.mjs
+
+
+
+STDERR:
+file:///C:/Users/sam/Downloads/000000000001/hajj-umrah-assest/scripts/behavioral-rbac.mjs:7
+if (!url || !anonKey || !serviceKey) throw new Error('SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required');
+                                           ^
+
+Error: SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required
+    at file:///C:/Users/sam/Downloads/000000000001/hajj-umrah-assest/scripts/behavioral-rbac.mjs:7:44
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.5.1

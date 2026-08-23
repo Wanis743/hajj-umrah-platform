@@ -1,0 +1,7 @@
+# Architecture and security ownership
+src/services/ @engineering
+src/engine/ @engineering
+src/intelligence/ @engineering
+src/lib/ @engineering
+supabase/migrations/ @engineering
+supabase/tests/ @engineering
