@@ -90,7 +90,7 @@ export function HotelManager({ hotels }: { hotels?: HotelRow[] }) {
     });
     setOccupancyEdits((prev) => {
       const next = { ...prev };
-      delete (next as any)[id];
+      delete next[id];
       return next;
     });
   };

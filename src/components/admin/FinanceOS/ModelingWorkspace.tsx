@@ -5,6 +5,31 @@ import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth';
 import { money } from '@/lib/currency';
+import type {
+  FinancialModelRow,
+  ModelScenarioRow,
+  ModelAssumptionRow,
+  ModelProjectionRow,
+} from '@/types/database';
+
+/** JSONB contract of `simulate_scenario` (modeling_engine.sql). */
+interface ScenarioSimulationResult {
+  projected_revenue: number;
+  projected_cost: number;
+  projected_margin: number;
+  projected_margin_percent: number;
+}
+
+function isScenarioSimulationResult(value: unknown): value is ScenarioSimulationResult {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v['projected_revenue'] === 'number' &&
+    typeof v['projected_cost'] === 'number' &&
+    typeof v['projected_margin'] === 'number' &&
+    typeof v['projected_margin_percent'] === 'number'
+  );
+}
 
 export function ModelingWorkspace() {
   const { lang } = useI18n();
@@ -12,12 +37,12 @@ export function ModelingWorkspace() {
   const [agencyId, setAgencyId] = useState<string | null>(null);
   const t = (ar: string, fr: string, en: string) => lang === 'ar' ? ar : lang === 'fr' ? fr : en;
 
-  const [models, setModels] = useState<any[]>([]);
-  const [activeModel, setActiveModel] = useState<any>(null);
-  const [scenarios, setScenarios] = useState<any[]>([]);
-  const [activeScenario, setActiveScenario] = useState<any>(null);
+  const [models, setModels] = useState<FinancialModelRow[]>([]);
+  const [activeModel, setActiveModel] = useState<FinancialModelRow | null>(null);
+  const [scenarios, setScenarios] = useState<ModelScenarioRow[]>([]);
+  const [activeScenario, setActiveScenario] = useState<ModelScenarioRow | null>(null);
   const [assumptions, setAssumptions] = useState<Record<string, number>>({});
-  const [projection, setProjection] = useState<any>(null);
+  const [projection, setProjection] = useState<ScenarioSimulationResult | ModelProjectionRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [newModelName, setNewModelName] = useState('');
 
@@ -56,7 +81,7 @@ export function ModelingWorkspace() {
     }
   };
 
-  const loadModel = async (model: any) => {
+  const loadModel = async (model: FinancialModelRow) => {
     setActiveModel(model);
     const { data } = await supabase.from('model_scenarios').select('*').eq('model_id', model.id);
     setScenarios(data || []);
@@ -64,12 +89,12 @@ export function ModelingWorkspace() {
     else { setActiveScenario(null); setAssumptions({}); setProjection(null); }
   };
 
-  const loadScenario = async (scenario: any) => {
+  const loadScenario = async (scenario: ModelScenarioRow) => {
     setActiveScenario(scenario);
     const { data: asm } = await supabase.from('model_assumptions').select('*').eq('scenario_id', scenario.id);
     const mapped: Record<string, number> = {};
     keys.forEach(k => mapped[k] = 0);
-    if (asm) asm.forEach((a: any) => mapped[a.variable_key] = Number(a.variable_value));
+    if (asm) asm.forEach((a: ModelAssumptionRow) => { mapped[a.variable_key] = Number(a.variable_value); });
     setAssumptions(mapped);
 
     const { data: proj } = await supabase.from('model_projections').select('*').eq('scenario_id', scenario.id).maybeSingle();
@@ -93,11 +118,12 @@ export function ModelingWorkspace() {
     try {
       const { data, error } = await supabase.rpc('simulate_scenario', { p_scenario_id: activeScenario.id });
       if (error) throw error;
-      setProjection(data);
+      // Runtime guard narrows the JSONB payload to its declared contract.
+      setProjection(isScenarioSimulationResult(data) ? data : null);
       toast.success(t('نجحت المحاكاة', 'Simulation réussie', 'Simulation successful'));
       fetchModels();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

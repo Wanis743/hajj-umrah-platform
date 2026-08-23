@@ -5,6 +5,36 @@ import { useAuth } from '@/lib/auth';
 import { money } from '@/lib/currency';
 import { BarChart2, Plus, Target, CheckCircle2, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type {
+  FiscalPeriodRow,
+  FiscalBudgetRow,
+  BudgetLineRow,
+  ChartOfAccountRow,
+} from '@/types/database';
+
+/** Row contract of the `get_budget_variance` RPC (RETURNS JSONB array; planning_engine.sql). */
+interface BudgetVarianceRow {
+  account_id: string;
+  code: string;
+  name: string;
+  type: string;
+  budgeted_dzd: number;
+  actual_dzd: number;
+  variance_dzd: number;
+  variance_pct: number;
+}
+
+function isBudgetVarianceRow(value: unknown): value is BudgetVarianceRow {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v['account_id'] === 'string' &&
+    typeof v['code'] === 'string' &&
+    typeof v['actual_dzd'] === 'number' &&
+    typeof v['budgeted_dzd'] === 'number' &&
+    typeof v['variance_dzd'] === 'number'
+  );
+}
 
 export function PlanningWorkspace() {
   const { lang } = useI18n();
@@ -12,16 +42,16 @@ export function PlanningWorkspace() {
   const t = (ar: string, fr: string, en: string) => lang === 'ar' ? ar : lang === 'fr' ? fr : en;
 
   const [agencyId, setAgencyId] = useState<string | null>(null);
-  const [periods, setPeriods] = useState<any[]>([]);
-  const [activePeriod, setActivePeriod] = useState<any>(null);
-  
-  const [budgets, setBudgets] = useState<any[]>([]);
-  const [activeBudget, setActiveBudget] = useState<any>(null);
-  
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [periods, setPeriods] = useState<FiscalPeriodRow[]>([]);
+  const [activePeriod, setActivePeriod] = useState<FiscalPeriodRow | null>(null);
+
+  const [budgets, setBudgets] = useState<FiscalBudgetRow[]>([]);
+  const [activeBudget, setActiveBudget] = useState<FiscalBudgetRow | null>(null);
+
+  const [accounts, setAccounts] = useState<ChartOfAccountRow[]>([]);
   const [budgetLines, setBudgetLines] = useState<Record<string, number>>({});
-  const [variance, setVariance] = useState<any[]>([]);
-  
+  const [variance, setVariance] = useState<BudgetVarianceRow[]>([]);
+
   const [newBudgetName, setNewBudgetName] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +81,7 @@ export function PlanningWorkspace() {
     setAccounts(data || []);
   };
 
-  const loadPeriod = async (period: any) => {
+  const loadPeriod = async (period: FiscalPeriodRow) => {
     setActivePeriod(period);
     const { data } = await supabase.from('fiscal_budgets').select('*').eq('period_id', period.id);
     setBudgets(data || []);
@@ -77,12 +107,12 @@ export function PlanningWorkspace() {
     }
   };
 
-  const loadBudget = async (budget: any) => {
+  const loadBudget = async (budget: FiscalBudgetRow) => {
     setActiveBudget(budget);
     const { data: lines } = await supabase.from('budget_lines').select('*').eq('budget_id', budget.id);
     const mapped: Record<string, number> = {};
     if (lines) {
-      lines.forEach((l: any) => { mapped[l.account_id] = Number(l.amount_dzd); });
+      lines.forEach((l: BudgetLineRow) => { mapped[l.account_id] = Number(l.amount_dzd); });
     }
     setBudgetLines(mapped);
     fetchVariance(budget.id);
@@ -103,7 +133,14 @@ export function PlanningWorkspace() {
   const fetchVariance = async (budgetId: string) => {
     setLoading(true);
     const { data, error } = await supabase.rpc('get_budget_variance', { p_budget_id: budgetId });
-    if (data) setVariance(data as any[]);
+    if (error !== null) {
+      setVariance([]);
+    } else if (Array.isArray(data)) {
+      // Runtime guard narrows the JSONB payload to its declared contract.
+      setVariance(data.filter(isBudgetVarianceRow));
+    } else {
+      setVariance([]);
+    }
     setLoading(false);
   };
 
@@ -111,7 +148,7 @@ export function PlanningWorkspace() {
     if (!activeBudget) return;
     await supabase.from('fiscal_budgets').update({ status }).eq('id', activeBudget.id);
     setActiveBudget({ ...activeBudget, status });
-    toast.success(t('تم التحديث', 'Statut mis A  jour', 'Status updated'));
+    toast.success(t('تم التحديث', 'Statut mis à jour', 'Status updated'));
   };
 
   return (
@@ -145,7 +182,7 @@ export function PlanningWorkspace() {
         {/* Sidebar: Periods & Budgets */}
         <div className="w-64 flex flex-col gap-4">
           <div className="bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4 flex-1 overflow-y-auto">
-            <h4 className="font-semibold mb-3">{t('الفترات والميزانيات', 'PAcriodes', 'Periods & Budgets')}</h4>
+            <h4 className="font-semibold mb-3">{t('الفترات والميزانيات', 'Périodes', 'Periods & Budgets')}</h4>
             <div className="space-y-2">
               {periods.map(p => (
                 <div key={p.id} className="space-y-1">
@@ -184,7 +221,7 @@ export function PlanningWorkspace() {
           {!activeBudget ? (
             <div className="h-full flex flex-col items-center justify-center text-[var(--text-muted)]">
               <Target className="h-12 w-12 mb-4 opacity-20" />
-              <p>{t('اختر ميزانية', 'SAclectionnez un budget', 'Select a budget')}</p>
+              <p>{t('اختر ميزانية', 'Sélectionnez un budget', 'Select a budget')}</p>
             </div>
           ) : (
             <div className="space-y-6">

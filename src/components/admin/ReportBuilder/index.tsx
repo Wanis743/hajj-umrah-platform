@@ -5,6 +5,7 @@ import { FileBarChart, Download, Printer, FileJson, Filter } from 'lucide-react'
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { ReportFilters } from './ReportFilters';
 import { ReportTable } from './ReportTable';
+import type { ReportColumn } from './ReportTable';
 import type { Database } from '@/types/database';
 
 type ReportType = 'FINANCIAL' | 'PILGRIMS' | 'BOOKINGS' | 'RESERVATIONS' | 'GROUPS' | 'VISA';
@@ -225,7 +226,7 @@ export default function ReportBuilder() {
       </div>
 
       <ReportTable 
-        t={t} colLabel={(c) => colLabel(c as unknown as ColumnDef)} loading={loading} rows={rawSource} cols={cols as unknown as { id: string; label: string; numeric?: boolean; badge?: unknown }[]} 
+        t={t} colLabel={(c) => c.label} loading={loading} rows={rawSource} cols={cols.map<ReportColumn>((c) => ({ id: c.key, label: colLabel(c), numeric: c.numeric, badge: c.badge }))} 
         pageRows={rawSource as Record<string, unknown>[]} handleSort={handleSort} sortKey={sortKey} 
         sortDir={sortDir} measures={measures as unknown as { id: string; label: string }[]} page={page} setPage={setPage} 
         totalPages={totalPages} 

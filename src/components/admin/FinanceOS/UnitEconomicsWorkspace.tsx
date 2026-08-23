@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { animate } from 'animejs';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 
-import { Loader2, Users, FileText, ArrowRight, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Loader2, TrendingUp, Users, FileText, ArrowRight } from 'lucide-react';
 
 interface GroupEconomics {
   total_revenue_dzd: number;
@@ -23,11 +22,32 @@ interface OperationalGroup {
   readiness_score: number;
 }
 
+/** Shape of rows returned by the `groups` list query (subset of DB columns actually used). */
+interface GroupListRow extends Record<string, unknown> {
+  id?: unknown;
+  name?: unknown;
+  status?: unknown;
+  max_capacity?: unknown;
+  readiness_score?: unknown;
+}
+
+/** Row contract of the `get_group_profitability` RPC (RETURNS TABLE, unit_economics_engine.sql). */
+interface GroupProfitabilityRow {
+  total_revenue_dzd: number;
+  total_revenue_sar: number;
+  total_cost_dzd: number;
+  total_cost_sar: number;
+  margin_dzd: number;
+  margin_sar: number;
+  margin_percentage: number;
+}
+
 export function UnitEconomicsWorkspace() {
   
   const [groups, setGroups] = useState<OperationalGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<OperationalGroup | null>(null);
   const [economics, setEconomics] = useState<GroupEconomics | null>(null);
+  const [econError, setEconError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
   const numRef = useRef<HTMLDivElement>(null);
@@ -41,12 +61,12 @@ export function UnitEconomicsWorkspace() {
         .limit(20);
       
       if (data && Array.isArray(data) && data.length > 0) {
-        const mapped = data.map((d: any) => ({
-          id: d.id || '',
-          name: d.name || '',
-          status: d.status || '',
-          capacity: d.max_capacity || 0,
-          readiness_score: d.readiness_score || 0
+        const mapped = data.map((d: GroupListRow) => ({
+          id: String(d['id'] ?? ''),
+          name: String(d['name'] ?? ''),
+          status: String(d['status'] ?? ''),
+          capacity: Number(d['max_capacity'] ?? 0),
+          readiness_score: Number(d['readiness_score'] ?? 0),
         }));
         setGroups(mapped);
         setSelectedGroup(mapped[0]);
@@ -61,19 +81,27 @@ export function UnitEconomicsWorkspace() {
     async function fetchEcon() {
       setLoading(true);
       const { data, error } = await supabase.rpc('get_group_profitability', { p_group_id: selectedGroup?.id || '' });
-      
-      if (data && Array.isArray(data) && data.length > 0) {
-        setEconomics((data as any)[0]);
-      } else {
+
+      if (error) {
+        // §4 ZERO FAKE BUSINESS DATA: never substitute invented financials.
+        setEconomics(null);
+        setEconError(error.message);
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        const row = data[0] as GroupProfitabilityRow;
         setEconomics({
-          total_revenue_dzd: 12500000,
-          total_revenue_sar: 0,
-          total_cost_dzd: 8200000,
-          total_cost_sar: 0,
-          margin_dzd: 4300000,
-          margin_sar: 0,
-          margin_percentage: 34.4
+          total_revenue_dzd: Number(row.total_revenue_dzd ?? 0),
+          total_revenue_sar: Number(row.total_revenue_sar ?? 0),
+          total_cost_dzd: Number(row.total_cost_dzd ?? 0),
+          total_cost_sar: Number(row.total_cost_sar ?? 0),
+          margin_dzd: Number(row.margin_dzd ?? 0),
+          margin_sar: Number(row.margin_sar ?? 0),
+          margin_percentage: Number(row.margin_percentage ?? 0),
         });
+        setEconError(null);
+      } else {
+        // RPC returned no rows: show an explicit no-data state, not a fabricated P&L.
+        setEconomics(null);
+        setEconError(null);
       }
       setLoading(false);
     }
@@ -104,13 +132,12 @@ export function UnitEconomicsWorkspace() {
     }
   }, [economics]);
 
-  const mockTimelineData = [
-    { phase: 'Planning', revenue: 0, cost: 500000 },
-    { phase: 'Booking', revenue: 4000000, cost: 1500000 },
-    { phase: 'Visas', revenue: 8000000, cost: 3000000 },
-    { phase: 'Flights', revenue: 10000000, cost: 6000000 },
-    { phase: 'Departure', revenue: (economics?.total_revenue_dzd || 12500000), cost: (economics?.total_cost_dzd || 8200000) },
-  ];
+  /**
+   * §4 ZERO FAKE BUSINESS DATA: the former hard-coded phase timeline
+   * (invented revenue/cost per phase) has been removed. A real lifecycle
+   * trajectory requires a period-bucketed ledger source; rendering invented
+   * points is forbidden. The chart section is hidden until that dataset exists.
+   */
 
   return (
     <div className="h-full flex text-slate-200">
@@ -195,33 +222,13 @@ export function UnitEconomicsWorkspace() {
                 </div>
               </div>
 
-              {/* Area Chart using Bklit-UI pattern / Recharts */}
-              <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 h-[400px]">
-                <h3 className="text-sm font-medium text-slate-300 mb-6">Financial Trajectory (Revenue vs Cost)</h3>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mockTimelineData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                    <XAxis dataKey="phase" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000000}M`} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px' }}
-                      itemStyle={{ color: '#e2e8f0' }}
-                    />
-                    <Legend />
-                    <Area type="monotone" dataKey="revenue" name="Revenue (DZD)" stroke="#10b981" fillOpacity={1} fill="url(#colorRev)" />
-                    <Area type="monotone" dataKey="cost" name="Cost (DZD)" stroke="#f43f5e" fillOpacity={1} fill="url(#colorCost)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              {/* Lifecycle trajectory chart: intentionally not rendered until a real
+                  period-bucketed ledger dataset exists (see §4 note above). */}
+              <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6">
+                <h3 className="text-sm font-medium text-slate-300 mb-2">Financial Trajectory (Revenue vs Cost)</h3>
+                <p className="text-xs text-slate-500">
+                  Requires a period-bucketed ledger dataset. Hidden rather than rendering invented phase values.
+                </p>
               </div>
             </div>
           )}
@@ -234,19 +241,17 @@ export function UnitEconomicsWorkspace() {
           RISK INSPECTOR
         </div>
         <div className="p-4 space-y-4">
-          <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-rose-400 font-medium mb-2">
-              <AlertTriangle className="w-4 h-4" />
-              Outstanding Receivables
-            </div>
-            <div className="text-2xl font-semibold text-rose-300">1,200,000 DZD</div>
-            <p className="text-xs text-rose-400/70 mt-1">4 pilgrims have not completed final payments.</p>
+          {/* §4 ZERO FAKE BUSINESS DATA: the previous hard-coded receivables/liabilities
+              figures were removed. These panels render only values sourced from the
+              profitability RPC once an AR/AP feed is wired to this workspace. */}
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4">
+            <div className="text-slate-400 font-medium mb-1">Receivables</div>
+            <p className="text-xs text-slate-500">Awaiting AR feed integration — no fabricated values are shown.</p>
           </div>
-          
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-            <div className="text-amber-400 font-medium mb-2">Supplier Liabilities</div>
-            <div className="text-2xl font-semibold text-amber-300">850,000 DZD</div>
-            <p className="text-xs text-amber-400/70 mt-1">Pending final payment to Makkah Hotel Co.</p>
+
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4">
+            <div className="text-slate-400 font-medium mb-1">Supplier Liabilities</div>
+            <p className="text-xs text-slate-500">Awaiting AP feed integration — no fabricated values are shown.</p>
           </div>
         </div>
       </div>

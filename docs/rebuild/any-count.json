@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-08-23T15:59:54.662Z",
+  "commit": null,
+  "filesScanned": 287,
+  "anyCount": 0,
+  "suppressionCount": 0,
+  "expectedAnyCount": 0,
+  "pass": true,
+  "findings": []
+}

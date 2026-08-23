@@ -2,12 +2,20 @@ import React from 'react';
 import { Spinner } from '@/components/admin/ui';
 import { FileBarChart, ChevronUp, ChevronDown, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
+/** Column contract shared with ReportBuilder/index.tsx (badge renders CSS classes for a cell value). */
+export interface ReportColumn {
+  id: string;
+  label: string;
+  numeric?: boolean;
+  badge?: (value: string) => string;
+}
+
 type ReportTableProps = {
   t: (ar: string, fr: string, en: string) => string;
   colLabel: (c: { id: string; label: string }) => string;
   loading: boolean;
   rows: Record<string, unknown>[];
-  cols: { id: string; label: string; numeric?: boolean; badge?: unknown }[];
+  cols: ReportColumn[];
   pageRows: Record<string, unknown>[];
   handleSort: (k: string) => void;
   sortKey: string | null;
@@ -40,7 +48,7 @@ export const ReportTable = React.memo(function ReportTable({
             <table className="w-full text-sm">
               <thead className="bg-[var(--bg-hover)] text-[var(--text-muted)] border-b border-[var(--border)]">
                 <tr>
-                  {cols.map((c: { id: string; label: string; numeric?: boolean; badge?: any }) => (
+                  {cols.map((c: ReportColumn) => (
                     <th
                       key={c.id}
                       className="group px-4 py-3 font-semibold text-start whitespace-nowrap cursor-pointer hover:text-[var(--text-primary)] select-none"
@@ -54,7 +62,7 @@ export const ReportTable = React.memo(function ReportTable({
               <tbody className="divide-y divide-[var(--border-subtle)]">
                 {pageRows.map((r: Record<string, unknown>, idx: number) => (
                   <tr key={String(r['id'] ?? idx)} className="hover:bg-[var(--bg-hover)]/50 transition-colors">
-                    {cols.map((c: { id: string; label: string; numeric?: boolean; badge?: any }) => {
+                    {cols.map((c: ReportColumn) => {
                       const val = (r[c.id] as string | number);
                       const display = typeof val === 'number' ? val.toLocaleString() : String(val ?? '—');
                       return (

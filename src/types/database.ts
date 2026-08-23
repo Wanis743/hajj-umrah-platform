@@ -10,7 +10,7 @@ export interface BankStatementRow extends BaseRow { statement_date: string; star
 export interface BankTransactionRow extends BaseRow { statement_id: string; transaction_date: string; amount: number; description?: string; reference?: string; status: string; matched_journal_line_id?: string; }
 export interface JournalLineRow extends BaseRow { journal_entry_id: string; account_id: string; debit: number; credit: number; }
 
-export type TableName = 'financial_models' | 'model_scenarios' | 'model_assumptions' | 'model_projections' | 'fiscal_budgets' | 'budget_lines' | 'pilgrims' | 'bookings' | 'payments' | 'reservations' | 'invoices'
+export type TableName = 'import_batch_rows' | 'financial_models' | 'model_scenarios' | 'model_assumptions' | 'model_projections' | 'fiscal_budgets' | 'budget_lines' | 'pilgrims' | 'bookings' | 'payments' | 'reservations' | 'invoices'
   | 'documents' | 'audit_logs' | 'crm_leads' | 'payment_reversals' | 'groups' | 'visas'
   | 'flights' | 'hotels' | 'room_allocations' | 'incidents' | 'sos_events'
   | 'transport_vehicles' | 'transport_assignments' | 'packages' | 'guides'
@@ -189,6 +189,28 @@ export interface ExternalOperationRow extends BaseRow {
   pilgrim?: { full_name?: string | null; full_name_ar?: string | null } | null;
 }
 
+export interface ImportBatchRowInsert {
+  batch_id: string;
+  row_index: number;
+  raw_data: JsonObject;
+  normalized_data: JsonObject;
+  validation_status: 'VALID' | 'INVALID' | 'SKIPPED';
+  validation_errors: string[];
+  data_source: string;
+  /** Matches BaseRow's index signature so Partial<Row> accepts this shape. */
+  [key: string]: unknown;
+}
+
+export interface ImportBatchRowRow extends BaseRow {
+  batch_id: string;
+  row_index: number;
+  raw_data: JsonObject;
+  normalized_data: JsonObject;
+  validation_status: 'VALID' | 'INVALID' | 'SKIPPED';
+  validation_errors: string[];
+  data_source: string;
+}
+
 export interface ExternalReferenceRow extends BaseRow {
   agency_id: string;
   pilgrim_id?: string | null;
@@ -214,7 +236,7 @@ export interface ExternalOperationEvidenceRow extends BaseRow {
   status: 'PENDING' | 'VERIFIED' | 'REJECTED';
 }
 
-type RowMap = { financial_models: FinancialModelRow; model_scenarios: ModelScenarioRow; model_assumptions: ModelAssumptionRow; model_projections: ModelProjectionRow; fiscal_budgets: FiscalBudgetRow; budget_lines: BudgetLineRow;
+type RowMap = { import_batch_rows: ImportBatchRowRow; financial_models: FinancialModelRow; model_scenarios: ModelScenarioRow; model_assumptions: ModelAssumptionRow; model_projections: ModelProjectionRow; fiscal_budgets: FiscalBudgetRow; budget_lines: BudgetLineRow;
   pilgrims: PilgrimRow; bookings: BookingRow; payments: PaymentRow; invoices: InvoiceRow;
   documents: DocumentRow; groups: GroupRow; visas: VisaRow;
   reservations: GenericRow; audit_logs: GenericRow; crm_leads: GenericRow;

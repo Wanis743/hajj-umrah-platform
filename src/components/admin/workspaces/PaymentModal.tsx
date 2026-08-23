@@ -33,8 +33,8 @@ export function PaymentModal({ invoiceId, amountDzd, bookingId, onClose, onSucce
       
       toast.success('Payment recorded and Journal Entry automatically created.');
       onSuccess();
-    } catch (e: any) {
-      toast.error('Payment failed: ' + e.message);
+    } catch (e: unknown) {
+      toast.error('Payment failed: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
     }

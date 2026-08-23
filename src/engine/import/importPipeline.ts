@@ -24,6 +24,7 @@ import { normalizePhone, normalizeDate, normalizeCurrency, normalizePassport, no
 import { detectColumnMapping } from '@/engine/import/mappingEngine';
 import { validateRow } from '@/engine/import/validator';
 import { supabase } from '@/lib/supabase';
+import type { ImportBatchRowInsert } from '@/types/database';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -310,9 +311,10 @@ export async function runImportPipeline(
   // ── Step 10: Stage rows ───────────────────────────────────────────────
   t0 = timestamp();
   setStep(9, 'running');
-  const toStage = validated
-    .filter(r => r.valid && !r.isDuplicate)
-    .map((r, idx) => ({
+  const toStage: ImportBatchRowInsert[] = [];
+  validated.forEach((r, idx) => {
+    if (!r.valid || r.isDuplicate || result.batchId === null) return;
+    toStage.push({
       batch_id: result.batchId,
       row_index: idx,
       raw_data: r.row,
@@ -320,7 +322,8 @@ export async function runImportPipeline(
       validation_status: 'VALID',
       validation_errors: r.errors.map(e => e.message),
       data_source: 'IMPORTED',
-    }));
+    });
+  });
 
   if (toStage.length > 0) {
     // Insert in chunks of 500
@@ -329,7 +332,6 @@ export async function runImportPipeline(
       const chunk = toStage.slice(i, i + CHUNK);
       const { error: stageError } = await supabase
         .from('import_batch_rows')
-        // @ts-expect-error: type mismatch with supabase generated types
         .insert(chunk);
       if (stageError) {
         setStep(9, 'error', stageError.message);
