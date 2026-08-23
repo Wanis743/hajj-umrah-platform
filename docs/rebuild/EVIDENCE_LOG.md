@@ -200,3 +200,37 @@ every create/update/delete button across those screens was a guaranteed 404
 
 DMS migration (`documents` collision with existing pilgrim-document table needs
 schema reconciliation before applying), BI/modeling/planning/simulation/controls/AI.
+
+---
+
+# Slice 5 Evidence — DMS reconciliation + document verification fix (2026-08-23)
+
+## Forensics
+
+1. `verify_document_command` set status='VERIFIED' but the live CHECK constraint only allows
+   REQUIRED/RECEIVED/VALIDATED/REJECTED/EXPIRED → **document verification was broken at runtime**
+   (42501/23514 on every verify click).
+2. The deferred DMS migration's `documents` table collided with the existing production
+   pilgrim-documents table (same name, incompatible contract: title/workspace_id/enums vs
+   pilgrim_id/checksum/storage).
+
+## Repairs applied to production
+
+1. `20260823131000_documents_status_domain.sql` — rewrote `verify_document_command` to set the
+   governed status 'VALIDATED', with scope check via row_in_staff_scope and explicit not-found vs
+   out-of-scope error codes. (Spec §54: domain action must work; UI vocabulary is authoritative.)
+2. Reconciled `20260822000013_dms_integration.sql` per §73 ("resolve the model contract"):
+   DMS document object moved to its own namespace `dms_documents` / `dms_document_versions`;
+   enum creation made idempotent; CREATE TABLEs guarded with IF NOT EXISTS; all policies/triggers/
+   FKs re-pointed. Applied and recorded.
+
+## LIVE verification
+
+Document verification lifecycle (real admin, production DB):
+create_document_command ✅ → verify_document_command → VALIDATED ✅ (persisted) → delete ✅
+
+DMS object lifecycle:
+dms_documents insert ✅ → version insert ✅ → evidence package insert ✅ →
+document linked into package ✅ → link readable back through RLS ✅
+
+**DMS LIFECYCLE PASS · DMS OBJECT LIFECYCLE PASS**
