@@ -82,7 +82,7 @@ export function validateAssumptions(
     });
   }
   // Cross-field sanity: selling below unit cost is allowed but flagged via margin math.
-  return ok(out as ScenarioAssumptions);
+  return ok(out as unknown as ScenarioAssumptions);
 }
 
 /** JSONB contract of simulate_scenario with runtime narrowing (§36). */
