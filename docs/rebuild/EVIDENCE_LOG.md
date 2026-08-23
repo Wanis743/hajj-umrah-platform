@@ -377,3 +377,31 @@ transport assignments, confirmed room allocations; score = (visas+flights+hotels
 
 **OPS READINESS PASS** — scores reflect genuine gaps (no transport/hotel assignments
 yet), not fake data.
+
+---
+
+# Slices 9–10 Evidence — Ops readiness + i18n mojibake repair (2026-08-23)
+
+## Slice 9 — Ops readiness LIVE verification
+
+`get_group_readiness` RPC against real groups:
+
+| Group | Pax | Visas | Flights | Hotels | Score |
+|---|---|---|---|---|---|
+| Gharb 01 | 3 | 2 | 0 | 0 | 22.2 |
+| Centre 02 | 2 | 0 | 0 | 0 | 0 |
+
+Scores reflect genuine operational gaps (no transport/hotel assignments yet).
+
+## Slice 10 — i18n mojibake repair
+
+GroupManager.tsx contained 8+ double-encoded Arabic literals (UTF-8 bytes
+mis-read through cp1252 during a prior tool edit, e.g. 'إدارة الأفواج' stored as
+'Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø£ÙÙˆØ§Ø¬'). Repaired via byte-level reverse mapping with the full
+cp1252 special-char table. All restored strings verified as proper Arabic;
+typecheck clean.
+
+## Session totals
+
+- Commits since freeze: 16 · Unit tests: 36 kernel + 38 accounting + 24 planning + 15 FPA = **113**
+- Live DB: 101 migrations applied, full parity, all verticals exercised through real RPCs
