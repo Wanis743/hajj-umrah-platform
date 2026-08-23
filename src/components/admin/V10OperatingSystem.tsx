@@ -4,7 +4,7 @@ import { WorkspaceState, WorkspaceId } from '@/lib/kernel/KernelTypes';
 import { ArrowLeft, LayoutDashboard, Search } from 'lucide-react';
 
 // Import all v10 components
-import { JournalWorkbench } from './accounting/v10/JournalWorkbench';
+import { JournalWorkbench as PlatformJournalWorkbench } from '../../platform/accounting/JournalWorkbench';
 import { LedgerExplorer } from './accounting/v10/LedgerExplorer';
 import { ARWorkspace } from './accounting/v10/ARWorkspace';
 
@@ -41,7 +41,7 @@ export interface WorkspaceComponentProps {
 const registry = new WorkspaceRegistry();
 
 const ComponentMapper: Record<string, React.ComponentType<WorkspaceComponentProps>> = {
-  'JournalWorkbench': JournalWorkbench,
+  'JournalWorkbench': () => <PlatformJournalWorkbench />,
   'LedgerExplorer': LedgerExplorer,
   'ARWorkspace': ARWorkspace,
   'AnalysisWorkspace': AnalysisWorkspace,
