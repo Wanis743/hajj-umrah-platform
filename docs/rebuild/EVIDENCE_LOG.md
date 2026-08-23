@@ -294,3 +294,33 @@ supersede = full parity. 0 pending.**
 
 Every table/function/policy referenced by the application now exists in the live DB.
 All future schema changes flow exclusively through new timestamped migrations.
+
+---
+
+# Slice 7 Evidence — FPA modeling vertical verified LIVE (2026-08-23)
+
+## New code
+
+| Layer | Files |
+|---|---|
+| Domain service | `src/platform/fpa/modelService.ts` — assumption validation (6 governed keys, non-negative, non-zero pilgrims), projection math mirroring simulate_scenario, JSONB result parsing |
+| Tests | `scripts/test-fpa-slice.ts` — 15 tests (validation, projection math 500×1500 vs unit-cost 900, dual parse) |
+
+## Repair applied to production
+
+`20260823131200_modeling_agency_defaults.sql` — financial_models.agency_id
+DEFAULT current_staff_agency_id() (child tables scope through the parent; they
+have no agency_id column).
+
+## LIVE verification — FPA modeling lifecycle
+
+| Step | Result |
+|---|---|
+| Model created (DRAFT) | PASS |
+| Baseline scenario created | PASS |
+| 6 assumptions persisted | PASS |
+| `simulate_scenario` RPC → revenue **750000**, cost 450000, margin 300000 | PASS |
+| Margin percent 40% matches client mirror | PASS |
+| E2E rows cleaned up (cascade) | PASS |
+
+**FPA MODELING LIFECYCLE PASS** — server arithmetic and client mirror agree exactly.
