@@ -324,3 +324,37 @@ have no agency_id column).
 | E2E rows cleaned up (cascade) | PASS |
 
 **FPA MODELING LIFECYCLE PASS** — server arithmetic and client mirror agree exactly.
+
+---
+
+# Slice 8 Evidence — Planning vertical verified LIVE (2026-08-23)
+
+## New code
+
+| Layer | Files |
+|---|---|
+| Domain service | `src/platform/planning/budgetService.ts` — explicit 5-state budget machine (DRAFT→IN_REVIEW→APPROVED→PUBLISHED→LOCKED, LOCKED terminal), line validation (non-negative, one-currency-minimum), variance JSONB parsing |
+| Tests | `scripts/test-planning-slice.ts` — 24 tests |
+
+## Repairs applied to production
+
+1. `20260823131300_planning_agency_defaults.sql` — fiscal_budgets.agency_id server-side default.
+2. `20260823131400_fix_get_budget_variance.sql` — **the live variance RPC was broken**: it
+   referenced `chart_of_accounts.type`, but the column is `account_type` → every call failed
+   42703. Rebuilt with FULL OUTER JOIN (budget lines + posted actuals in period), documented
+   JSONB shape, ORDER BY code.
+
+## LIVE verification — planning lifecycle
+
+| Step | Result |
+|---|---|
+| Budget created in DRAFT, agency stamped server-side | PASS |
+| Budget line added | PASS |
+| DRAFT → IN_REVIEW → APPROVED → PUBLISHED | PASS ×3 |
+| `get_budget_variance` against real journal data | PASS |
+| PUBLISHED → LOCKED, locked_at stamped | PASS |
+
+**PLANNING LIFECYCLE PASS · PLANNING VARIANCE PASS**
+
+Note: the E2E budget's variance shows a large negative % because the account carries real
+posted journal activity far above the test budget amount — the math is correct.
