@@ -151,3 +151,52 @@ before their slice lands.
 Admin account had no TOTP factor enrolled. For verification we enrolled one
 (`rebuild-e2e`) via the auth API, completed challenge/verify programmatically, and left it
 enrolled. The AAL2 gate now actively protects approve/close/unlock on this project.
+
+---
+
+# Slice 4 Evidence — CRM command layer repaired + verified LIVE (2026-08-23)
+
+## Forensic finding: 29 phantom commands on production
+
+The mounted UI (`CrmManager`, `PilgrimManager`, `FlightManager`, `HotelManager`,
+`PackageManager`, `IncidentManager`, `EmergencySosManager`, `TransportManager`,
+`HolySitesManager`) calls 43 named `_command` RPCs through
+`src/services/domainCommands.ts`. Live-DB scan found **29 of 43 did not exist** —
+every create/update/delete button across those screens was a guaranteed 404
+(exact §4 violation: buttons without real commands).
+
+## Repair applied to production
+
+1. Re-applied 3 recorded-but-lost migrations (verified they parse clean now):
+   - `20260626233700_business_command_authority` (11 commands)
+   - `20260630134500_business_command_adapters` (21 update/delete adapters)
+   - `20260702185000_atomic_visa_stage_command` (2 visa state commands)
+2. Authored `20260823130000_missing_create_commands.sql`: generic
+   `insert_scoped_command_row` helper in the house adapter style + 9 thin
+   create wrappers (`create_crm_lead_command`, `create_incident_command`,
+   `create_hotel_command`, `create_package_command`, `create_flight_command`,
+   `create_sos_event_command`, `create_transport_vehicle_command`,
+   `create_transport_assignment_command`, `create_camp_command`).
+   Agency/branch scope stamped server-side from staff context, never client payload.
+   Two iterations to green: INSERT target aliasing fixed (`returning to_jsonb(table.*)`).
+
+## Result
+
+- Referenced command RPCs: 43 · phantom remaining: **0**
+
+## LIVE verification — CRM lead lifecycle as real admin
+
+| Step | Result |
+|---|---|
+| `create_crm_lead_command` (E2E probe row) | PASS |
+| `update_crm_lead_command` → QUALIFIED | PASS |
+| RLS-scoped read sees the row | PASS |
+| `delete_crm_lead_command` | PASS |
+| Row gone after delete | PASS |
+
+**CRM COMMAND LIFECYCLE PASS** (live HTTP, production DB)
+
+## Still deferred
+
+DMS migration (`documents` collision with existing pilgrim-document table needs
+schema reconciliation before applying), BI/modeling/planning/simulation/controls/AI.
