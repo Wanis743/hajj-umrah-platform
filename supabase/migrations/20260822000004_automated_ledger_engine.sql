@@ -1,8 +1,8 @@
-﻿CREATE OR REPLACE FUNCTION public.get_or_create_account(p_agency_id UUID, p_code TEXT, p_name TEXT, p_type TEXT)
+CREATE OR REPLACE FUNCTION public.get_or_create_account(p_agency_id UUID, p_code TEXT, p_name TEXT, p_type TEXT)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $body
+AS $body$
 DECLARE
     v_acc_id UUID;
 BEGIN
@@ -14,14 +14,14 @@ BEGIN
     END IF;
     RETURN v_acc_id;
 END;
-$body;
+$body$;
 
 -- Trigger function for Invoices
 CREATE OR REPLACE FUNCTION public.trg_invoice_to_ledger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $body
+AS $body$
 DECLARE
     v_agency UUID;
     v_ar_acc UUID;
@@ -56,7 +56,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$body;
+$body$;
 
 DROP TRIGGER IF EXISTS invoice_ledger_trg ON public.invoices;
 CREATE TRIGGER invoice_ledger_trg
@@ -69,7 +69,7 @@ CREATE OR REPLACE FUNCTION public.trg_payment_to_ledger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $body
+AS $body$
 DECLARE
     v_agency UUID;
     v_cash_acc UUID;
@@ -111,7 +111,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$body;
+$body$;
 
 DROP TRIGGER IF EXISTS payment_ledger_trg ON public.payments;
 CREATE TRIGGER payment_ledger_trg

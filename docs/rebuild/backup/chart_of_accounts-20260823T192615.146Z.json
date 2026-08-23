@@ -1,0 +1,68 @@
+[
+ {
+  "id": "38a1a44a-7854-4360-9aee-89e287499b4e",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "code": "1100",
+  "name": "Cash DZD",
+  "account_type": "ASSET",
+  "currency_code": "DZD",
+  "parent_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T10:09:23.337Z"
+ },
+ {
+  "id": "b12df329-8d3c-43e5-9d9d-f608ce66b589",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "code": "1101",
+  "name": "Cash SAR",
+  "account_type": "ASSET",
+  "currency_code": "SAR",
+  "parent_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T10:09:23.337Z"
+ },
+ {
+  "id": "88aa66a4-4222-4a27-a80b-71c0e8dab8ef",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "code": "1200",
+  "name": "Accounts Receivable DZD",
+  "account_type": "ASSET",
+  "currency_code": "DZD",
+  "parent_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T10:09:23.337Z"
+ },
+ {
+  "id": "ae3bbc94-c7d4-4d8c-bd57-daad80753aed",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "code": "1201",
+  "name": "Accounts Receivable SAR",
+  "account_type": "ASSET",
+  "currency_code": "SAR",
+  "parent_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T10:09:23.337Z"
+ },
+ {
+  "id": "030bd457-0190-408c-9b92-540ad23a3d50",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "code": "4000",
+  "name": "Hajj/Umrah Revenue DZD",
+  "account_type": "REVENUE",
+  "currency_code": "DZD",
+  "parent_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T10:09:23.337Z"
+ },
+ {
+  "id": "d9d731b8-0472-4cce-8b03-81b6b913b24d",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "code": "4001",
+  "name": "Hajj/Umrah Revenue SAR",
+  "account_type": "REVENUE",
+  "currency_code": "SAR",
+  "parent_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T10:09:23.337Z"
+ }
+]

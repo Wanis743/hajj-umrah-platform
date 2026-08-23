@@ -1,4 +1,4 @@
-﻿-- Fix post_journal_entry RPC
+-- Fix post_journal_entry RPC
 CREATE OR REPLACE FUNCTION public.post_journal_entry(
     p_reference TEXT,
     p_description TEXT,
@@ -9,7 +9,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $body
+AS $body$
 DECLARE
     v_agency UUID;
     v_journal_id UUID;
@@ -67,14 +67,14 @@ BEGIN
 
     RETURN jsonb_build_object('success', true, 'journal_id', v_journal_id);
 END;
-$body;
+$body$;
 
 CREATE OR REPLACE FUNCTION public.auto_reconcile_bank_statement(p_statement_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $body
+AS $body$
 DECLARE
     v_agency UUID;
     v_statement RECORD;
@@ -122,4 +122,4 @@ BEGIN
 
     RETURN jsonb_build_object('success', true, 'matched', v_matched_count);
 END;
-$body;
+$body$;

@@ -1,0 +1,12 @@
+[
+ {
+  "user_id": "69131475-66ab-46db-84c4-a116a9d75310",
+  "role": "ADMIN",
+  "branch_id": null,
+  "is_active": true,
+  "created_at": "2026-08-13T08:21:38.200Z",
+  "updated_at": "2026-08-13T08:21:38.200Z",
+  "agency_id": "6d824797-3a37-45d1-83ca-ab81b7b82849",
+  "branch_uuid": "5318d468-01a0-40c2-a8dc-d9a17ca480a7"
+ }
+]

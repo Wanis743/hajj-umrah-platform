@@ -32,7 +32,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $body
+AS $body$
 DECLARE
     v_agency UUID;
     v_branch UUID;
@@ -121,7 +121,7 @@ BEGIN
         'fiscal_period_id', v_period_id
     );
 END;
-$body;
+$body$;
 
 REVOKE ALL ON FUNCTION public.approve_journal_entry(UUID, UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.approve_journal_entry(UUID, UUID, TEXT) TO authenticated;

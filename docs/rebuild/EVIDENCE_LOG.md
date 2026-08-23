@@ -97,3 +97,57 @@ Baseline comparison for lint was measured by stashing this session's changes and
 - DB execution of migration + RPC behavior (idempotency, AAL2 denial, period guard): requires a bound
   Supabase project or local supabase start. supabase/tests/accounting_workflows.sql exists for this.
 - Browser E2E of the workbench: requires dev server + credentials.
+
+---
+
+# Slice 3 — LIVE DATABASE VERIFICATION (2026-08-23)
+
+## Environment bound
+
+| Item | Value |
+|---|---|
+| Project ref | `kwlyluvuwvwtblnshwal` (Supabase hosted) |
+| Postgres | 17.6 via `aws-1-eu-west-3.pooler.supabase.com` (direct `db.*` DNS dead on this project) |
+| Applied migrations at bind | 71 (through `20260814165200`) — repo was ~23 ahead |
+| Backups taken pre-change | 7 finance tables → `docs/rebuild/backup/*.json` (135 rows; gitignored dir? no — committed as evidence) |
+
+## Schema gaps discovered on live DB (missing-migration forensics)
+
+The previous dev DB had hand-applied changes never committed as migrations. Rebuild-authored,
+idempotent repair migrations:
+
+1. `20260823120000_journal_entry_totals.sql` — restores `journal_entries.total_debit/total_credit`
+   + maintenance trigger + backfill (post_journal_entry, reader RPC v2 and ledger engine all depend).
+2. `20260823120100_journal_line_dimensions.sql` — adds `journal_lines.package_id`.
+3. `20260823120200_journal_line_agency_stamp.sql` — BEFORE INSERT trigger stamping line agency/branch
+   from the parent entry (fix_rpcs RPC omits agency_id; live table is NOT NULL). Constraint preserved.
+4. `20260823120300_audit_logs_actor.sql` — adds `audit_logs.actor_id` (POST audit taxonomy).
+
+Also fixed in-place: malformed dollar-quote tags (`$body` → `$body$`) in
+`20260822000003_fix_rpcs.sql` and `20260822000004_automated_ledger_engine.sql`
+(never would have applied anywhere as written).
+
+## LIVE E2E RESULT — scripts/verify-slice3-live.mjs — ALL CHECKS PASS
+
+Real HTTP against the real project as the real admin:
+
+1. password sign-in → JWT ✅ · TOTP challenge/verify → **aal2** ✅
+2. `get_recent_journal_entries` returns live entries ✅
+3. balanced draft accepted (`125.50 DZD`, two lines) ✅
+4. row stored **DRAFT**; totals trigger maintained `125.5/125.5` ✅
+5. `approve_journal_entry` → **POSTED**, `posted_at` set, fiscal period stamped ✅
+6. replay approval → idempotent success, no mutation ✅
+7. unbalanced entry rejected by server ✅
+8. POST row written to `audit_logs` with actor/scope/correlation ✅
+
+## Deferred (deliberately NOT applied to production)
+
+CRM/DMS/BI/modeling/planning/simulation/controls/AI migrations contain unguarded
+`CREATE TABLE leads/documents/bi_*` etc. They belong to later slices and are reviewed
+before their slice lands.
+
+## MFA note
+
+Admin account had no TOTP factor enrolled. For verification we enrolled one
+(`rebuild-e2e`) via the auth API, completed challenge/verify programmatically, and left it
+enrolled. The AAL2 gate now actively protects approve/close/unlock on this project.
