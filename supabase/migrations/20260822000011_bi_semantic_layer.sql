@@ -77,37 +77,36 @@ ALTER TABLE public.bi_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bi_visualizations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "bi_datasets_isolation" ON public.bi_datasets
-    FOR ALL USING (agency_id = public.current_staff_agency_id());
+    FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
 
 CREATE POLICY "bi_metrics_isolation" ON public.bi_metrics
-    FOR ALL USING (agency_id = public.current_staff_agency_id());
+    FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
 
 CREATE POLICY "bi_reports_isolation" ON public.bi_reports
-    FOR ALL USING (agency_id = public.current_staff_agency_id());
+    FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
 
 CREATE POLICY "bi_visualizations_isolation" ON public.bi_visualizations
-    FOR ALL USING (agency_id = public.current_staff_agency_id());
+    FOR ALL USING (agency_id = public.current_staff_agency_id()) WITH CHECK (agency_id = public.current_staff_agency_id());
 
 -- Audit Triggers
 CREATE OR REPLACE FUNCTION public.log_bi_audit()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_row JSONB;
 BEGIN
-    INSERT INTO public.audit_events (
-        actor,
-        object_type,
-        object_id,
-        action,
-        source,
-        agency_scope,
-        changes
+    v_row := CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;
+    INSERT INTO public.audit_logs (
+        action, resource, resource_id,
+        details, actor_id, actor_role, agency_id, branch_id
     ) VALUES (
-        COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid),
-        TG_TABLE_NAME,
-        COALESCE(NEW.id, OLD.id),
         TG_OP,
-        'bi_semantic_layer',
-        COALESCE((NEW.agency_id)::text, (OLD.agency_id)::text, 'SYSTEM'),
-        jsonb_build_object('old', to_jsonb(OLD), 'new', to_jsonb(NEW))
+        TG_TABLE_NAME,
+        COALESCE(v_row->>'id', OLD.id::text, NEW.id::text),
+        jsonb_build_object('source', 'bi_semantic_layer', 'old', CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) END, 'new', CASE WHEN TG_OP <> 'DELETE' THEN to_jsonb(NEW) END),
+        auth.uid(),
+        public.staff_role(),
+        public.current_staff_agency_id(),
+        public.staff_branch_id()
     );
     RETURN NULL; -- AFTER trigger
 END;

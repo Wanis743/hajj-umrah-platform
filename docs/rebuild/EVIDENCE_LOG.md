@@ -234,3 +234,37 @@ dms_documents insert ✅ → version insert ✅ → evidence package insert ✅ 
 document linked into package ✅ → link readable back through RLS ✅
 
 **DMS LIFECYCLE PASS · DMS OBJECT LIFECYCLE PASS**
+
+---
+
+# Slice 6 Evidence — BI semantic layer applied + verified LIVE (2026-08-23)
+
+## Reconciliation of 20260822000011_bi_semantic_layer.sql
+
+Two runtime-breaking defects found pre-apply and fixed:
+
+1. Audit trigger wrote to `public.audit_events` — a table that does not exist in this
+   database (the CRM variant silently swallowed the error; this one would have failed
+   every INSERT). Re-pointed to live `audit_logs` with actor/role/scope columns.
+2. `FOR ALL USING (...)` policies without `WITH CHECK` reject all inserts. Added
+   `WITH CHECK (agency_id = current_staff_agency_id())` on all four tables.
+
+Follow-up migration `20260823131100_bi_agency_defaults.sql`: agency_id DEFAULT
+current_staff_agency_id() on all four tables (spec §72: derive scope server-side).
+
+## Applied + recorded
+
+bi_datasets, bi_metrics, bi_reports, bi_visualizations all created with RLS +
+updated_at triggers + audit triggers.
+
+## LIVE verification — BI semantic lifecycle
+
+| Step | Result |
+|---|---|
+| Dataset with governed schema_def created | PASS |
+| Certified metric (formula + grain + lineage) registered | PASS |
+| Duplicate metric key rejected (UNIQUE agency+key → 409) | PASS |
+| Visualization object bound to dataset | PASS |
+| Audit trail rows written to audit_logs | PASS |
+
+**BI SEMANTIC LIFECYCLE PASS**
