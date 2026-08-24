@@ -97,5 +97,5 @@ export const newCorrelationId = (): CorrelationId =>
   correlationId(
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
-      : `corr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      : `corr-${Date.now()}-${crypto.randomUUID()}`,
   );

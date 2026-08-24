@@ -107,7 +107,7 @@ export function JournalWorkbench() {
       // Create journal header
       const { data: journalData, error: journalError } = await db.from('journals').insert([
         {
-          reference: `JRN-${Math.floor(Math.random() * 10000)}`,
+          reference: `JRN-${crypto.randomUUID().slice(0, 8)}`,
           description: 'Automated Dual-Entry Test',
           status: 'draft'
         }

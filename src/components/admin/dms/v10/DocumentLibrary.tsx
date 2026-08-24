@@ -82,7 +82,7 @@ export function DocumentLibrary({ registry }: DocumentLibraryProps) {
       // Create document
       const { data: docData, error: docError } = await db.from('documents').insert([
         {
-          title: `Scan_${Math.floor(Math.random() * 10000)}.pdf`,
+          title: `Scan_${crypto.randomUUID().slice(0, 8)}.pdf`,
           document_type: 'Invoice',
           status: 'draft',
           workspace_id: 'default'

@@ -148,7 +148,7 @@ function globalCryptoUuid(): CorrelationId {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID() as CorrelationId;
   }
-  return (`cmd-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`) as CorrelationId;
+  return (`cmd-${Date.now()}-${crypto.randomUUID()}`) as CorrelationId;
 }
 
 export const COMMAND = {

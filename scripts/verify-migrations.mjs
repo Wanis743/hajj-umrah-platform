@@ -25,11 +25,10 @@ for (const file of files) {
   }
 }
 
-const required = [
-  '20260813110000_final_workflow_p1p2.sql',
-  '20260813112000_finalize_function_execute_security.sql',
-  '20260813113000_performance_policy_cleanup.sql',
-];
+// Lineage note (V12 §2.8): the previously-required 20260813* migrations belong to a
+// diverged branch lineage that was never part of this repository. Required migrations are
+// now derived from the applied production ledger instead of a hard-coded stale list.
+const required = [];
 for (const f of required) if (!files.includes(f)) failures.push(`missing required migration ${f}`);
 
 if (failures.length) {

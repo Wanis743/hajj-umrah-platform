@@ -33,7 +33,7 @@ export function OperationsOS({ onBack }: OperationsOSProps) {
   ];
 
   const openNewTab = (mode: OpsMode, label: string) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = crypto.randomUUID();
     setTabs([...tabs, { id, mode, label }]);
     setActiveTabId(id);
     setShowPalette(false);

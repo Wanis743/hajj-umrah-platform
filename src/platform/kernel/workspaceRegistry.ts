@@ -101,7 +101,7 @@ export class WorkspaceRegistry {
   create(input: { id?: WorkspaceId; nameKey: string }): WorkspaceDocument {
     const now = new Date().toISOString();
     const id: WorkspaceId =
-      input.id ?? (`ws-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}` as WorkspaceId);
+      input.id ?? (`ws-${crypto.randomUUID()}` as WorkspaceId);
     const doc: WorkspaceDocument = {
       id,
       nameKey: input.nameKey,
