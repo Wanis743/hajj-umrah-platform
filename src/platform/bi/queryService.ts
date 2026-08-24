@@ -145,3 +145,49 @@ export function assertCertified(metric: BiMetricDTO): Result<true, KernelError> 
   }
   return ok(true);
 }
+
+export interface GroupMarginRow {
+  readonly groupId: string;
+  readonly groupName: string;
+  readonly revenueDzd: number;
+  readonly costDzd: number;
+  readonly marginDzd: number;
+  readonly marginPercentage: number;
+}
+
+/**
+ * §22 Phase B: package/group economics via the server's own profitability
+ * RPC (authoritative; definer-side scope checks). Values are exactly what
+ * get_group_profitability returns — no client recomputation.
+ */
+export async function evaluateGroupMargins(
+  groupIds: readonly string[],
+): Promise<Result<readonly GroupMarginRow[], KernelError>> {
+  const names = await supabase.from('groups').select('id, name').in('id', groupIds);
+  if (names.error !== null) {
+    return err({ code: 'VALIDATION_FAILED', message: names.error.message, details: { domain: 'BI' } });
+  }
+  const nameById = new Map<string, string>(
+    ((names.data ?? []) as unknown as Record<string, unknown>[]).map((r) => [String(r.id), String(r.name ?? '')]),
+  );
+
+  const rows: GroupMarginRow[] = [];
+  for (const groupId of groupIds) {
+    const { data, error } = await supabase.rpc('get_group_profitability', { p_group_id: groupId });
+    if (error !== null) {
+      return err({ code: 'VALIDATION_FAILED', message: error.message, details: { domain: 'BI' } });
+    }
+    const m = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+    if (m === null) continue;
+    rows.push(Object.freeze({
+      groupId,
+      groupName: nameById.get(groupId) ?? groupId.slice(0, 8),
+      revenueDzd: Number(m.total_revenue_dzd ?? 0),
+      costDzd: Number(m.total_cost_dzd ?? 0),
+      marginDzd: Number(m.margin_dzd ?? 0),
+      marginPercentage: Number(m.margin_percentage ?? 0),
+    }));
+  }
+
+  return ok(rows);
+}

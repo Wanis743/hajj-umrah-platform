@@ -8,7 +8,9 @@ import { getMetrics } from './semanticService.ts';
 import {
   assertCertified,
   drillToSourceEntries,
+  evaluateGroupMargins,
   evaluateNetRevenuePerPilgrim,
+  type GroupMarginRow,
   type MetricDrillTarget,
   type MetricValueRow,
 } from './queryService.ts';
@@ -30,6 +32,7 @@ export function MetricExplorer() {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [metricKey, setMetricKey] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillState>({ kind: 'idle' });
+  const [margins, setMargins] = useState<readonly GroupMarginRow[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +55,19 @@ export function MetricExplorer() {
         else setState({ kind: 'ready', rows: e.value });
       });
     });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { supabase } = await import('../../lib/supabase.ts');
+      const { data, error } = await supabase.from('groups').select('id').limit(50);
+      if (error !== null || data === null || data.length === 0) return;
+      const ids = (data as unknown as { id: string }[]).map((g) => g.id);
+      const r = await evaluateGroupMargins(ids);
+      if (!cancelled && r.ok) setMargins(r.value);
+    })();
     return () => { cancelled = true; };
   }, []);
 
@@ -157,6 +173,38 @@ export function MetricExplorer() {
               )}
             </>
           ) : null}
+        </>
+      ) : null}
+
+      {state.kind === 'ready' && margins !== null && margins.length > 0 ? (
+        <>
+          <h3 className="mt-6 px-1 text-xs font-semibold uppercase tracking-wider text-white/45">
+            Group margins (server RPC)
+          </h3>
+          <table className="mt-2 w-full text-sm">
+            <thead>
+              <tr className="text-left text-white/45">
+                <th className="px-3 py-2 font-medium">Group</th>
+                <th className="px-3 py-2 text-right font-medium">Revenue</th>
+                <th className="px-3 py-2 text-right font-medium">Cost</th>
+                <th className="px-3 py-2 text-right font-medium">Margin</th>
+                <th className="px-3 py-2 text-right font-medium">Margin %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {margins.map((m) => (
+                <tr key={m.groupId} className="border-t border-white/10 text-white/85 hover:bg-white/[0.04]">
+                  <td className="px-3 py-2">{m.groupName}</td>
+                  <td className="px-3 py-2 text-right font-mono">{fmt.format(m.revenueDzd)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{fmt.format(m.costDzd)}</td>
+                  <td className={`px-3 py-2 text-right font-mono ${m.marginDzd >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {fmt.format(m.marginDzd)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">{m.marginPercentage.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </>
       ) : null}
 
