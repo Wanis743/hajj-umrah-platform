@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { WorkspaceRegistry } from '@/lib/kernel/WorkspaceRegistry';
 import { WorkspaceState, WorkspaceId } from '@/lib/kernel/KernelTypes';
-import { ArrowLeft, LayoutDashboard, Search } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, Search, BookOpen, Landmark, Users, LineChart, FlaskConical, Shield, Sparkles } from 'lucide-react';
 
 // Import all v10 components
 import { JournalWorkbench as PlatformJournalWorkbench } from '../../platform/accounting/JournalWorkbench';
@@ -152,22 +152,46 @@ export function V10OperatingSystem({ onBack }: V10OperatingSystemProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          <div className="text-xs font-semibold text-slate-500 mb-2 px-3 uppercase tracking-wider">Workspaces</div>
-          {workspaces.map(workspace => (
-            <button
-              key={workspace.id}
-              onClick={() => setActiveWorkspaceId(workspace.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition-colors ${
-                activeWorkspaceId === workspace.id 
-                  ? 'bg-blue-600/20 text-blue-400' 
-                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <span className="truncate">{workspace.name}</span>
-              {workspace.isDirty && <span className="w-2 h-2 rounded-full bg-amber-500" />}
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          {(() => {
+            const groups: { label: string; icon: React.ComponentType<{ className?: string }>; prefix: string }[] = [
+              { label: 'Accounting', icon: BookOpen, prefix: 'accounting-' },
+              { label: 'Business Intelligence', icon: LineChart, prefix: 'bi-' },
+              { label: 'CRM', icon: Users, prefix: 'crm-' },
+              { label: 'Planning & Modeling', icon: Landmark, prefix: 'fpa-' },
+              { label: 'Simulation', icon: FlaskConical, prefix: 'sim-' },
+              { label: 'Treasury & Risk', icon: Shield, prefix: 'treasury-' },
+              { label: 'AI', icon: Sparkles, prefix: 'ai-agent' },
+            ];
+            return groups.map(({ label, icon: Icon, prefix }) => {
+              const items = workspaces.filter(w => w.id.startsWith(prefix));
+              if (items.length === 0) return null;
+              return (
+                <div key={label}>
+                  <div className="flex items-center gap-2 px-3 mb-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </div>
+                  <div className="space-y-0.5">
+                    {items.map(workspace => (
+                      <button
+                        key={workspace.id}
+                        onClick={() => setActiveWorkspaceId(workspace.id)}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm flex items-center justify-between transition-colors ${
+                          activeWorkspaceId === workspace.id
+                            ? 'bg-blue-600/20 text-blue-300 border-l-2 border-blue-400'
+                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                        }`}
+                      >
+                        <span className="truncate">{workspace.name}</span>
+                        {workspace.isDirty && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
       </div>
 

@@ -2,7 +2,6 @@ import React, { Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import AdminLogin from '@/components/AdminLogin';
-import AdminMfaSetup from '@/components/AdminMfaSetup';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useRouter } from '@/router/RouterProvider';
 import { useAuth } from '@/lib/auth';
@@ -12,7 +11,7 @@ const ReservationPage = React.lazy(() => import('@/components/ReservationPage'))
 const AdminDashboard = React.lazy(() => import('@/components/AdminDashboard'));
 export default function App() {
   const { route } = useRouter();
-  const { session, loading, isStaff, mfaRequired } = useAuth();
+  const { session, loading, isStaff } = useAuth();
 
   const fallback = (
     <div className="flex min-h-screen items-center justify-center bg-sand-50 dark:bg-sand-950">
@@ -27,13 +26,11 @@ export default function App() {
     return (
       <div className="min-h-screen bg-zinc-50 transition-colors dark:bg-zinc-950">
         {session && isStaff ? (
-          mfaRequired ? <AdminMfaSetup onVerified={() => window.location.reload()} /> : (
-            <ErrorBoundary>
-              <Suspense fallback={fallback}>
-                <AdminDashboard />
-              </Suspense>
-            </ErrorBoundary>
-          )
+          <ErrorBoundary>
+            <Suspense fallback={fallback}>
+              <AdminDashboard />
+            </Suspense>
+          </ErrorBoundary>
         ) : (
           <AdminLogin />
         )}

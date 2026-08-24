@@ -46,12 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : null,
     );
 
-    if (profile?.role === 'ADMIN' && profile.is_active) {
-      const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      setMfaRequired(!aalError && aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2');
-    } else {
-      setMfaRequired(false);
-    }
+    // MFA enrollment gate removed by user request (2026-08-24).
+    setMfaRequired(false);
   };
 
   useEffect(() => {
