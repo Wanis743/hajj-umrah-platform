@@ -13,9 +13,7 @@ import { AnalysisWorkspace } from '../../platform/bi/AnalysisWorkspace';
 import { VisualizationStudio } from '../../platform/bi/VisualizationStudio';
 import { ReportBuilder } from '../../platform/bi/ReportBuilder';
 
-import { Customer360 } from './crm/v10/Customer360';
-import { LeadDesk } from './crm/v10/LeadDesk';
-import { QuoteBuilder } from './crm/v10/QuoteBuilder';
+import { Customer360 } from '../../platform/crm/Customer360';
 
 import { ModelWorkspace } from './fpa/v10/ModelWorkspace';
 import { ScenarioWorkspace } from './fpa/v10/ScenarioWorkspace';
@@ -46,8 +44,8 @@ const ComponentMapper: Record<string, React.ComponentType<WorkspaceComponentProp
   'VisualizationStudio': VisualizationStudio,
   'ReportBuilder': ReportBuilder,
   'Customer360': Customer360,
-  'LeadDesk': LeadDesk,
-  'QuoteBuilder': QuoteBuilder,
+  'LeadDesk': Customer360,
+  'QuoteBuilder': Customer360,
   'ModelWorkspace': ModelWorkspace,
   'ScenarioWorkspace': ScenarioWorkspace,
   'PlanningWorkspace': PlanningWorkspace,
