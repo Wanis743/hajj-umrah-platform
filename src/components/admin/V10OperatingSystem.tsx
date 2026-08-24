@@ -115,35 +115,30 @@ const NAV_GROUPS: { label: string; icon: React.ComponentType<{ className?: strin
  */
 export function V10OperatingSystem({ onBack }: V10OperatingSystemProps) {
   const [workspaces, setWorkspaces] = useState<WorkspaceState[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<WorkspaceId | null>(null);
-  const [query, setQuery] = useState('');
+    const [query, setQuery] = useState('');
 
+    const [, setTick] = useState(0);
   useEffect(() => {
-    setWorkspaces(registry.getWorkspaces());
-    const initialWorkspaces = registry.getWorkspaces();
-    if (initialWorkspaces.length > 0) {
-      setActiveWorkspaceId(initialWorkspaces[0].id);
-    }
-
-    const unsubscribe = registry.subscribe((newWorkspaces) => {
-      setWorkspaces([...newWorkspaces]);
-      if (!activeWorkspaceId && newWorkspaces.length > 0) {
-        setActiveWorkspaceId(newWorkspaces[0].id);
-      }
-    });
+    const sync = () => {
+      setWorkspaces(registry.getWorkspaces());
+      setTick(t => t + 1);
+    };
+    sync();
+    const unsubscribe = registry.subscribe(sync);
     return () => unsubscribe();
-  }, [activeWorkspaceId]);
+  }, []);
 
+  const activeWorkspaceId = registry.getActiveWorkspace()?.id ?? null;
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
   const q = query.trim().toLowerCase();
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden font-sans text-white">
       {/* Ambient background — the layers the glass sits on */}
-      <div className="absolute inset-0 bg-[#070b14]" />
-      <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-blue-600/25 blur-[140px]" />
-      <div className="absolute -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-indigo-500/20 blur-[130px]" />
-      <div className="absolute -bottom-48 left-1/3 h-[34rem] w-[34rem] rounded-full bg-cyan-400/15 blur-[150px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[#070b14]" />
+      <div className="pointer-events-none absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-blue-600/25 blur-[140px]" />
+      <div className="pointer-events-none absolute -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-indigo-500/20 blur-[130px]" />
+      <div className="pointer-events-none absolute -bottom-48 left-1/3 h-[34rem] w-[34rem] rounded-full bg-cyan-400/15 blur-[150px]" />
 
       {/* Sidebar — liquid glass panel */}
       <aside className="relative z-10 flex w-72 flex-col border-r border-white/10 bg-white/[0.06] backdrop-blur-2xl">
@@ -192,7 +187,7 @@ export function V10OperatingSystem({ onBack }: V10OperatingSystemProps) {
                     return (
                       <button
                         key={workspace.id}
-                        onClick={() => setActiveWorkspaceId(workspace.id)}
+                        onClick={() => registry.setActiveWorkspace(workspace.id)}
                         className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-all duration-200 ${
                           isActive
                             ? 'border border-white/20 bg-white/[0.12] font-medium text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15),0_8px_24px_-8px_rgba(59,130,246,0.45)]'
