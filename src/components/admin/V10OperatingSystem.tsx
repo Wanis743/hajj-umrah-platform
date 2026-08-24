@@ -14,6 +14,7 @@ import { VisualizationStudio } from '../../platform/bi/VisualizationStudio';
 import { ReportBuilder } from '../../platform/bi/ReportBuilder';
 
 import { Customer360 } from '../../platform/crm/Customer360';
+import { DocumentLibrary } from '../../platform/dms/DocumentWorkspace';
 
 import { ModelWorkspace } from './fpa/v10/ModelWorkspace';
 import { ScenarioWorkspace } from './fpa/v10/ScenarioWorkspace';
@@ -45,7 +46,7 @@ const ComponentMapper: Record<string, React.ComponentType<WorkspaceComponentProp
   'ReportBuilder': ReportBuilder,
   'Customer360': Customer360,
   'LeadDesk': Customer360,
-  'QuoteBuilder': Customer360,
+  'QuoteBuilder': Customer360, 'DocumentLibrary': DocumentLibrary,
   'ModelWorkspace': ModelWorkspace,
   'ScenarioWorkspace': ScenarioWorkspace,
   'PlanningWorkspace': PlanningWorkspace,
@@ -82,6 +83,7 @@ createWs('accounting-recon-close', 'Reconciliation & Close', 'ReconciliationClos
   createWs('crm-customer', 'Customer 360', 'Customer360');
   createWs('crm-leaddesk', 'Lead Desk', 'LeadDesk');
   createWs('crm-quote', 'Quote Builder', 'QuoteBuilder');
+createWs('dms-documents', 'Document Library', 'DocumentLibrary');
 
   createWs('fpa-model', 'Model Workspace', 'ModelWorkspace');
   createWs('fpa-scenario', 'Scenario Workspace', 'ScenarioWorkspace');
