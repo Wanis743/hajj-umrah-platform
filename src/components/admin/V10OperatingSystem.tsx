@@ -9,9 +9,9 @@ import { LedgerExplorer } from '../../platform/accounting/LedgerExplorer';
 import { ARWorkspace } from '../../platform/accounting/ARWorkspace';
 import { ReconciliationClosePanel } from '../../platform/accounting/ReconciliationClosePanel';
 
-import { AnalysisWorkspace } from './bi/v10/AnalysisWorkspace';
-import { VisualizationStudio } from './bi/v10/VisualizationStudio';
-import { ReportBuilder } from './bi/v10/ReportBuilder';
+import { AnalysisWorkspace } from '../../platform/bi/AnalysisWorkspace';
+import { VisualizationStudio } from '../../platform/bi/VisualizationStudio';
+import { ReportBuilder } from '../../platform/bi/ReportBuilder';
 
 import { Customer360 } from './crm/v10/Customer360';
 import { LeadDesk } from './crm/v10/LeadDesk';
