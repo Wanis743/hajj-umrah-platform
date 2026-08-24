@@ -70,7 +70,7 @@ jobs:
         run: zip -r evidence.zip release/evidence/ docs/generated/certification-status.json RELEASE_ARTIFACT_HASHES.txt
 
       - name: Upload Certification Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: 10_10_CERTIFICATION_EVIDENCE
           path: evidence.zip
