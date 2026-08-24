@@ -5,8 +5,8 @@ import { ArrowLeft, LayoutDashboard, Search, BookOpen, Landmark, Users, LineChar
 
 // Import all v10 components
 import { JournalWorkbench as PlatformJournalWorkbench } from '../../platform/accounting/JournalWorkbench';
-import { LedgerExplorer } from './accounting/v10/LedgerExplorer';
-import { ARWorkspace } from './accounting/v10/ARWorkspace';
+import { LedgerExplorer } from '../../platform/accounting/LedgerExplorer';
+import { ARWorkspace } from '../../platform/accounting/ARWorkspace';
 
 import { AnalysisWorkspace } from './bi/v10/AnalysisWorkspace';
 import { VisualizationStudio } from './bi/v10/VisualizationStudio';
