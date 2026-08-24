@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { WorkspaceRegistry } from '@/lib/kernel/WorkspaceRegistry';
 import { WorkspaceState, WorkspaceId } from '@/lib/kernel/KernelTypes';
-import { ArrowLeft, LayoutDashboard, Search, BookOpen, Landmark, Users, LineChart, FlaskConical, Shield, Sparkles } from 'lucide-react';
+import { ArrowLeft, LayoutDashboard, Search, BookOpen, Landmark, Users, LineChart, FlaskConical, Shield } from 'lucide-react';
 
 // Import all v10 components
 import { JournalWorkbench as PlatformJournalWorkbench } from '../../platform/accounting/JournalWorkbench';
@@ -26,9 +26,6 @@ import { OptimizationWorkspace } from './simulation/v10/OptimizationWorkspace';
 import { TreasuryWorkspace } from './treasury/v10/TreasuryWorkspace';
 import { ControlCenter } from './treasury/v10/ControlCenter';
 import { RiskWorkspace } from './treasury/v10/RiskWorkspace';
-
-import { AIAgentWorkspace } from './ai/v10/AIAgentWorkspace';
-import { CopilotSidebar } from './ai/v10/CopilotSidebar';
 
 export interface V10OperatingSystemProps {
   onBack: () => void;
@@ -58,13 +55,12 @@ const ComponentMapper: Record<string, React.ComponentType<WorkspaceComponentProp
   'TreasuryWorkspace': TreasuryWorkspace,
   'ControlCenter': ControlCenter,
   'RiskWorkspace': RiskWorkspace,
-  'AIAgentWorkspace': AIAgentWorkspace,
 };
 
 // Initialize all the v10 modules
 let initialized = false;
 if (!initialized) {
-  
+
   const createWs = (id: string, name: string, componentType: string) => {
     registry.createWorkspace({
       id,
@@ -78,11 +74,11 @@ if (!initialized) {
   createWs('accounting-journal', 'Journal Workbench', 'JournalWorkbench');
   createWs('accounting-ledger', 'Ledger Explorer', 'LedgerExplorer');
   createWs('accounting-ar', 'A/R Workspace', 'ARWorkspace');
-  
+
   createWs('bi-analysis', 'Analysis Workspace', 'AnalysisWorkspace');
   createWs('bi-viz', 'Visualization Studio', 'VisualizationStudio');
   createWs('bi-report', 'Report Builder', 'ReportBuilder');
-  
+
   createWs('crm-customer', 'Customer 360', 'Customer360');
   createWs('crm-leaddesk', 'Lead Desk', 'LeadDesk');
   createWs('crm-quote', 'Quote Builder', 'QuoteBuilder');
@@ -98,16 +94,29 @@ if (!initialized) {
   createWs('treasury-control', 'Control Center', 'ControlCenter');
   createWs('treasury-risk', 'Risk Exposure', 'RiskWorkspace');
 
-  createWs('ai-agent', 'AI Agent Console', 'AIAgentWorkspace');
-  // CopilotSidebar is probably meant to be global, but we can mount it here
-
   initialized = true;
 }
 
+const NAV_GROUPS: { label: string; icon: React.ComponentType<{ className?: string }>; prefix: string }[] = [
+  { label: 'Accounting', icon: BookOpen, prefix: 'accounting-' },
+  { label: 'Business Intelligence', icon: LineChart, prefix: 'bi-' },
+  { label: 'CRM', icon: Users, prefix: 'crm-' },
+  { label: 'Planning & Modeling', icon: Landmark, prefix: 'fpa-' },
+  { label: 'Simulation', icon: FlaskConical, prefix: 'sim-' },
+  { label: 'Treasury & Risk', icon: Shield, prefix: 'treasury-' },
+];
+
+/**
+ * Finance OS — liquid glass shell.
+ *
+ * Design language: translucent layered glass over a soft ambient gradient,
+ * hairline white borders at low opacity, inner highlights on interactive
+ * surfaces, and specular top edges. No flat opaque panels.
+ */
 export function V10OperatingSystem({ onBack }: V10OperatingSystemProps) {
   const [workspaces, setWorkspaces] = useState<WorkspaceState[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<WorkspaceId | null>(null);
-  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     setWorkspaces(registry.getWorkspaces());
@@ -126,116 +135,132 @@ export function V10OperatingSystem({ onBack }: V10OperatingSystemProps) {
   }, [activeWorkspaceId]);
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
+  const q = query.trim().toLowerCase();
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 text-slate-50 overflow-hidden font-sans relative">
-      {/* Sidebar Navigation */}
-      <div className="w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur-md flex flex-col z-10 relative">
-        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
-            <ArrowLeft className="w-5 h-5 text-slate-400" />
+    <div className="relative flex h-screen w-full overflow-hidden font-sans text-white">
+      {/* Ambient background — the layers the glass sits on */}
+      <div className="absolute inset-0 bg-[#070b14]" />
+      <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-blue-600/25 blur-[140px]" />
+      <div className="absolute -right-32 top-1/4 h-[30rem] w-[30rem] rounded-full bg-indigo-500/20 blur-[130px]" />
+      <div className="absolute -bottom-48 left-1/3 h-[34rem] w-[34rem] rounded-full bg-cyan-400/15 blur-[150px]" />
+
+      {/* Sidebar — liquid glass panel */}
+      <aside className="relative z-10 flex w-72 flex-col border-r border-white/10 bg-white/[0.06] backdrop-blur-2xl">
+        <div className="flex items-center gap-3 border-b border-white/10 p-4">
+          <button
+            onClick={onBack}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 transition-all hover:border-white/20 hover:bg-white/10 active:scale-95"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-5 w-5 text-white/70" />
           </button>
           <div>
-            <h1 className="font-semibold text-slate-100">OS V10</h1>
-            <p className="text-xs text-slate-500">Enterprise Kernel</p>
+            <h1 className="text-sm font-semibold tracking-wide text-white">Finance OS</h1>
+            <p className="text-[11px] text-white/40">Liquid workspace</p>
           </div>
         </div>
-        
+
         <div className="p-3">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
-            <input 
-              type="text" 
-              placeholder="Search workspaces..." 
-              className="w-full bg-slate-950 border border-slate-800 rounded-md py-2 pl-9 pr-3 text-sm text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-blue-500"
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-white/35" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search workspaces..."
+              className="w-full rounded-xl border border-white/10 bg-white/[0.07] py-2 pl-9 pr-3 text-sm text-white/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] placeholder:text-white/30 focus:border-white/25 focus:bg-white/10 focus:outline-none"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
-          {(() => {
-            const groups: { label: string; icon: React.ComponentType<{ className?: string }>; prefix: string }[] = [
-              { label: 'Accounting', icon: BookOpen, prefix: 'accounting-' },
-              { label: 'Business Intelligence', icon: LineChart, prefix: 'bi-' },
-              { label: 'CRM', icon: Users, prefix: 'crm-' },
-              { label: 'Planning & Modeling', icon: Landmark, prefix: 'fpa-' },
-              { label: 'Simulation', icon: FlaskConical, prefix: 'sim-' },
-              { label: 'Treasury & Risk', icon: Shield, prefix: 'treasury-' },
-              { label: 'AI', icon: Sparkles, prefix: 'ai-agent' },
-            ];
-            return groups.map(({ label, icon: Icon, prefix }) => {
-              const items = workspaces.filter(w => w.id.startsWith(prefix));
-              if (items.length === 0) return null;
-              return (
-                <div key={label}>
-                  <div className="flex items-center gap-2 px-3 mb-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    <Icon className="w-3.5 h-3.5" />
-                    {label}
-                  </div>
-                  <div className="space-y-0.5">
-                    {items.map(workspace => (
+        <nav className="flex-1 space-y-5 overflow-y-auto p-3 pb-6">
+          {NAV_GROUPS.map(({ label, icon: Icon, prefix }) => {
+            const items = workspaces.filter(
+              (w) => w.id.startsWith(prefix) && (!q || w.name.toLowerCase().includes(q)),
+            );
+            if (items.length === 0) return null;
+            return (
+              <div key={label}>
+                <div className="mb-1.5 flex items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </div>
+                <div className="space-y-1">
+                  {items.map((workspace) => {
+                    const isActive = activeWorkspaceId === workspace.id;
+                    return (
                       <button
                         key={workspace.id}
                         onClick={() => setActiveWorkspaceId(workspace.id)}
-                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm flex items-center justify-between transition-colors ${
-                          activeWorkspaceId === workspace.id
-                            ? 'bg-blue-600/20 text-blue-300 border-l-2 border-blue-400'
-                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                        className={`group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-all duration-200 ${
+                          isActive
+                            ? 'border border-white/20 bg-white/[0.12] font-medium text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15),0_8px_24px_-8px_rgba(59,130,246,0.45)]'
+                            : 'border border-transparent text-white/60 hover:border-white/10 hover:bg-white/[0.06] hover:text-white/90'
                         }`}
                       >
                         <span className="truncate">{workspace.name}</span>
-                        {workspace.isDirty && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />}
+                        {workspace.isDirty && (
+                          <span className="ml-2 h-2 w-2 shrink-0 rounded-full bg-amber-300 shadow-[0_0_8px_2px_rgba(252,211,77,0.5)]" />
+                        )}
                       </button>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            });
-          })()}
-        </div>
-      </div>
+              </div>
+            );
+          })}
+        </nav>
 
-      {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
+        {/* Bottom sheen */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/40 to-transparent" />
+      </aside>
+
+      {/* Main area */}
+      <main className="relative z-10 flex flex-1 flex-col overflow-hidden">
         {activeWorkspace ? (
           <>
-            <div className="h-12 border-b border-slate-800 bg-slate-900/50 flex items-center px-4 backdrop-blur-md shrink-0">
-              <h2 className="font-medium text-slate-200">{activeWorkspace.name}</h2>
-              <button 
-                onClick={() => setIsCopilotOpen(true)}
-                className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-900/20"
-              >
-                <span>AI Copilot</span>
-              </button>
+            {/* Title bar — floating glass strip */}
+            <div className="mx-4 mt-4 flex h-13 shrink-0 items-center justify-between rounded-2xl border border-white/10 bg-white/[0.07] px-5 py-3 backdrop-blur-2xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6),inset_0_1px_0_0_rgba(255,255,255,0.12)]">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_2px_rgba(110,231,183,0.55)]" />
+                <h2 className="text-sm font-semibold tracking-wide text-white/95">{activeWorkspace.name}</h2>
+              </div>
+              <span className="text-[11px] uppercase tracking-widest text-white/35">server-authoritative</span>
             </div>
-            
-            <div className="flex-1 overflow-auto relative">
-              {/* Render the active panel content */}
-              {activeWorkspace.panels.map(panel => {
+
+            {/* Panel surface */}
+            <div className="relative mx-4 mb-4 mt-3 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-xl shadow-[0_16px_48px_-16px_rgba(0,0,0,0.65)]">
+              {/* Specular highlight along the panel's top edge */}
+              <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+              {activeWorkspace.panels.map((panel) => {
                 const Component = ComponentMapper[panel.componentType];
+                const visible =
+                  activeWorkspace.activePanelId === panel.id || activeWorkspace.panels.length === 1;
                 return (
-                  <div 
-                    key={panel.id} 
+                  <div
+                    key={panel.id}
                     className={`absolute inset-0 transition-opacity duration-200 ${
-                      activeWorkspace.activePanelId === panel.id || activeWorkspace.panels.length === 1 ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                      visible ? 'z-10 opacity-100' : 'pointer-events-none z-0 opacity-0'
                     }`}
                   >
-                    {Component ? <Component registry={registry} {...panel.props} /> : <div className="text-white p-4">Component not found</div>}
+                    {Component ? (
+                      <Component registry={registry} {...panel.props} />
+                    ) : (
+                      <div className="p-6 text-white/50">Component not found</div>
+                    )}
                   </div>
                 );
               })}
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4">
-            <LayoutDashboard className="w-16 h-16 opacity-20" />
+          <div className="flex flex-1 flex-col items-center justify-center space-y-4 text-white/40">
+            <LayoutDashboard className="h-16 w-16 opacity-20" />
             <p>Select a workspace to begin</p>
           </div>
         )}
-      </div>
-
-      {/* Global AI Copilot Sidebar */}
-      <CopilotSidebar isOpen={isCopilotOpen} onClose={() => setIsCopilotOpen(false)} workspaceRegistry={registry} />
+      </main>
     </div>
   );
 }
