@@ -9,7 +9,6 @@ interface AuthContextValue {
   loading: boolean;
   staffProfile: { role: string; branch_id: string | null; is_active: boolean } | null;
   isStaff: boolean;
-  mfaRequired: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -18,14 +17,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [staffProfile, setStaffProfile] = useState<AuthContextValue['staffProfile']>(null);
-  const [mfaRequired, setMfaRequired] = useState(false);
 
   const loadProfile = async (currentSession: Session | null, mounted: boolean) => {
     if (!currentSession?.user) {
       if (mounted) {
         setStaffProfile(null);
-        setMfaRequired(false);
-      }
+            }
       return;
     }
 
@@ -46,13 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : null,
     );
 
-    // V12 §14: ADMIN accounts must reach AAL2. mfaRequired drives the enrollment gate.
-    if (profile?.role === 'ADMIN' && profile.is_active) {
-      const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      setMfaRequired(!aalError && aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2');
-    } else {
-      setMfaRequired(false);
-    }
+
   };
 
   useEffect(() => {
@@ -89,8 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         staffProfile,
         isStaff: Boolean(staffProfile?.is_active),
-        mfaRequired,
-      }}
+            }}
     >
       {children}
     </AuthContext.Provider>
