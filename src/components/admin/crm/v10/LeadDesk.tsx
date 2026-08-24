@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Filter, Phone, Mail, User, Clock, ChevronDown, Loader2, AlertCircle } from 'lucide-react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { supabase } from '../../../../lib/supabase';
 
 interface LeadDeskProps {

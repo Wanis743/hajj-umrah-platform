@@ -1,4 +1,4 @@
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { Customer360 } from './Customer360';
 import { LeadDesk } from './LeadDesk';
 import { QuoteBuilder } from './QuoteBuilder';

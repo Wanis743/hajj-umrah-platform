@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { WorkspaceRegistry } from '@/lib/kernel/WorkspaceRegistry';
-import { WorkspaceState, WorkspaceId } from '@/lib/kernel/KernelTypes';
+import { WorkspaceRegistry } from '../../platform/compat/workspaceRegistry';
+import { WorkspaceState, WorkspaceId } from '../../platform/compat/workspaceRegistry';
 import { ArrowLeft, LayoutDashboard, Search, BookOpen, Landmark, Users, LineChart, FlaskConical, Shield } from 'lucide-react';
 
 // Import all v10 components

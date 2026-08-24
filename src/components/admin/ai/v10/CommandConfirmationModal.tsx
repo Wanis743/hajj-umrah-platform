@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Check, X, Database } from 'lucide-react';
-import { CommandDefinition, CommandContext } from '../../../../lib/kernel/KernelTypes';
+import { CommandDefinition, CommandContext } from '../../../../platform/compat/workspaceRegistry';
 
 interface CommandConfirmationModalProps {
   isOpen: boolean;

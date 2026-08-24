@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScanText, Check, X, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { supabase } from '../../../../lib/supabase';
 
 interface ExtractionJob {

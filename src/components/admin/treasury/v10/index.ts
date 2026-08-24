@@ -1,5 +1,5 @@
 import React from 'react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { TreasuryWorkspace } from './TreasuryWorkspace';
 import { ControlCenter } from './ControlCenter';
 import { RiskWorkspace } from './RiskWorkspace';

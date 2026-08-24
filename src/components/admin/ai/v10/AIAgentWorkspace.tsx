@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BrainCircuit, Activity, Clock, Terminal, ChevronRight, CheckCircle2, XCircle, Wrench } from 'lucide-react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 
 interface AIAgentWorkspaceProps {
   registry: WorkspaceRegistry;

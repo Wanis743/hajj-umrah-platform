@@ -1,5 +1,5 @@
 import React from 'react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { JournalWorkbench } from './JournalWorkbench';
 import { LedgerExplorer } from './LedgerExplorer';
 import { ARWorkspace } from './ARWorkspace';

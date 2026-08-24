@@ -1,4 +1,4 @@
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { AnalysisWorkspace } from './AnalysisWorkspace';
 import { VisualizationStudio } from './VisualizationStudio';
 import { ReportBuilder } from './ReportBuilder';

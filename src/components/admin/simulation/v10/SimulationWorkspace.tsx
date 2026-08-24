@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { Play, Settings, RefreshCcw, Activity, Info, BarChart2, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../../../lib/supabase';

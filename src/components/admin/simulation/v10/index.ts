@@ -1,4 +1,4 @@
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { SimulationWorkspace } from './SimulationWorkspace';
 import { OptimizationWorkspace } from './OptimizationWorkspace';
 

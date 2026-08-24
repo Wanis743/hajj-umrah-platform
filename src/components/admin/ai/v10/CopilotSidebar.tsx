@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageSquare, Terminal, Send, Settings } from 'lucide-react';
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
-import { WorkspaceState } from '../../../../lib/kernel/KernelTypes';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
+import { WorkspaceState } from '../../../../platform/compat/workspaceRegistry';
 
 interface CopilotSidebarProps {
   isOpen: boolean;

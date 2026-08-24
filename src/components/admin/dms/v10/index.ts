@@ -1,4 +1,4 @@
-import { WorkspaceRegistry } from '../../../../lib/kernel/WorkspaceRegistry';
+import { WorkspaceRegistry } from '../../../../platform/compat/workspaceRegistry';
 import { DocumentLibrary } from './DocumentLibrary';
 import { EvidenceWorkspace } from './EvidenceWorkspace';
 import { ExtractionReview } from './ExtractionReview';
