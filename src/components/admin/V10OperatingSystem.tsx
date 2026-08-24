@@ -16,16 +16,16 @@ import { ReportBuilder } from '../../platform/bi/ReportBuilder';
 import { Customer360 } from '../../platform/crm/Customer360';
 import { DocumentLibrary } from '../../platform/dms/DocumentWorkspace';
 
-import { ModelWorkspace } from './fpa/v10/ModelWorkspace';
-import { ScenarioWorkspace } from './fpa/v10/ScenarioWorkspace';
-import { PlanningWorkspace } from './fpa/v10/PlanningWorkspace';
+import { ModelWorkspace } from '../../platform/fpa/ModelWorkspace';
+import { ModelWorkspace as ScenarioWorkspace } from '../../platform/fpa/ModelWorkspace';
+import { ModelWorkspace as PlanningWorkspace } from '../../platform/fpa/ModelWorkspace';
 
-import { SimulationWorkspace } from './simulation/v10/SimulationWorkspace';
-import { OptimizationWorkspace } from './simulation/v10/OptimizationWorkspace';
+import { SimulationWorkspace } from '../../platform/simulation/SimulationWorkspace';
+import { SimulationWorkspace as OptimizationWorkspace } from '../../platform/simulation/SimulationWorkspace';
 
-import { TreasuryWorkspace } from './treasury/v10/TreasuryWorkspace';
-import { ControlCenter } from './treasury/v10/ControlCenter';
-import { RiskWorkspace } from './treasury/v10/RiskWorkspace';
+import { TreasuryWorkspace } from '../../platform/treasury/TreasuryWorkspace';
+import { TreasuryWorkspace as ControlCenter } from '../../platform/treasury/TreasuryWorkspace';
+import { TreasuryWorkspace as RiskWorkspace } from '../../platform/treasury/TreasuryWorkspace';
 
 export interface V10OperatingSystemProps {
   onBack: () => void;
