@@ -7,6 +7,7 @@ import { ArrowLeft, LayoutDashboard, Search, BookOpen, Landmark, Users, LineChar
 import { JournalWorkbench as PlatformJournalWorkbench } from '../../platform/accounting/JournalWorkbench';
 import { LedgerExplorer } from '../../platform/accounting/LedgerExplorer';
 import { ARWorkspace } from '../../platform/accounting/ARWorkspace';
+import { ReconciliationClosePanel } from '../../platform/accounting/ReconciliationClosePanel';
 
 import { AnalysisWorkspace } from './bi/v10/AnalysisWorkspace';
 import { VisualizationStudio } from './bi/v10/VisualizationStudio';
@@ -40,7 +41,7 @@ const registry = new WorkspaceRegistry();
 const ComponentMapper: Record<string, React.ComponentType<WorkspaceComponentProps>> = {
   'JournalWorkbench': () => <PlatformJournalWorkbench />,
   'LedgerExplorer': LedgerExplorer,
-  'ARWorkspace': ARWorkspace,
+  'ARWorkspace': ARWorkspace, 'ReconciliationClose': ReconciliationClosePanel,
   'AnalysisWorkspace': AnalysisWorkspace,
   'VisualizationStudio': VisualizationStudio,
   'ReportBuilder': ReportBuilder,
@@ -74,6 +75,7 @@ if (!initialized) {
   createWs('accounting-journal', 'Journal Workbench', 'JournalWorkbench');
   createWs('accounting-ledger', 'Ledger Explorer', 'LedgerExplorer');
   createWs('accounting-ar', 'A/R Workspace', 'ARWorkspace');
+createWs('accounting-recon-close', 'Reconciliation & Close', 'ReconciliationClose');
 
   createWs('bi-analysis', 'Analysis Workspace', 'AnalysisWorkspace');
   createWs('bi-viz', 'Visualization Studio', 'VisualizationStudio');
