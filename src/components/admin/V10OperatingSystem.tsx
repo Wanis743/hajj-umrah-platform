@@ -12,6 +12,7 @@ import { ReconciliationClosePanel } from '../../platform/accounting/Reconciliati
 import { AnalysisWorkspace } from '../../platform/bi/AnalysisWorkspace';
 import { VisualizationStudio } from '../../platform/bi/VisualizationStudio';
 import { ReportBuilder } from '../../platform/bi/ReportBuilder';
+import { MetricExplorer } from '../../platform/bi/MetricExplorer';
 
 import { Customer360 } from '../../platform/crm/Customer360';
 import { DocumentLibrary } from '../../platform/dms/DocumentWorkspace';
@@ -43,7 +44,7 @@ const ComponentMapper: Record<string, React.ComponentType<WorkspaceComponentProp
   'ARWorkspace': ARWorkspace, 'ReconciliationClose': ReconciliationClosePanel,
   'AnalysisWorkspace': AnalysisWorkspace,
   'VisualizationStudio': VisualizationStudio,
-  'ReportBuilder': ReportBuilder,
+  'ReportBuilder': ReportBuilder, 'MetricExplorer': MetricExplorer,
   'Customer360': Customer360,
   'LeadDesk': Customer360,
   'QuoteBuilder': Customer360, 'DocumentLibrary': DocumentLibrary,
@@ -79,6 +80,7 @@ createWs('accounting-recon-close', 'Reconciliation & Close', 'ReconciliationClos
   createWs('bi-analysis', 'Analysis Workspace', 'AnalysisWorkspace');
   createWs('bi-viz', 'Visualization Studio', 'VisualizationStudio');
   createWs('bi-report', 'Report Builder', 'ReportBuilder');
+createWs('bi-metrics', 'Metric Explorer', 'MetricExplorer');
 
   createWs('crm-customer', 'Customer 360', 'Customer360');
   createWs('crm-leaddesk', 'Lead Desk', 'LeadDesk');
