@@ -14,11 +14,15 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
+  Line as LineSeg,
   LineChart,
   ResponsiveContainer,
   Tooltip,
@@ -26,7 +30,7 @@ import {
   YAxis,
 } from 'recharts';
 import { getVisualizations, type BiVisualizationDTO } from './semanticService.ts';
-import { evaluateNetRevenuePerPilgrim } from './queryService.ts';
+import { evaluateCashTrend, evaluateNetRevenuePerPilgrim } from './queryService.ts';
 
 type LoadState =
   | { readonly kind: 'loading' }
@@ -64,27 +68,51 @@ function useRenderedCharts(visuals: readonly BiVisualizationDTO[] | null): {
     return () => { cancelled = true; };
   }, []);
 
+  const [cashRows, setCashRows] = useState<readonly Record<string, string | number | null>[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void evaluateCashTrend().then((r) => {
+      if (cancelled) return;
+      if (!r.ok) return;
+      setCashRows(r.value.map((row) => ({
+        period: row.reportDate,
+        expected_inflows: row.expectedInflows,
+        expected_outflows: row.expectedOutflows,
+        net_position: row.netPosition,
+      })));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   return useMemo(() => {
-    if (visuals === null || revenueRows === null) return { charts: [], unresolvable: [] };
+    if (visuals === null || revenueRows === null || cashRows === null) return { charts: [], unresolvable: [] };
     const charts: RenderedChart[] = [];
     const unresolvable: BiVisualizationDTO[] = [];
     for (const v of visuals) {
-      // Only bindings whose measures exist in the computed series resolve today.
-      const known = ['net_revenue_per_pilgrim', 'revenue_minor', 'pilgrims'];
-      const resolvable = v.measures.length > 0 && v.measures.every((m) => known.includes(m));
-      if (!resolvable) {
+      const cashKnown = ['expected_inflows', 'expected_outflows', 'net_position'];
+      const revKnown = ['net_revenue_per_pilgrim', 'revenue_minor', 'pilgrims'];
+      const isCash = v.measures.length > 0 && v.measures.every((m) => cashKnown.includes(m));
+      const isRevenue = v.measures.length > 0 && v.measures.every((m) => revKnown.includes(m));
+      if (isCash) {
+        charts.push({
+          visual: v,
+          title: `${v.chartType} · cash`,
+          data: cashRows,
+          valueKeys: v.measures.filter((m): m is string => cashKnown.includes(m)),
+        });
+      } else if (isRevenue) {
+        charts.push({
+          visual: v,
+          title: `${v.chartType} · ${v.measures.join(', ')}`,
+          data: revenueRows,
+          valueKeys: v.measures.filter((m): m is string => revKnown.includes(m)),
+        });
+      } else {
         unresolvable.push(v);
-        continue;
       }
-      charts.push({
-        visual: v,
-        title: `${v.chartType} · ${v.measures.join(', ')}`,
-        data: revenueRows,
-        valueKeys: v.measures.filter((m): m is string => known.includes(m)),
-      });
     }
     return { charts, unresolvable };
-  }, [visuals, revenueRows]);
+  }, [visuals, revenueRows, cashRows]);
 }
 
 const ChartFrame: React.FC<{ chart: RenderedChart }> = ({ chart }) => (
@@ -95,30 +123,60 @@ const ChartFrame: React.FC<{ chart: RenderedChart }> = ({ chart }) => (
     </div>
     <div className="h-48 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        {chart.visual.chartType === 'line' ? (
-          <LineChart data={chart.data}>
-            <CartesianGrid stroke="rgba(255,255,255,0.08)" />
-            <XAxis dataKey="period" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }} />
-            <Tooltip contentStyle={{ background: 'rgba(10,14,25,0.92)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8 }} />
-            {chart.visual.dimensions.length > 0 ? null : null}
-            {chart.valueKeys.map((k, i) => (
-              <Line key={k} type="monotone" dataKey={k} stroke={ACCENT[i % ACCENT.length]} dot={false} strokeWidth={2} />
-            ))}
-            <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }} />
-          </LineChart>
-        ) : (
-          <BarChart data={chart.data}>
-            <CartesianGrid stroke="rgba(255,255,255,0.08)" />
-            <XAxis dataKey="period" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }} />
-            <Tooltip contentStyle={{ background: 'rgba(10,14,25,0.92)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8 }} />
-            {chart.valueKeys.map((k, i) => (
-              <Bar key={k} dataKey={k} fill={ACCENT[i % ACCENT.length]} radius={[3, 3, 0, 0]} />
-            ))}
-            <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }} />
-          </BarChart>
-        )}
+        {(() => {
+          const axes = (
+            <>
+              <CartesianGrid stroke="rgba(255,255,255,0.08)" />
+              <XAxis dataKey="period" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 11 }} />
+              <Tooltip contentStyle={{ background: 'rgba(10,14,25,0.92)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8 }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }} />
+            </>
+          );
+          switch (chart.visual.chartType) {
+            case 'line':
+              return (
+                <LineChart data={chart.data}>
+                  {axes}
+                  {chart.valueKeys.map((k, i) => (
+                    <Line key={k} type="monotone" dataKey={k} stroke={ACCENT[i % ACCENT.length]} dot={false} strokeWidth={2} />
+                  ))}
+                </LineChart>
+              );
+            case 'area':
+              return (
+                <AreaChart data={chart.data}>
+                  {axes}
+                  {chart.valueKeys.map((k, i) => (
+                    <Area key={k} type="monotone" dataKey={k} stroke={ACCENT[i % ACCENT.length]} fill={`${ACCENT[i % ACCENT.length]}33`} strokeWidth={2} />
+                  ))}
+                </AreaChart>
+              );
+            case 'combo':
+            case 'composed':
+              return (
+                <ComposedChart data={chart.data}>
+                  {axes}
+                  {chart.valueKeys.map((k, i) =>
+                    i % 2 === 0 ? (
+                      <Bar key={k} dataKey={k} fill={ACCENT[i % ACCENT.length]} radius={[3, 3, 0, 0]} />
+                    ) : (
+                      <LineSeg key={k} type="monotone" dataKey={k} stroke={ACCENT[i % ACCENT.length]} dot={false} strokeWidth={2} />
+                    ),
+                  )}
+                </ComposedChart>
+              );
+            default:
+              return (
+                <BarChart data={chart.data}>
+                  {axes}
+                  {chart.valueKeys.map((k, i) => (
+                    <Bar key={k} dataKey={k} fill={ACCENT[i % ACCENT.length]} radius={[3, 3, 0, 0]} />
+                  ))}
+                </BarChart>
+              );
+          }
+        })()}
       </ResponsiveContainer>
     </div>
   </div>

@@ -191,3 +191,29 @@ export async function evaluateGroupMargins(
 
   return ok(rows);
 }
+
+export interface CashTrendRow {
+  readonly reportDate: string;
+  readonly expectedInflows: number;
+  readonly expectedOutflows: number;
+  readonly netPosition: number;
+}
+
+/** Cash trend from the authoritative cash_positions table (§12 treasury). */
+export async function evaluateCashTrend(): Promise<Result<readonly CashTrendRow[], KernelError>> {
+  const { data, error } = await supabase
+    .from('cash_positions')
+    .select('report_date, expected_inflows, expected_outflows, net_position')
+    .order('report_date', { ascending: true })
+    .limit(120);
+
+  if (error !== null) {
+    return err({ code: 'VALIDATION_FAILED', message: error.message, details: { domain: 'BI' } });
+  }
+  return ok(((data ?? []) as unknown as Record<string, unknown>[]).map((r) => Object.freeze({
+    reportDate: String(r.report_date ?? ''),
+    expectedInflows: Number(r.expected_inflows ?? 0),
+    expectedOutflows: Number(r.expected_outflows ?? 0),
+    netPosition: Number(r.net_position ?? 0),
+  })));
+}
