@@ -69,11 +69,11 @@ export function PlanningWorkspace({ registry }: PlanningWorkspaceProps) {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/40 backdrop-blur-md">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
+      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/[0.04]/40 backdrop-blur-md">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Planning & Workflow</h1>
-          <p className="text-sm text-slate-400">Orchestrate cross-functional budgeting cycles</p>
+          <p className="text-sm text-white/55">Orchestrate cross-functional budgeting cycles</p>
         </div>
         <button className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm font-medium hover:bg-indigo-600 transition-colors">
           Start New Cycle
@@ -84,7 +84,7 @@ export function PlanningWorkspace({ registry }: PlanningWorkspaceProps) {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-            <p className="text-slate-400">Loading planning cycles...</p>
+            <p className="text-white/55">Loading planning cycles...</p>
           </div>
         ) : error ? (
           <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
@@ -99,11 +99,11 @@ export function PlanningWorkspace({ registry }: PlanningWorkspaceProps) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="flex items-center justify-between p-5 bg-slate-900/40 border border-white/5 rounded-xl hover:bg-slate-800/50 transition-colors group"
+                className="flex items-center justify-between p-5 bg-white/[0.04]/40 border border-white/5 rounded-xl hover:bg-white/[0.07] transition-colors group"
               >
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-full flex items-center justify-center ${
-                    step.status === 'Locked' ? 'bg-slate-500/10 text-slate-400' :
+                    step.status === 'Locked' ? 'bg-slate-500/10 text-white/55' :
                     step.status === 'Published' ? 'bg-emerald-500/10 text-emerald-400' :
                     step.status === 'In Review' ? 'bg-amber-500/10 text-amber-400' :
                     'bg-indigo-500/10 text-indigo-400'
@@ -114,12 +114,12 @@ export function PlanningWorkspace({ registry }: PlanningWorkspaceProps) {
                      <Edit3 className="w-5 h-5" />}
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-slate-200">{step.name}</h3>
-                    <div className="flex items-center gap-3 text-sm text-slate-400 mt-1">
+                    <h3 className="text-lg font-medium text-white/90">{step.name}</h3>
+                    <div className="flex items-center gap-3 text-sm text-white/55 mt-1">
                       <span>Owner: {step.owner}</span>
                       <span>•</span>
                       <span className={`font-medium ${
-                        step.status === 'Locked' ? 'text-slate-500' :
+                        step.status === 'Locked' ? 'text-white/40' :
                         step.status === 'Published' ? 'text-emerald-500' :
                         step.status === 'In Review' ? 'text-amber-500' :
                         'text-indigo-400'
@@ -142,7 +142,7 @@ export function PlanningWorkspace({ registry }: PlanningWorkspaceProps) {
               </motion.div>
             ))}
             {steps.length === 0 && (
-              <div className="py-12 text-center text-slate-400 border border-dashed border-white/10 rounded-xl">
+              <div className="py-12 text-center text-white/55 border border-dashed border-white/10 rounded-xl">
                 <p>No planning cycles found</p>
               </div>
             )}

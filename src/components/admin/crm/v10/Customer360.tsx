@@ -119,23 +119,23 @@ export function Customer360({ registry }: Customer360Props) {
       case 'CALL': return <Phone className="w-4 h-4 text-emerald-400" />;
       case 'EMAIL': return <Mail className="w-4 h-4 text-indigo-400" />;
       case 'MEETING': return <Calendar className="w-4 h-4 text-amber-400" />;
-      case 'NOTE': return <FileText className="w-4 h-4 text-slate-400" />;
-      default: return <Activity className="w-4 h-4 text-slate-400" />;
+      case 'NOTE': return <FileText className="w-4 h-4 text-white/55" />;
+      default: return <Activity className="w-4 h-4 text-white/55" />;
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
       <div className="flex items-center justify-between p-6 border-b border-white/10">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-200">Customer 360</h1>
-          <p className="text-sm text-slate-400 mt-1">Comprehensive view of customer interactions and history</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-white/90">Customer 360</h1>
+          <p className="text-sm text-white/55 mt-1">Comprehensive view of customer interactions and history</p>
         </div>
       </div>
 
       <div className="flex-1 p-6 overflow-auto">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400">
+          <div className="flex flex-col items-center justify-center h-full text-white/55">
             <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-500" />
             <p>Loading customer profile...</p>
           </div>
@@ -145,8 +145,8 @@ export function Customer360({ registry }: Customer360Props) {
             <p>{error}</p>
           </div>
         ) : !customer ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400">
-            <User className="w-12 h-12 mb-3 text-slate-600" />
+          <div className="flex flex-col items-center justify-center h-full text-white/55">
+            <User className="w-12 h-12 mb-3 text-white/35" />
             <p>No customer found</p>
           </div>
         ) : (
@@ -158,11 +158,11 @@ export function Customer360({ registry }: Customer360Props) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="p-6 bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl"
+                className="p-6 bg-white/[0.04]/40 backdrop-blur-md border border-white/10 rounded-xl"
               >
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-indigo-500/30 flex items-center justify-center">
-                    <User className="w-8 h-8 text-slate-400" />
+                  <div className="w-16 h-16 rounded-full bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 border-2 border-indigo-500/30 flex items-center justify-center">
+                    <User className="w-8 h-8 text-white/55" />
                   </div>
                   <div>
                     <h2 className="text-xl font-semibold tracking-tight">{customer.name}</h2>
@@ -175,20 +175,20 @@ export function Customer360({ registry }: Customer360Props) {
                 
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 text-sm">
-                    <Mail className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-300">{customer.email || 'No email'}</span>
+                    <Mail className="w-4 h-4 text-white/40" />
+                    <span className="text-white/80">{customer.email || 'No email'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <Phone className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-300">{customer.phone || 'No phone'}</span>
+                    <Phone className="w-4 h-4 text-white/40" />
+                    <span className="text-white/80">{customer.phone || 'No phone'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-300">{customer.location || 'No location'}</span>
+                    <MapPin className="w-4 h-4 text-white/40" />
+                    <span className="text-white/80">{customer.location || 'No location'}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <Clock className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-300">Joined {new Date(customer.created_at).toLocaleDateString()}</span>
+                    <Clock className="w-4 h-4 text-white/40" />
+                    <span className="text-white/80">Joined {new Date(customer.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
               </motion.div>
@@ -198,7 +198,7 @@ export function Customer360({ registry }: Customer360Props) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: 0.1 }}
-                className="p-6 bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl"
+                className="p-6 bg-white/[0.04]/40 backdrop-blur-md border border-white/10 rounded-xl"
               >
                 <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-indigo-400" />
@@ -206,15 +206,15 @@ export function Customer360({ registry }: Customer360Props) {
                 </h3>
                 <div className="space-y-3">
                   {opportunities.length === 0 ? (
-                    <p className="text-sm text-slate-500">No opportunities found.</p>
+                    <p className="text-sm text-white/40">No opportunities found.</p>
                   ) : (
                     opportunities.map((opp) => (
-                      <div key={opp.id} className="p-3 bg-slate-800/30 rounded-lg border border-white/5">
+                      <div key={opp.id} className="p-3 bg-white/[0.05] rounded-lg border border-white/5">
                         <div className="flex justify-between items-start mb-2">
-                          <span className="text-sm font-medium text-slate-200">{opp.name}</span>
-                          <span className="text-sm font-semibold text-slate-200">${opp.amount || 0}</span>
+                          <span className="text-sm font-medium text-white/90">{opp.name}</span>
+                          <span className="text-sm font-semibold text-white/90">${opp.amount || 0}</span>
                         </div>
-                        <span className="text-xs text-slate-400 uppercase tracking-wider">{opp.stage}</span>
+                        <span className="text-xs text-white/55 uppercase tracking-wider">{opp.stage}</span>
                       </div>
                     ))
                   )}
@@ -228,7 +228,7 @@ export function Customer360({ registry }: Customer360Props) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: 0.2 }}
-                className="p-6 bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl h-full"
+                className="p-6 bg-white/[0.04]/40 backdrop-blur-md border border-white/10 rounded-xl h-full"
               >
                 <h3 className="text-base font-semibold mb-6 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-indigo-400" />
@@ -236,18 +236,18 @@ export function Customer360({ registry }: Customer360Props) {
                 </h3>
                 
                 {activities.length === 0 ? (
-                  <p className="text-sm text-slate-500">No activities recorded yet.</p>
+                  <p className="text-sm text-white/40">No activities recorded yet.</p>
                 ) : (
                   <div className="relative pl-4 space-y-6">
-                    <div className="absolute left-[15px] top-2 bottom-2 w-px bg-slate-800" />
+                    <div className="absolute left-[15px] top-2 bottom-2 w-px bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10" />
                     {activities.map((activity, i) => (
                       <div key={activity.id} className="relative flex gap-4">
-                        <div className="absolute -left-6 w-6 h-6 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center z-10">
+                        <div className="absolute -left-6 w-6 h-6 rounded-full bg-transparent border border-white/10 flex items-center justify-center z-10">
                           {getActivityIcon(activity.type)}
                         </div>
-                        <div className="flex-1 bg-slate-800/20 p-4 rounded-lg border border-white/5">
-                          <p className="text-sm text-slate-300">{activity.description}</p>
-                          <span className="text-xs text-slate-500 mt-2 block">
+                        <div className="flex-1 bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10/20 p-4 rounded-lg border border-white/5">
+                          <p className="text-sm text-white/80">{activity.description}</p>
+                          <span className="text-xs text-white/40 mt-2 block">
                             {new Date(activity.created_at).toLocaleString()}
                           </span>
                         </div>

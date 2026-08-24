@@ -61,11 +61,11 @@ export function OptimizationWorkspace({ registry }: OptimizationWorkspaceProps) 
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/40 backdrop-blur-md">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
+      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/[0.04]/40 backdrop-blur-md">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Optimization Solver</h2>
-          <p className="text-sm text-slate-400">Linear and non-linear programming</p>
+          <p className="text-sm text-white/55">Linear and non-linear programming</p>
         </div>
         <div className="flex items-center gap-4">
           <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-lg shadow-emerald-500/20">
@@ -78,8 +78,8 @@ export function OptimizationWorkspace({ registry }: OptimizationWorkspaceProps) 
       <div className="flex-1 overflow-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Objectives & Constraints */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-slate-900/40 border border-white/10 rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-slate-800/30">
+          <div className="bg-white/[0.04]/40 border border-white/10 rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-white/[0.05]">
               <Target className="w-5 h-5 text-indigo-400" />
               <h3 className="font-medium">Objective Function</h3>
             </div>
@@ -88,21 +88,21 @@ export function OptimizationWorkspace({ registry }: OptimizationWorkspaceProps) 
                 <select 
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
-                  className="bg-slate-950 border border-white/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500/50 w-48"
+                  className="bg-transparent border border-white/10 rounded-lg p-2.5 text-sm focus:outline-none focus:border-indigo-500/50 w-48"
                 >
                   <option value="maximize_profit">Maximize Profit</option>
                   <option value="minimize_cost">Minimize Cost</option>
                   <option value="maximize_capacity">Maximize Capacity</option>
                 </select>
-                <div className="flex-1 text-sm font-mono text-slate-400 bg-black/20 p-3 rounded-lg border border-white/5">
+                <div className="flex-1 text-sm font-mono text-white/55 bg-black/20 p-3 rounded-lg border border-white/5">
                   <span className="text-indigo-400">∑</span> (Revenue_i - Cost_i) * Vol_i
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-900/40 border border-white/10 rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-slate-800/30">
+          <div className="bg-white/[0.04]/40 border border-white/10 rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.05]">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-amber-400" />
                 <h3 className="font-medium">Constraints</h3>
@@ -111,7 +111,7 @@ export function OptimizationWorkspace({ registry }: OptimizationWorkspaceProps) 
             </div>
             <div className="p-0">
               <table className="w-full text-sm">
-                <thead className="bg-slate-900/50 text-slate-400">
+                <thead className="bg-white/[0.04]/50 text-white/55">
                   <tr>
                     <th className="text-left font-medium py-3 px-5 w-1/3">Variable</th>
                     <th className="text-left font-medium py-3 px-5 w-1/4">Operator</th>
@@ -120,18 +120,18 @@ export function OptimizationWorkspace({ registry }: OptimizationWorkspaceProps) 
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   <tr className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-5 text-slate-300">Total Pilgrim Vol</td>
+                    <td className="py-3 px-5 text-white/80">Total Pilgrim Vol</td>
                     <td className="py-3 px-5">
-                      <span className="bg-slate-800 px-2 py-1 rounded text-slate-300 font-mono">{'<='}</span>
+                      <span className="bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 px-2 py-1 rounded text-white/80 font-mono">{'<='}</span>
                     </td>
-                    <td className="py-3 px-5 font-mono text-slate-400">1,500,000</td>
+                    <td className="py-3 px-5 font-mono text-white/55">1,500,000</td>
                   </tr>
                   <tr className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 px-5 text-slate-300">Transport Fleet</td>
+                    <td className="py-3 px-5 text-white/80">Transport Fleet</td>
                     <td className="py-3 px-5">
-                      <span className="bg-slate-800 px-2 py-1 rounded text-slate-300 font-mono">{'<='}</span>
+                      <span className="bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 px-2 py-1 rounded text-white/80 font-mono">{'<='}</span>
                     </td>
-                    <td className="py-3 px-5 font-mono text-slate-400">Max_Buses</td>
+                    <td className="py-3 px-5 font-mono text-white/55">Max_Buses</td>
                   </tr>
                 </tbody>
               </table>
@@ -141,31 +141,31 @@ export function OptimizationWorkspace({ registry }: OptimizationWorkspaceProps) 
 
         {/* Results / History */}
         <div className="space-y-6">
-          <div className="bg-slate-900/40 border border-white/10 rounded-xl p-5 h-full min-h-[400px] flex flex-col">
-            <h3 className="font-medium text-slate-200 mb-4">Solver History</h3>
+          <div className="bg-white/[0.04]/40 border border-white/10 rounded-xl p-5 h-full min-h-[400px] flex flex-col">
+            <h3 className="font-medium text-white/90 mb-4">Solver History</h3>
             
             {isLoading ? (
               <div className="flex-1 flex flex-col items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mb-3" />
-                <p className="text-xs text-slate-400">Loading history...</p>
+                <p className="text-xs text-white/55">Loading history...</p>
               </div>
             ) : error ? (
               <p className="text-xs text-rose-400 p-3 bg-rose-500/10 rounded-lg">{error}</p>
             ) : jobs.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <GitBranch className="w-10 h-10 text-slate-600 mb-3" />
-                <p className="text-sm text-slate-400">No solver runs yet</p>
-                <p className="text-xs text-slate-500 mt-1">Configure your objective and constraints to run the optimizer.</p>
+                <GitBranch className="w-10 h-10 text-white/35 mb-3" />
+                <p className="text-sm text-white/55">No solver runs yet</p>
+                <p className="text-xs text-white/40 mt-1">Configure your objective and constraints to run the optimizer.</p>
               </div>
             ) : (
               <div className="space-y-3 flex-1 overflow-auto">
                 {jobs.map(job => (
-                  <div key={job.id} className="p-3 bg-slate-950 border border-white/5 rounded-lg">
+                  <div key={job.id} className="p-3 bg-transparent border border-white/5 rounded-lg">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-slate-300">{job.name}</span>
+                      <span className="text-sm font-medium text-white/80">{job.name}</span>
                       {job.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                     </div>
-                    <p className="text-xs text-slate-500 capitalize">Status: {job.status}</p>
+                    <p className="text-xs text-white/40 capitalize">Status: {job.status}</p>
                   </div>
                 ))}
               </div>

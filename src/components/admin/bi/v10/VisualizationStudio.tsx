@@ -90,16 +90,16 @@ export function VisualizationStudio({ registry }: VisualizationStudioProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-slate-950 text-slate-200">
+      <div className="flex flex-col items-center justify-center h-full bg-transparent text-white/90">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-        <p className="text-slate-400">Loading visualization studio...</p>
+        <p className="text-white/55">Loading visualization studio...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-slate-950 text-slate-200 p-6">
+      <div className="flex flex-col items-center justify-center h-full bg-transparent text-white/90 p-6">
         <AlertCircle className="w-8 h-8 text-rose-400 mb-4" />
         <p className="text-rose-400">{error}</p>
       </div>
@@ -107,27 +107,27 @@ export function VisualizationStudio({ registry }: VisualizationStudioProps) {
   }
 
   return (
-    <div className="flex h-full bg-slate-950 text-slate-200">
+    <div className="flex h-full bg-transparent text-white/90">
       {/* Sidebar / Builder Tools */}
-      <div className="w-64 border-r border-white/10 bg-slate-900/30 flex flex-col">
+      <div className="w-64 border-r border-white/10 bg-white/[0.04]/30 flex flex-col">
         <div className="p-4 border-b border-white/10">
           <h3 className="font-medium tracking-tight mb-4">Chart Type</h3>
           <div className="flex gap-2">
             <button 
               onClick={() => setActiveChart('bar')}
-              className={`p-2 rounded-lg border flex-1 flex justify-center items-center transition-colors ${activeChart === 'bar' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'border-white/10 text-slate-400 hover:bg-slate-800/50'}`}
+              className={`p-2 rounded-lg border flex-1 flex justify-center items-center transition-colors ${activeChart === 'bar' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'border-white/10 text-white/55 hover:bg-white/[0.07]'}`}
             >
               <BarChartIcon className="w-5 h-5" />
             </button>
             <button 
               onClick={() => setActiveChart('line')}
-              className={`p-2 rounded-lg border flex-1 flex justify-center items-center transition-colors ${activeChart === 'line' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'border-white/10 text-slate-400 hover:bg-slate-800/50'}`}
+              className={`p-2 rounded-lg border flex-1 flex justify-center items-center transition-colors ${activeChart === 'line' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'border-white/10 text-white/55 hover:bg-white/[0.07]'}`}
             >
               <LineChartIcon className="w-5 h-5" />
             </button>
             <button 
               onClick={() => setActiveChart('pie')}
-              className={`p-2 rounded-lg border flex-1 flex justify-center items-center transition-colors ${activeChart === 'pie' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'border-white/10 text-slate-400 hover:bg-slate-800/50'}`}
+              className={`p-2 rounded-lg border flex-1 flex justify-center items-center transition-colors ${activeChart === 'pie' ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'border-white/10 text-white/55 hover:bg-white/[0.07]'}`}
             >
               <PieChartIcon className="w-5 h-5" />
             </button>
@@ -137,10 +137,10 @@ export function VisualizationStudio({ registry }: VisualizationStudioProps) {
         <div className="flex-1 overflow-auto p-4 space-y-6">
           <div>
             <div className="flex items-center justify-between text-sm mb-3">
-              <span className="font-medium text-slate-300">Data Source</span>
-              <Settings className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-white/80">Data Source</span>
+              <Settings className="w-4 h-4 text-white/40" />
             </div>
-            <select className="w-full bg-slate-900/50 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500/50">
+            <select className="w-full bg-white/[0.04]/50 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-indigo-500/50">
               <option>Pilgrim Volumes Dataset</option>
               <option>Revenue by Service</option>
               <option>Resource Utilization</option>
@@ -149,32 +149,32 @@ export function VisualizationStudio({ registry }: VisualizationStudioProps) {
 
           <div>
             <div className="flex items-center justify-between text-sm mb-3">
-              <span className="font-medium text-slate-300">Dimensions</span>
-              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-white/80">Dimensions</span>
+              <SlidersHorizontal className="w-4 h-4 text-white/40" />
             </div>
-            <div className="p-3 bg-slate-900/50 border border-white/10 border-dashed rounded-lg text-center">
-              <span className="text-xs text-slate-500">Drop dimension here</span>
+            <div className="p-3 bg-white/[0.04]/50 border border-white/10 border-dashed rounded-lg text-center">
+              <span className="text-xs text-white/40">Drop dimension here</span>
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between text-sm mb-3">
-              <span className="font-medium text-slate-300">Measures</span>
-              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-white/80">Measures</span>
+              <SlidersHorizontal className="w-4 h-4 text-white/40" />
             </div>
-            <div className="p-3 bg-slate-900/50 border border-white/10 border-dashed rounded-lg text-center">
-              <span className="text-xs text-slate-500">Drop measure here</span>
+            <div className="p-3 bg-white/[0.04]/50 border border-white/10 border-dashed rounded-lg text-center">
+              <span className="text-xs text-white/40">Drop measure here</span>
             </div>
           </div>
 
           <div className="pt-4 border-t border-white/10">
-            <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Saved Visualizations</h4>
+            <h4 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2">Saved Visualizations</h4>
             {visualizations.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">No saved charts</p>
+              <p className="text-sm text-white/55 italic">No saved charts</p>
             ) : (
               <ul className="space-y-2">
                 {visualizations.map(v => (
-                  <li key={v.id} className="text-sm text-slate-300 bg-white/5 p-2 rounded truncate">{v.chart_type} chart ({v.id.substring(0, 8)})</li>
+                  <li key={v.id} className="text-sm text-white/80 bg-white/5 p-2 rounded truncate">{v.chart_type} chart ({v.id.substring(0, 8)})</li>
                 ))}
               </ul>
             )}
@@ -184,7 +184,7 @@ export function VisualizationStudio({ registry }: VisualizationStudioProps) {
 
       {/* Canvas Area */}
       <div className="flex-1 flex flex-col">
-        <div className="p-4 border-b border-white/10 bg-slate-900/20 flex items-center justify-between">
+        <div className="p-4 border-b border-white/10 bg-white/[0.04]/20 flex items-center justify-between">
           <input 
             type="text" 
             value={title}
@@ -201,9 +201,9 @@ export function VisualizationStudio({ registry }: VisualizationStudioProps) {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-4xl aspect-[16/9] bg-slate-900/60 backdrop-blur-sm border border-white/10 rounded-xl flex flex-col shadow-2xl p-6"
+            className="w-full max-w-4xl aspect-[16/9] bg-white/[0.04]/60 backdrop-blur-sm border border-white/10 rounded-xl flex flex-col shadow-2xl p-6"
           >
-            <h2 className="text-xl font-medium text-slate-200 mb-6 text-center">{title}</h2>
+            <h2 className="text-xl font-medium text-white/90 mb-6 text-center">{title}</h2>
             <div className="flex-1 w-full min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 {activeChart === 'bar' ? (

@@ -71,16 +71,16 @@ export function TreasuryWorkspace({ registry }: TreasuryWorkspaceProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-200">
+      <div className="flex flex-col items-center justify-center h-full text-white/90">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-        <p className="text-slate-400">Loading treasury data...</p>
+        <p className="text-white/55">Loading treasury data...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-slate-200 p-6">
+      <div className="flex flex-col items-center justify-center h-full text-white/90 p-6">
         <AlertCircle className="w-8 h-8 text-rose-400 mb-4" />
         <p className="text-rose-400">{error}</p>
       </div>
@@ -88,17 +88,17 @@ export function TreasuryWorkspace({ registry }: TreasuryWorkspaceProps) {
   }
 
   return (
-    <div className="p-6 space-y-6 text-slate-200">
+    <div className="p-6 space-y-6 text-white/90">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
             <Briefcase className="w-6 h-6 text-indigo-400" />
             Treasury & Liquidity
           </h2>
-          <p className="text-sm text-slate-400 mt-1">Cash positioning, forecasting, and bank relations</p>
+          <p className="text-sm text-white/55 mt-1">Cash positioning, forecasting, and bank relations</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 text-white/90 rounded-lg text-sm font-medium hover:bg-white/[0.08] transition-colors">
             <RefreshCcw className="w-4 h-4" />
             Sync Banks
           </button>
@@ -109,12 +109,12 @@ export function TreasuryWorkspace({ registry }: TreasuryWorkspaceProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-5 bg-slate-900/50 border border-white/5 rounded-xl flex flex-col justify-between">
+        <div className="p-5 bg-white/[0.04]/50 border border-white/5 rounded-xl flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
               <DollarSign className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-slate-300">Global Cash</h3>
+            <h3 className="font-medium text-white/80">Global Cash</h3>
           </div>
           <div>
             <div className="text-3xl font-semibold text-white mb-1">
@@ -126,36 +126,36 @@ export function TreasuryWorkspace({ registry }: TreasuryWorkspaceProps) {
           </div>
         </div>
 
-        <div className="p-5 bg-slate-900/50 border border-white/5 rounded-xl flex flex-col justify-between">
+        <div className="p-5 bg-white/[0.04]/50 border border-white/5 rounded-xl flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-slate-300">30-Day Forecast</h3>
+            <h3 className="font-medium text-white/80">30-Day Forecast</h3>
           </div>
           <div>
             <div className="text-3xl font-semibold text-white mb-1">+$2.1M</div>
-            <div className="text-sm text-slate-400 flex items-center gap-1">
+            <div className="text-sm text-white/55 flex items-center gap-1">
               Net Inflows
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-900/40 border border-white/10 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-white/10 bg-slate-800/30">
-          <h3 className="font-medium text-slate-200">Account Positions</h3>
+      <div className="bg-white/[0.04]/40 border border-white/10 rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-white/10 bg-white/[0.05]">
+          <h3 className="font-medium text-white/90">Account Positions</h3>
         </div>
         <div className="divide-y divide-white/5">
           {cashPositions.map((pos) => (
             <div key={pos.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-medium text-slate-300">
+                <div className="w-10 h-10 rounded-full bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 flex items-center justify-center font-medium text-white/80">
                   {pos.currency}
                 </div>
                 <div>
-                  <h4 className="font-medium text-slate-200">{pos.account}</h4>
-                  <p className="text-sm text-slate-400">Standard Chartered •••• 4092</p>
+                  <h4 className="font-medium text-white/90">{pos.account}</h4>
+                  <p className="text-sm text-white/55">Standard Chartered •••• 4092</p>
                 </div>
               </div>
               <div className="text-right">
@@ -171,7 +171,7 @@ export function TreasuryWorkspace({ registry }: TreasuryWorkspaceProps) {
             </div>
           ))}
           {cashPositions.length === 0 && (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-white/40 text-sm">
               No cash positions found.
             </div>
           )}

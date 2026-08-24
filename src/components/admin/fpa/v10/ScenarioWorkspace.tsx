@@ -70,11 +70,11 @@ export function ScenarioWorkspace({ registry }: ScenarioWorkspaceProps) {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/40 backdrop-blur-md">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
+      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/[0.04]/40 backdrop-blur-md">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Scenario Planning</h1>
-          <p className="text-sm text-slate-400">Branching and merging financial scenarios</p>
+          <p className="text-sm text-white/55">Branching and merging financial scenarios</p>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors">
           <GitBranch className="w-4 h-4" />
@@ -86,7 +86,7 @@ export function ScenarioWorkspace({ registry }: ScenarioWorkspaceProps) {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-            <p className="text-slate-400">Loading scenarios...</p>
+            <p className="text-white/55">Loading scenarios...</p>
           </div>
         ) : error ? (
           <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
@@ -101,7 +101,7 @@ export function ScenarioWorkspace({ registry }: ScenarioWorkspaceProps) {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.1 }}
-                className="p-5 bg-slate-900/40 border border-white/10 rounded-xl relative overflow-hidden group hover:border-indigo-500/50 transition-colors"
+                className="p-5 bg-white/[0.04]/40 border border-white/10 rounded-xl relative overflow-hidden group hover:border-indigo-500/50 transition-colors"
               >
                 {scenario.type === 'Baseline' && (
                   <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
@@ -109,29 +109,29 @@ export function ScenarioWorkspace({ registry }: ScenarioWorkspaceProps) {
                 
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 bg-slate-800 rounded-lg">
-                      <GitBranch className="w-4 h-4 text-slate-400" />
+                    <div className="p-2 bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 rounded-lg">
+                      <GitBranch className="w-4 h-4 text-white/55" />
                     </div>
-                    <span className="text-sm font-medium text-slate-400">{scenario.type}</span>
+                    <span className="text-sm font-medium text-white/55">{scenario.type}</span>
                   </div>
                   <span className={`px-2 py-1 text-xs font-medium rounded-md ${
                     scenario.status.toLowerCase() === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
-                    scenario.status.toLowerCase() === 'draft' ? 'bg-slate-500/10 text-slate-400' :
+                    scenario.status.toLowerCase() === 'draft' ? 'bg-slate-500/10 text-white/55' :
                     'bg-amber-500/10 text-amber-400'
                   }`}>
                     {scenario.status}
                   </span>
                 </div>
 
-                <h3 className="text-lg font-medium text-slate-200 mb-2">{scenario.name}</h3>
+                <h3 className="text-lg font-medium text-white/90 mb-2">{scenario.name}</h3>
                 
                 <div className="flex justify-between items-end mt-6 pt-4 border-t border-white/5">
                   <div>
-                    <p className="text-xs text-slate-500 mb-1">Variance to Base</p>
+                    <p className="text-xs text-white/40 mb-1">Variance to Base</p>
                     <p className={`text-lg font-semibold ${
                       scenario.variance.startsWith('+') ? 'text-emerald-400' :
                       scenario.variance.startsWith('-') ? 'text-rose-400' :
-                      'text-slate-300'
+                      'text-white/80'
                     }`}>
                       {scenario.variance}
                     </p>
@@ -145,7 +145,7 @@ export function ScenarioWorkspace({ registry }: ScenarioWorkspaceProps) {
             ))}
             
             {scenarios.length === 0 && (
-              <div className="col-span-full py-12 text-center text-slate-400 border border-dashed border-white/10 rounded-xl">
+              <div className="col-span-full py-12 text-center text-white/55 border border-dashed border-white/10 rounded-xl">
                 <GitBranch className="w-8 h-8 mx-auto mb-3 opacity-50" />
                 <p>No scenarios found</p>
               </div>

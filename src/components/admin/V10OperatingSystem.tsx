@@ -133,7 +133,7 @@ export function V10OperatingSystem({ onBack }: V10OperatingSystemProps) {
   const q = query.trim().toLowerCase();
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden font-sans text-white">
+    <div className="finance-font relative flex h-screen w-full overflow-hidden text-white">
       {/* Ambient background — the layers the glass sits on */}
       <div className="pointer-events-none absolute inset-0 bg-[#070b14]" />
       <div className="pointer-events-none absolute -left-40 -top-40 h-[36rem] w-[36rem] rounded-full bg-blue-600/25 blur-[140px]" />

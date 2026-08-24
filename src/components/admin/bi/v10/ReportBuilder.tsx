@@ -63,16 +63,16 @@ export function ReportBuilder({ registry }: ReportBuilderProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-slate-950 text-slate-200">
+      <div className="flex flex-col items-center justify-center h-full bg-transparent text-white/90">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-        <p className="text-slate-400">Loading report builder...</p>
+        <p className="text-white/55">Loading report builder...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-slate-950 text-slate-200 p-6">
+      <div className="flex flex-col items-center justify-center h-full bg-transparent text-white/90 p-6">
         <AlertCircle className="w-8 h-8 text-rose-400 mb-4" />
         <p className="text-rose-400">{error}</p>
       </div>
@@ -80,9 +80,9 @@ export function ReportBuilder({ registry }: ReportBuilderProps) {
   }
 
   return (
-    <div className="flex h-full bg-slate-950 text-slate-200">
+    <div className="flex h-full bg-transparent text-white/90">
       {/* Sidebar / Pages List */}
-      <div className="w-64 border-r border-white/10 bg-slate-900/30 flex flex-col">
+      <div className="w-64 border-r border-white/10 bg-white/[0.04]/30 flex flex-col">
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <h3 className="font-medium tracking-tight">Report Pages</h3>
           <button 
@@ -91,7 +91,7 @@ export function ReportBuilder({ registry }: ReportBuilderProps) {
               setPages([...pages, { id: newId, title: `Page ${pages.length + 1}` }]);
               setActivePage(newId);
             }}
-            className="p-1 text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1 text-white/55 hover:text-white/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -105,7 +105,7 @@ export function ReportBuilder({ registry }: ReportBuilderProps) {
               className={`w-full flex items-center justify-between p-2 rounded-lg text-sm transition-colors ${
                 activePage === page.id 
                   ? 'bg-indigo-500/20 text-indigo-400' 
-                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                  : 'text-white/55 hover:bg-white/[0.07] hover:text-white/90'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -119,19 +119,19 @@ export function ReportBuilder({ registry }: ReportBuilderProps) {
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 flex flex-col bg-slate-950">
-        <div className="p-4 border-b border-white/10 bg-slate-900/20 flex items-center justify-between">
+      <div className="flex-1 flex flex-col bg-transparent">
+        <div className="p-4 border-b border-white/10 bg-white/[0.04]/20 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="text-lg font-medium text-slate-200">
+            <h2 className="text-lg font-medium text-white/90">
               {pages.find(p => p.id === activePage)?.title || 'Untitled'}
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/5 rounded-lg transition-colors">
+            <button className="p-2 text-white/55 hover:text-white/90 hover:bg-white/5 rounded-lg transition-colors">
               <LayoutGrid className="w-4 h-4" />
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-900/50 border border-white/10 hover:bg-slate-800 text-slate-200 rounded-lg transition-colors text-sm font-medium">
-              <Download className="w-4 h-4 text-slate-400" />
+            <button className="flex items-center gap-2 px-4 py-2 bg-white/[0.04]/50 border border-white/10 hover:bg-white/[0.08] backdrop-blur-lg rounded-xl border border-white/10 text-white/90 rounded-lg transition-colors text-sm font-medium">
+              <Download className="w-4 h-4 text-white/55" />
               Export PDF
             </button>
           </div>
@@ -142,17 +142,17 @@ export function ReportBuilder({ registry }: ReportBuilderProps) {
             key={activePage}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-4xl min-h-[842px] bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-2xl p-8 rounded-sm"
+            className="w-full max-w-4xl min-h-[842px] bg-white/[0.04]/80 backdrop-blur-md border border-white/10 shadow-2xl p-8 rounded-sm"
           >
-            <div className="border-2 border-dashed border-white/10 rounded-lg h-32 flex items-center justify-center text-slate-500 mb-6 hover:bg-white/5 transition-colors cursor-pointer">
+            <div className="border-2 border-dashed border-white/10 rounded-lg h-32 flex items-center justify-center text-white/40 mb-6 hover:bg-white/5 transition-colors cursor-pointer">
               <span className="text-sm">Drag & Drop Visualization Header Here</span>
             </div>
             
             <div className="grid grid-cols-2 gap-6">
-              <div className="border-2 border-dashed border-white/10 rounded-lg h-64 flex items-center justify-center text-slate-500 hover:bg-white/5 transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-white/10 rounded-lg h-64 flex items-center justify-center text-white/40 hover:bg-white/5 transition-colors cursor-pointer">
                 <span className="text-sm">Drop Chart Widget</span>
               </div>
-              <div className="border-2 border-dashed border-white/10 rounded-lg h-64 flex items-center justify-center text-slate-500 hover:bg-white/5 transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-white/10 rounded-lg h-64 flex items-center justify-center text-white/40 hover:bg-white/5 transition-colors cursor-pointer">
                 <span className="text-sm">Drop Data Table</span>
               </div>
             </div>

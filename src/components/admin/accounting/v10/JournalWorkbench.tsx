@@ -158,11 +158,11 @@ export function JournalWorkbench() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/40 backdrop-blur-md">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
+      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/[0.04]/40 backdrop-blur-md">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Journal Workbench</h1>
-          <p className="text-sm text-slate-400">Manage and post double-entry general ledger journals</p>
+          <p className="text-sm text-white/55">Manage and post double-entry general ledger journals</p>
         </div>
         <button 
           onClick={handleCreateDualEntry}
@@ -178,7 +178,7 @@ export function JournalWorkbench() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-            <p className="text-slate-400">Loading journals...</p>
+            <p className="text-white/55">Loading journals...</p>
           </div>
         ) : error ? (
           <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 mb-6">
@@ -189,29 +189,29 @@ export function JournalWorkbench() {
         
         {!loading && entries.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-12 border border-dashed border-white/10 rounded-xl">
-            <FileText className="w-8 h-8 text-slate-500 mb-4" />
-            <p className="text-slate-400">No journal entries found</p>
+            <FileText className="w-8 h-8 text-white/40 mb-4" />
+            <p className="text-white/55">No journal entries found</p>
           </div>
         )}
 
         {!loading && entries.length > 0 && (
           <div className="space-y-4">
             {entries.map(entry => (
-              <div key={entry.id} className="bg-slate-900/40 border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-colors">
-                <div className="p-4 bg-slate-800/30 flex items-center justify-between border-b border-white/5">
+              <div key={entry.id} className="bg-white/[0.04]/40 border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-colors">
+                <div className="p-4 bg-white/[0.05] flex items-center justify-between border-b border-white/5">
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-slate-200">{entry.reference || 'Untitled'}</span>
+                    <span className="font-medium text-white/90">{entry.reference || 'Untitled'}</span>
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                       entry.status === 'posted' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
                     }`}>
                       {entry.status.toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-sm text-slate-400">{entry.description}</span>
+                  <span className="text-sm text-white/55">{entry.description}</span>
                 </div>
                 <div className="p-4">
                   <table className="w-full text-sm">
-                    <thead className="text-slate-500 text-left border-b border-white/5">
+                    <thead className="text-white/40 text-left border-b border-white/5">
                       <tr>
                         <th className="pb-2 font-medium">Account ID</th>
                         <th className="pb-2 font-medium">Description</th>
@@ -222,8 +222,8 @@ export function JournalWorkbench() {
                     <tbody className="divide-y divide-white/5">
                       {entry.lines.map(line => (
                         <tr key={line.id}>
-                          <td className="py-2 text-slate-300 font-mono text-xs">{line.accountId.substring(0, 8)}...</td>
-                          <td className="py-2 text-slate-400">{line.description}</td>
+                          <td className="py-2 text-white/80 font-mono text-xs">{line.accountId.substring(0, 8)}...</td>
+                          <td className="py-2 text-white/55">{line.description}</td>
                           <td className="py-2 text-emerald-400 text-right">{line.debit > 0 ? `$${line.debit.toLocaleString()}` : '-'}</td>
                           <td className="py-2 text-rose-400 text-right">{line.credit > 0 ? `$${line.credit.toLocaleString()}` : '-'}</td>
                         </tr>

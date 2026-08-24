@@ -71,11 +71,11 @@ export function ModelWorkspace({ registry }: ModelWorkspaceProps) {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
-      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/40 backdrop-blur-md">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
+      <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/[0.04]/40 backdrop-blur-md">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Modeling Engine</h1>
-          <p className="text-sm text-slate-400">Define dimensional variables and financial formulas</p>
+          <p className="text-sm text-white/55">Define dimensional variables and financial formulas</p>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-500/30 transition-colors">
@@ -92,11 +92,11 @@ export function ModelWorkspace({ registry }: ModelWorkspaceProps) {
       <div className="p-6 flex-1 overflow-auto">
         <div className="flex space-x-4 mb-6">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/55" />
             <input
               type="text"
               placeholder="Search variables or formulas..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
+              className="w-full pl-10 pr-4 py-2 bg-white/[0.04]/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
             />
           </div>
         </div>
@@ -104,7 +104,7 @@ export function ModelWorkspace({ registry }: ModelWorkspaceProps) {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-4" />
-            <p className="text-slate-400">Loading models...</p>
+            <p className="text-white/55">Loading models...</p>
           </div>
         ) : error ? (
           <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400">
@@ -119,7 +119,7 @@ export function ModelWorkspace({ registry }: ModelWorkspaceProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="p-5 bg-slate-900/40 border border-white/5 rounded-xl hover:border-white/10 transition-colors cursor-pointer group"
+                className="p-5 bg-white/[0.04]/40 border border-white/5 rounded-xl hover:border-white/10 transition-colors cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className={`p-2 rounded-lg ${
@@ -127,13 +127,13 @@ export function ModelWorkspace({ registry }: ModelWorkspaceProps) {
                   }`}>
                     {item.type.toLowerCase() === 'variable' ? <Database className="w-5 h-5" /> : <Calculator className="w-5 h-5" />}
                   </div>
-                  <span className="text-xs font-medium text-slate-500 bg-white/5 px-2 py-1 rounded-md">
+                  <span className="text-xs font-medium text-white/40 bg-white/5 px-2 py-1 rounded-md">
                     {item.dimension}
                   </span>
                 </div>
                 
-                <h3 className="font-medium text-slate-200 mb-1">{item.name}</h3>
-                <div className="flex items-center gap-2 text-sm text-slate-400 font-mono bg-black/20 p-2 rounded-md mt-3 border border-white/5">
+                <h3 className="font-medium text-white/90 mb-1">{item.name}</h3>
+                <div className="flex items-center gap-2 text-sm text-white/55 font-mono bg-black/20 p-2 rounded-md mt-3 border border-white/5">
                   <span className="text-indigo-400">ƒ</span>
                   <span className="truncate">{item.formula}</span>
                 </div>

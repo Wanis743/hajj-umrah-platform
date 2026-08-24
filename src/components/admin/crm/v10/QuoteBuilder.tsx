@@ -134,7 +134,7 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full bg-slate-950 text-slate-200 items-center justify-center">
+      <div className="flex flex-col h-full bg-transparent text-white/90 items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-500" />
         <p>Loading quote builder...</p>
       </div>
@@ -143,7 +143,7 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
 
   if (error) {
     return (
-      <div className="flex flex-col h-full bg-slate-950 text-slate-200 items-center justify-center">
+      <div className="flex flex-col h-full bg-transparent text-white/90 items-center justify-center">
         <AlertCircle className="w-8 h-8 mb-4 text-rose-400" />
         <p className="text-rose-400">{error}</p>
       </div>
@@ -151,18 +151,18 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-200">
+    <div className="flex flex-col h-full bg-transparent text-white/90">
       <div className="flex items-center justify-between p-6 border-b border-white/10">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-200">Quote Builder</h1>
-          <p className="text-sm text-slate-400 mt-1">Create and manage professional quotes for opportunities</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-white/90">Quote Builder</h1>
+          <p className="text-sm text-white/55 mt-1">Create and manage professional quotes for opportunities</p>
         </div>
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsSaved(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-900/50 border border-white/10 rounded-lg hover:bg-slate-800/50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white/[0.04]/50 border border-white/10 rounded-lg hover:bg-white/[0.07] transition-colors"
           >
-            {isSaved ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Save className="w-4 h-4 text-slate-400" />}
+            {isSaved ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Save className="w-4 h-4 text-white/55" />}
             {isSaved ? 'Saved' : 'Save Draft'}
           </button>
           <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors">
@@ -179,12 +179,12 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="p-6 bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-xl"
+            className="p-6 bg-white/[0.04]/40 backdrop-blur-md border border-white/10 rounded-xl"
           >
             <div className="flex justify-between items-start mb-8">
               <div>
                 <h2 className="text-xl font-semibold mb-2">Quote {quoteDetails?.quote_number || '#QT-NEW'}</h2>
-                <div className="text-sm text-slate-400 space-y-1">
+                <div className="text-sm text-white/55 space-y-1">
                   <p>Prepared for: {quoteDetails?.customer_name || 'N/A'}</p>
                   <p>Opportunity: {quoteDetails?.opportunity_name || 'N/A'}</p>
                   <p>Valid until: {quoteDetails?.valid_until ? new Date(quoteDetails.valid_until).toLocaleDateString() : 'N/A'}</p>
@@ -198,7 +198,7 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 text-slate-400 text-left">
+                  <tr className="border-b border-white/10 text-white/55 text-left">
                     <th className="pb-3 font-medium uppercase tracking-wider text-xs">Description</th>
                     <th className="pb-3 font-medium uppercase tracking-wider text-xs w-24">Qty</th>
                     <th className="pb-3 font-medium uppercase tracking-wider text-xs w-32">Unit Price</th>
@@ -229,7 +229,7 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
                       </td>
                       <td className="py-3 pr-4">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">$</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40">$</span>
                           <input 
                             type="number" 
                             value={item.unitPrice}
@@ -239,13 +239,13 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
                           />
                         </div>
                       </td>
-                      <td className="py-3 text-right font-medium text-slate-300">
+                      <td className="py-3 text-right font-medium text-white/80">
                         ${(item.quantity * item.unitPrice).toFixed(2)}
                       </td>
                       <td className="py-3 text-right">
                         <button 
                           onClick={() => removeItem(item.id)}
-                          className="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-1"
+                          className="text-white/40 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-1"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -266,13 +266,13 @@ export function QuoteBuilder({ registry }: QuoteBuilderProps) {
 
             <div className="mt-8 flex justify-end">
               <div className="w-64 space-y-3 text-sm">
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-white/55">
                   <span>Subtotal</span>
-                  <span className="text-slate-300">${subtotal.toFixed(2)}</span>
+                  <span className="text-white/80">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-white/55">
                   <span>VAT (15%)</span>
-                  <span className="text-slate-300">${tax.toFixed(2)}</span>
+                  <span className="text-white/80">${tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg border-t border-white/10 pt-3 mt-3">
                   <span>Total</span>
