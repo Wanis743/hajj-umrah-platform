@@ -141,3 +141,66 @@ export async function getVisualizations(reportId?: string): Promise<Result<reado
     dimensions: Array.isArray(r.dimensions) ? (r.dimensions as unknown[]).map(String) : [],
   })));
 }
+
+export interface ReportLayoutItem {
+  readonly visualizationId: string;
+  readonly position: number;
+}
+
+/**
+ * §8 report builder: persist a report's visual arrangement. The layout is
+ * an ordered list of visualization references; the server RLS policy
+ * (bi_reports_isolation) stamps scope — the client never supplies agency.
+ */
+export async function createReport(
+  title: string,
+  description: string,
+  layout: readonly ReportLayoutItem[],
+): Promise<Result<BiReportDTO, KernelError>> {
+  const payload = {
+    title,
+    description,
+    layout: layout.map((l) => ({ visualization_id: l.visualizationId, position: l.position })),
+  };
+  // bi_reports participates in the generated Database types; the jsonb layout
+  // column needs an explicit boundary cast (unknown at the edge is sanctioned).
+  type BiReportsClient = Parameters<typeof supabase.from>[0] extends never ? never : string;
+  const client = supabase.from('bi_reports' as BiReportsClient);
+  const { data, error } = await (client as unknown as {
+    insert: (row: Record<string, unknown>) => ReturnType<typeof client.select>;
+  })
+    .insert(payload as unknown as Record<string, unknown>)
+    .select('id, title, description, layout')
+    .single();
+
+  if (error !== null) {
+    return err({ code: 'VALIDATION_FAILED', message: error.message, details: { domain: 'BI' } });
+  }
+  const r = data as Record<string, unknown>;
+  return ok(Object.freeze({
+    id: String(r.id),
+    title: String(r.title ?? ''),
+    description: String(r.description ?? ''),
+    layout: r.layout ?? null,
+  }));
+}
+
+export async function saveReportLayout(
+  reportId: string,
+  layout: readonly ReportLayoutItem[],
+): Promise<Result<true, KernelError>> {
+  const payload = {
+    layout: layout.map((l) => ({ visualization_id: l.visualizationId, position: l.position })),
+  };
+  const client = supabase.from('bi_reports' as Parameters<typeof supabase.from>[0]);
+  const { error } = await (client as unknown as {
+    update: (row: Record<string, unknown>) => ReturnType<typeof client.select>;
+  })
+    .update(payload as unknown as Record<string, unknown>)
+    .eq('id', reportId);
+
+  if (error !== null) {
+    return err({ code: 'VALIDATION_FAILED', message: error.message, details: { domain: 'BI' } });
+  }
+  return ok(true);
+}

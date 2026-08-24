@@ -236,6 +236,18 @@ export interface ExternalOperationEvidenceRow extends BaseRow {
   status: 'PENDING' | 'VERIFIED' | 'REJECTED';
 }
 
+export interface BiReportRow {
+  id: string;
+  agency_id: string;
+  title: string;
+  description: string | null;
+  layout: unknown;
+  owner: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 type RowMap = { import_batch_rows: ImportBatchRowRow; financial_models: FinancialModelRow; model_scenarios: ModelScenarioRow; model_assumptions: ModelAssumptionRow; model_projections: ModelProjectionRow; fiscal_budgets: FiscalBudgetRow; budget_lines: BudgetLineRow;
   pilgrims: PilgrimRow; bookings: BookingRow; payments: PaymentRow; invoices: InvoiceRow;
   documents: DocumentRow; groups: GroupRow; visas: VisaRow;
@@ -287,6 +299,21 @@ export interface KnownFunctions {
   create_flight_command: { Args: { p_payload: RpcJson }; Returns: CommandAck };
   update_flight_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CommandAck };
   delete_flight_command: { Args: { p_id: string }; Returns: CommandAck };
+  get_recent_journal_entries: { Args: { limit_rows?: number }; Returns: unknown[] };
+  approve_journal_entry: { Args: { p_journal_id: string; p_correlation_id?: string; p_reason?: string }; Returns: unknown };
+  receive_invoice_payment: { Args: Record<string, unknown>; Returns: unknown };
+  get_group_profitability: {
+    Args: { p_group_id: string };
+    Returns: {
+      total_revenue_dzd: number; total_revenue_sar: number;
+      total_cost_dzd: number; total_cost_sar: number;
+      margin_dzd: number; margin_sar: number; margin_percentage: number;
+    }[];
+  };
+  auto_reconcile_bank_statement: { Args: { p_statement_id: string }; Returns: unknown };
+  reconcile_bank_statement: { Args: { p_reconciliation_id: string }; Returns: unknown };
+  close_fiscal_period: { Args: { p_period_id: string }; Returns: unknown };
+  log_bi_audit: { Args: Record<string, unknown>; Returns: unknown };
 }
 
 export interface Database {
@@ -301,7 +328,7 @@ export interface Database {
       }
     };
     Views: { [key: string]: { Row: GenericRow; Relationships: [] } };
-    Functions: KnownFunctions & {
+    Functions: {
       [key: string]: {
         Args: Record<string, unknown>;
         Returns: unknown;
