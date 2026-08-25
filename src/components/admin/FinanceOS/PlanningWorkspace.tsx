@@ -53,7 +53,6 @@ export function PlanningWorkspace() {
   const [variance, setVariance] = useState<BudgetVarianceRow[]>([]);
 
   const [newBudgetName, setNewBudgetName] = useState('');
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchAgency = async () => {
@@ -131,7 +130,6 @@ export function PlanningWorkspace() {
   };
 
   const fetchVariance = async (budgetId: string) => {
-    setLoading(true);
     const { data, error } = await supabase.rpc('get_budget_variance', { p_budget_id: budgetId });
     if (error !== null) {
       setVariance([]);
@@ -141,7 +139,6 @@ export function PlanningWorkspace() {
     } else {
       setVariance([]);
     }
-    setLoading(false);
   };
 
   const updateStatus = async (status: string) => {
@@ -195,7 +192,7 @@ export function PlanningWorkspace() {
                   {activePeriod?.id === p.id && (
                     <div className="pl-4 pr-2 space-y-2 py-2">
                       <div className="flex gap-2">
-                        <input type="text" className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-xs" placeholder="New Budget" value={newBudgetName} onChange={e => setNewBudgetName(e.target.value)} />
+                        <input type="text" className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-xs" placeholder={t('ميزانية جديدة', 'Nouveau budget', 'New budget…')} value={newBudgetName} onChange={e => setNewBudgetName(e.target.value)} />
                         <button onClick={createBudget} className="p-1 bg-[var(--brand-500)] text-white rounded"><Plus className="w-3 h-3"/></button>
                       </div>
                       {budgets.map(b => (
@@ -231,7 +228,7 @@ export function PlanningWorkspace() {
                   <BarChart2 className="w-5 h-5 text-[var(--brand-500)]" /> 
                   Variance Dashboard ({activeBudget.name})
                 </h4>
-                <button onClick={() => fetchVariance(activeBudget.id)} className="btn btn-sm border border-[var(--border)] text-xs">Refresh Actuals</button>
+                <button onClick={() => fetchVariance(activeBudget.id)} className="btn btn-sm border border-[var(--border)] text-xs">{t('تحديث الفعليات', 'Actualiser les réels', 'Refresh actuals')}</button>
               </div>
 
               {/* Grid */}

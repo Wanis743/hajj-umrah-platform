@@ -19,17 +19,22 @@ Every claim below was verified by direct inspection of this checkout, not inheri
 App.tsx
 └── AdminDashboard (src/components/admin/AdminDashboard/index.tsx)   ← tab shell, ~40 imports
     ├── OperationsOS        (src/components/admin/OperationsOS/)     ← second tab shell (spec §3 flags this pattern)
-    ├── Finance OS entry    → lazy-mounts V10OperatingSystem          ← NOT the old FinanceOS/ tabs anymore
+    ├── Finance OS entry    → lazy-mounts FinanceOS (src/components/admin/FinanceOS/)
+    │                          ← TRUE desktop environment since 2026-08-24
     └── ~35 legacy manager tabs (Pilgrim, Group, Hotel, CrmManager, DocumentCenter, …)
 ```
 
-### The three Finance OS generations present in tree
+### The Finance OS generations
 
-| Generation | Location | State | Verdict per spec §49 |
+| Generation | Location | State | Verdict |
 |---|---|---|---|
-| G1 legacy | `src/components/admin/FinanceOS/` (10 components, tab/card) | Still in tree, **no longer mounted** | Archive as reference; do not evolve |
-| G2 "v10" | `src/components/admin/*/v10/` (23 components) + `V10OperatingSystem.tsx` | Mounted as `finance_os`; single-panel-per-workspace; demo-data patterns (e.g. Customer360 fetches first lead row "for demo purposes") | Violates §7/§41 (workspace model, fake data). Replace, don't patch |
-| G3 target | `src/platform/**` (this rebuild) | To be built | Kernel-first per §7 |
+| G1 legacy workspaces | `src/components/admin/FinanceOS/*.tsx` (Journal/Budget/Close/Reconcile/…) | **Mounted again** — now hosted as apps inside the windowed desktop, garbled strings and dead controls fixed | Current |
+| G2 "v10" | `V10OperatingSystem.tsx` (alias-cloned "19 workspaces" that mapped onto a handful of components) | **Deleted 2026-08-24** — clone aliasing was placeholder breadth | Removed |
+| G3 desktop | `src/components/admin/FinanceOS/os/` (window manager, Desktop, Taskbar, Start menu, ⌘K palette, Notification Center, Boot) + `src/platform/**` workspaces mounted as real, distinct apps (Treasury) | Mounted as `finance_os` | Current |
+
+The desktop shell is single-instance-per-app, persists window geometry/session
+prefs to localStorage, and derives its badge/widgets/notifications from live
+ledger signals (draft journals, unmatched bank lines, open fiscal period).
 
 ### Existing front-end kernel sketch
 

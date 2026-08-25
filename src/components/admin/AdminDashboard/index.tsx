@@ -1,7 +1,7 @@
 import { SettingsTab } from './SettingsTab';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  LayoutDashboard, BarChart3, BrainCircuit, Users, CalendarCheck, Settings, Bell, CheckCircle2,
+  LayoutDashboard, BarChart3, BrainCircuit, Users, CalendarCheck, Settings, Bell,
   UsersRound, BadgeCheck, FileText, Plane, PlaneTakeoff, Hotel, BedDouble, Bus, UserCheck, Target,
   Truck, Package, LifeBuoy, AlertTriangle, Siren, Zap, FileBarChart, DatabaseZap, ScrollText, Tent,
   Landmark, Wallet, BookOpenCheck, Gauge, Briefcase, ShieldCheck, Settings2, Compass, ExternalLink, TrendingUp,
@@ -41,7 +41,6 @@ import type { ExtendedAdminTab, NavSection } from '@/components/admin/adminDashb
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminDashboardHeader from '@/components/admin/AdminDashboardHeader';
 import type { CommandSearchRecord } from '@/components/admin/CommandPalette';
-import GlassDate from '@/components/admin/GlassDate';
 
 
 const LazyCommandCenter = lazy(() => import('@/components/admin/CommandCenter'));
@@ -52,7 +51,7 @@ const LazyNewReservationModal = lazy(() => import('@/components/admin/NewReserva
 const LazyExternalOperations = lazy(() => import('@/components/admin/ExternalOperationsCenter').then(m => ({ default: m.ExternalOperationsCenter })));
 const LazyGroupOps = lazy(() => import('@/components/admin/GroupOperationsCenter').then(m => ({ default: m.GroupOperationsCenter })));
 const LazyImportCenter = lazy(() => import('@/components/admin/ImportCenter').then(m => ({ default: m.ImportCenter ?? m.default })));
-const LazyFinanceOS = lazy(() => import('@/components/admin/V10OperatingSystem').then(m => ({ default: m.V10OperatingSystem })));
+const LazyFinanceOS = lazy(() => import('@/components/admin/FinanceOS'));
 const LazyOperationsOS = lazy(() => import('@/components/admin/OperationsOS').then(m => ({ default: m.OperationsOS })));
 const LazyExportCenter = lazy(() => import('@/components/admin/ExportCenter').then(m => ({ default: m.ExportCenter ?? m.default })));
 
@@ -122,7 +121,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
     activeTab, setActiveTab, sidebarOpen, setSidebarOpen, notifOpen, setNotifOpen,
     isNewModalOpen, setIsNewModalOpen, commandOpen, setCommandOpen, langOpen, setLangOpen,
     notifications, pilgrims, packages, hotels, flights, buses, camps, guides, incidents,
-    financials, bookings, groups, visas, leads, alerts, actions, reservations, payments,
+    bookings, groups, visas, leads, alerts, actions, reservations, payments,
     documents, suppliers, dashboardSnapshot, dashboardFilters, setDashboardFilters,
     dashboardRealtimeStatus, dataLoading, departureDate, setDepartureDate, savingDate,
     dateSaved, handleLogout, saveDepartureDate, fetchAllData,
@@ -294,7 +293,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <Wallet className="mb-6 h-12 w-12 text-blue-600 dark:text-blue-400" />
               <h2 className="text-2xl font-semibold text-sand-900 dark:text-sand-50">Finance OS</h2>
-              <p className="mt-4 text-sand-600 dark:text-sand-400">Professional financial environment: modeling, accounting, planning, reconciliation, and audit.</p>
+              <p className="mt-4 text-sand-600 dark:text-sand-400">A full financial desktop: windowed apps for the journal, budgets, reconciliation, statements and audit — on the live ledger.</p>
             </button>
           </div>
         </div>
@@ -313,7 +312,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
     if (activeTab === 'finance_os') {
     return (
       <Suspense fallback={<div className="p-8 text-center">Loading Finance OS...</div>}>
-        <LazyFinanceOS onBack={() => {}} />
+        <LazyFinanceOS onBack={() => goTab('launcher')} />
       </Suspense>
     );
   }
@@ -409,6 +408,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
             onNew={() => setIsNewModalOpen(true)}
             onRefresh={() => { void fetchAllData(); void fetchDashboardSnapshot(); }}
             onLogout={() => { void handleLogout(); }}
+            onOpenFinanceOS={() => goTab('finance_os')}
           />
 
 

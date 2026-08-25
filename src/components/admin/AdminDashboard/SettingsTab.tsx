@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, UserCog, Settings2, Briefcase, Settings, CheckCircle2, Gauge, ShieldCheck } from 'lucide-react';
+import { Settings2, Briefcase, Settings, CheckCircle2, Gauge, ShieldCheck } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import GlassDate from '@/components/admin/GlassDate';
 

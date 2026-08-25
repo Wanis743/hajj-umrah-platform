@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Bell, Check, Globe, Menu, Moon, PanelLeftClose, Plus, RefreshCw, Search, Sun,
 } from 'lucide-react';
@@ -36,6 +36,7 @@ interface Props {
   onNew?: () => void;
   onRefresh?: () => void;
   onLogout?: () => void;
+  onOpenFinanceOS?: () => void;
 }
 
 // Dashboard staff UI ships in formal Arabic, French and English only —
@@ -47,7 +48,7 @@ export default function AdminDashboardHeader(props: Props) {
     isAr, t, lang, setLang, theme, toggleTheme, activeTitle,
     sidebarOpen, setSidebarOpen, setCommandOpen, notifOpen, setNotifOpen,
     notifications, langOpen, setLangOpen,
-    dataLoading, onNew, onRefresh,
+    dataLoading, onNew, onRefresh, onOpenFinanceOS,
   } = props;
 
   const end = isAr ? 'left' : 'right';
@@ -101,7 +102,7 @@ export default function AdminDashboardHeader(props: Props) {
             <Search className="h-4 w-4" />
           </button>
 
-          <button onClick={() => { window.location.hash = '#/admin/finance_os'; window.location.reload(); }} className="tb-cta mr-2" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none' }} title="Finance OS">
+          <button onClick={() => onOpenFinanceOS ? onOpenFinanceOS() : (window.location.hash = '#/admin/finance_os')} className="tb-cta mr-2" style={{ backgroundColor: '#2563eb', color: 'white', border: 'none' }} title="Finance OS">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             <span className="tb-cta-text">Finance OS</span>
           </button>

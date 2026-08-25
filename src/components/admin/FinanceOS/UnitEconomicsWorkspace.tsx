@@ -54,7 +54,7 @@ export function UnitEconomicsWorkspace() {
 
   useEffect(() => {
     async function fetchGroups() {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('groups')
         .select('id, name, status, max_capacity, readiness_score')
         .order('created_at', { ascending: false })
@@ -192,6 +192,16 @@ export function UnitEconomicsWorkspace() {
         </div>
         
         <div className="flex-1 p-6 overflow-y-auto" ref={chartRef}>
+          {!loading && !economics && econError && (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-slate-500">
+              <p className="text-sm max-w-md">Could not load group profitability: {econError}</p>
+            </div>
+          )}
+          {!loading && !economics && !econError && (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-center text-slate-500">
+              <p className="text-sm">No profitability data for this group yet — it appears once the group has booked revenue or costs.</p>
+            </div>
+          )}
           {economics && (
             <div className="space-y-6">
               {/* KPIs */}
