@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { X, Minus, Square, Copy } from 'lucide-react';
 import type { OSWindow, Rect } from './osTypes';
-import { TASKBAR_INSET } from './osTypes';
+import { MENUBAR_INSET, DOCK_INSET } from './osTypes';
 import { APP_MAP } from './apps';
 import { useOS } from './OSContext';
 
@@ -106,30 +106,40 @@ export function WindowFrame({ win }: { win: OSWindow }) {
 
   if (win.minimized || !def) return null;
 
-  const Icon = def.icon;
   const title = tr(def.title.ar, def.title.fr, def.title.en);
 
   const style: React.CSSProperties = win.maximized
-    ? { left: 8, top: 8, right: 8, bottom: TASKBAR_INSET - 14, zIndex: win.z }
+    ? { left: 8, top: MENUBAR_INSET + 6, right: 8, bottom: DOCK_INSET, zIndex: win.z }
     : { left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: win.z };
 
   return (
     <div
       ref={frameRef}
       data-focused={focused}
-      className="fos-window absolute flex flex-col overflow-hidden rounded-xl border border-white/10"
+      className="fos-window fos-window-frame absolute flex flex-col border border-white/[0.14]"
       style={style}
       onPointerDown={() => focusWindow(win.id)}
       role="dialog"
       aria-label={title}
     >
-      {/* Title bar */}
+      {/* Title bar — liquid glass over the wallpaper, like macOS chrome */}
       <div
-        className="flex h-10 shrink-0 select-none items-center gap-3 border-b border-white/10 bg-white/[0.04] px-3"
+        className="relative flex h-10 shrink-0 select-none items-center gap-3 border-b border-white/[0.08] px-3"
         onPointerDown={beginDrag}
         onDoubleClick={() => toggleMaximize(win.id)}
-        style={{ cursor: win.maximized ? 'default' : 'grab', touchAction: 'none' }}
+        style={{
+          cursor: win.maximized ? 'default' : 'grab',
+          touchAction: 'none',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03))',
+          backgroundColor: 'rgba(20,22,30,0.55)',
+          backdropFilter: 'blur(24px) saturate(170%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(170%)',
+        }}
       >
+        <div
+          className="absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)' }}
+        />
         <div className="fos-traffic-zone flex items-center gap-2" onPointerDown={(e) => e.stopPropagation()}>
           <button
             className="fos-traffic bg-[#ff5f57] hover:brightness-110"
@@ -154,21 +164,21 @@ export function WindowFrame({ win }: { win: OSWindow }) {
           </button>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className={`inline-flex h-5 w-5 flex-none items-center justify-center rounded-md bg-gradient-to-br ${def.tile}`}>
-            <Icon className="h-3 w-3 text-white" />
-          </span>
-          <span className="truncate text-[13px] font-medium text-white/85">{title}</span>
+        <div className="pointer-events-none absolute inset-x-14 flex items-center justify-center gap-2">
+          <span className="truncate text-[13px] font-medium text-white/80">{title}</span>
         </div>
-
-        <span className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-white/25 sm:block">
-          {tr('تطبيق', 'Application', 'App')}
-        </span>
       </div>
 
-      {/* Content */}
-      <div className="min-h-0 flex-1 overflow-hidden bg-[#0d0f16]/60">
-        <div className="h-full w-full overflow-y-auto p-3">
+      {/* Content — translucent, wallpaper refracts through (liquid glass) */}
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        style={{
+          backgroundColor: 'rgba(13,15,22,0.62)',
+          backdropFilter: 'blur(28px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(150%)',
+        }}
+      >
+        <div className="h-full w-full overflow-y-auto p-3.5">
           <def.component />
         </div>
       </div>

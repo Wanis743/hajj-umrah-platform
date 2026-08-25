@@ -1,20 +1,21 @@
 import React, { useMemo } from 'react';
 import {
-  ArrowRight, Banknote, BookOpen, Scale, CalendarClock, Wallet,
-  TrendingUp, AlertTriangle, CheckCircle2, Zap,
+  ArrowRight, Banknote, BookOpen, Scale,
 } from 'lucide-react';
+import { Area, AreaChart } from '@/components/charts/area-chart';
+import { Grid } from '@/components/charts/grid';
+import { ChartTooltip, TooltipContent } from '@/components/charts/tooltip';
+import { XAxis } from '@/components/charts/x-axis';
+import { YAxis } from '@/components/charts/y-axis';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { money } from '@/lib/currency';
 import type { BankTransactionRow, FiscalPeriodRow, GenericRow, PaymentRow } from '@/types/database';
-import { APPS } from '../apps';
 import { useOS } from '../OSContext';
 
-const QUICK_LAUNCH = ['journal', 'ledger', 'reconcile', 'close', 'reports', 'modeling'];
-
 /**
- * The Cockpit — the desktop's home application. Every figure is computed from
- * live Supabase tables; when the ledger is empty the app says so, per the
- * platform's zero-fake-business-data rule.
+ * The Overview — a plain summary of what is in the ledger and what still
+ * needs doing. Every figure comes from live Supabase tables; an empty
+ * ledger shows an honest empty state (zero-fake-data rule).
  */
 export function OverviewApp() {
   const { openApp, tr, lang } = useOS();
@@ -55,7 +56,6 @@ export function OverviewApp() {
   const unmatched = useMemo(() => bankTx.filter((t) => t.status === 'UNMATCHED').length, [bankTx]);
   const openPeriod = useMemo(() => periods.find((p) => p.status === 'OPEN') ?? null, [periods]);
 
-  // Last-6-months collections for the mini bar chart (real rows only).
   const monthly = useMemo(() => {
     const buckets = Array.from({ length: 6 }, (_, i) => {
       const d = new Date();
@@ -63,7 +63,7 @@ export function OverviewApp() {
       d.setMonth(d.getMonth() - (5 - i));
       return {
         key: `${d.getFullYear()}-${d.getMonth()}`,
-        label: d.toLocaleDateString(locale, { month: 'short' }),
+        date: new Date(d.getTime()),
         total: 0,
       };
     });
@@ -76,228 +76,300 @@ export function OverviewApp() {
       if (bucket) bucket.total += Number(p.amount_dzd ?? 0);
     }
     return buckets;
-  }, [payments, locale]);
+  }, [payments]);
 
+  const monthlySeries = useMemo(
+    () => monthly.map((m) => ({ date: m.date, total: m.total })),
+    [monthly],
+  );
   const maxMonthly = Math.max(0, ...monthly.map((m) => m.total));
-
-  const recentJournals = journals.slice(0, 5);
+  const recentJournals = journals.slice(0, 6);
+  const hasData = journals.length > 0 || payments.length > 0 || accounts.length > 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-white">
-            {tr('غرفة القيادة المالية', 'Cockpit financier', 'Financial Cockpit')}
-          </h3>
-          <p className="text-xs text-white/45">
-            {tr('كل الأرقام محسوبة مباشرة من الدفاتر', 'Calculé en direct du grand livre', 'Every figure computed live from the ledger')}
-          </p>
-        </div>
-        <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          </span>
-          {tr('مباشر', 'EN DIRECT', 'LIVE')}
-        </span>
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Plain document-style header */}
+      <div className="border-b border-white/10 pb-3">
+        <h3 className="text-base font-semibold text-white">
+          {tr('نظرة عامة على الدفاتر', 'Vue d’ensemble du grand livre', 'Ledger overview')}
+        </h3>
+        <p className="mt-0.5 text-xs text-white/45">
+          {loading
+            ? tr('جاري القراءة…', 'Chargement…', 'Loading…')
+            : tr(
+              `${accounts.length} حساباً · ${journals.length} قيداً · ${payments.length} عملية دفع`,
+              `${accounts.length} comptes · ${journals.length} écritures · ${payments.length} paiements`,
+              `${accounts.length} accounts · ${journals.length} journal entries · ${payments.length} payments`,
+            )}
+        </p>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard
-          icon={<Banknote className="h-4 w-4 text-emerald-400" />}
-          label={tr('المقبوضات (دج)', 'Encaissements (DZD)', 'Collected (DZD)')}
-          value={loading ? '…' : cashCollected > 0 ? money(cashCollected, 'DZD') : money(0, 'DZD')}
-          sub={tr(`${payments.length} عملية دفع`, `${payments.length} paiements`, `${payments.length} payment${payments.length === 1 ? '' : 's'}`)}
-          onClick={() => openApp('reports')}
-        />
-        <KpiCard
-          icon={<BookOpen className="h-4 w-4 text-indigo-400" />}
-          label={tr('قيود مرحّلة', 'Écritures validées', 'Posted entries')}
-          value={loading ? '…' : String(postedCount)}
-          sub={draftCount > 0
-            ? tr(`${draftCount} بانتظار الترحيل`, `${draftCount} en brouillon`, `${draftCount} awaiting posting`)
-            : tr('لا شيء معلق', 'Rien en attente', 'Nothing pending')}
-          warn={draftCount > 0}
-          onClick={() => openApp('journal')}
-        />
-        <KpiCard
-          icon={<Scale className="h-4 w-4 text-purple-400" />}
-          label={tr('أسطر غير مطابقة', 'Lignes non rapprochées', 'Unmatched bank lines')}
-          value={loading ? '…' : String(unmatched)}
-          sub={unmatched > 0
-            ? tr('تحتاج مراجعة', 'À revoir', 'Needs review')
-            : tr('التسوية مكتملة', 'Rapprochement à jour', 'Reconciliation is clean')}
-          warn={unmatched > 0}
-          onClick={() => openApp('reconcile')}
-        />
-        <KpiCard
-          icon={<CalendarClock className="h-4 w-4 text-amber-400" />}
-          label={tr('الفترة المالية', 'Période fiscale', 'Fiscal period')}
-          value={loading ? '…' : openPeriod?.label ?? tr('لا يوجد', 'Aucune', 'None open')}
-          sub={openPeriod
-            ? tr('مفتوحة للترحيل', 'Ouverte à la saisie', 'Open for posting')
-            : tr('كل الفترات مغلقة', 'Toutes clôturées', 'All periods closed')}
-          onClick={() => openApp('close')}
-        />
-      </div>
+      {!hasData && !loading ? (
+        <EmptyLedger onOpenLedger={() => openApp('ledger')} tr={tr} />
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 pt-1 lg:grid-cols-2">
+          {/* Facts table — plain rows, not KPI tiles */}
+          <div className="min-h-0 overflow-auto lg:border-e lg:border-white/10 lg:pe-4">
+            <SectionLabel>{tr('الوضعية', 'Situation', 'Position')}</SectionLabel>
+            <dl className="divide-y divide-white/5">
+              <FactRow
+                icon={<Banknote className="h-3.5 w-3.5" />}
+                label={tr('إجمالي المقبوضات', 'Total des encaissements', 'Total collected')}
+                value={loading ? '…' : money(cashCollected, 'DZD')}
+                onOpen={() => openApp('reports')}
+              />
+              <FactRow
+                icon={<BookOpen className="h-3.5 w-3.5" />}
+                label={tr('قيود مرحّلة', 'Écritures validées', 'Posted entries')}
+                value={loading ? '…' : String(postedCount)}
+                onOpen={() => openApp('journal')}
+              />
+              <FactRow
+                icon={<Scale className="h-3.5 w-3.5" />}
+                label={tr('الفترة المفتوحة', 'Période ouverte', 'Open period')}
+                value={loading ? '…' : openPeriod?.label ?? tr('لا يوجد', 'Aucune', 'None')}
+                onOpen={() => openApp('close')}
+              />
+            </dl>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-5">
-        {/* Collections chart */}
-        <div className="flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/[0.03] p-4 lg:col-span-3">
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="flex items-center gap-2 text-sm font-semibold text-white/85">
-              <TrendingUp className="h-4 w-4 text-indigo-400" />
-              {tr('المقبوضات — آخر 6 أشهر', 'Encaissements — 6 derniers mois', 'Collections — last 6 months')}
-            </h4>
-            <span className="text-[11px] text-white/35">DZD</span>
-          </div>
-          <div className="flex min-h-[140px] flex-1 items-end justify-stretch gap-2">
-            {monthly.map((m) => (
-              <div key={m.key} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-[110px] w-full items-end justify-center">
-                  <div
-                    className="w-full max-w-[42px] rounded-t-md bg-gradient-to-t from-indigo-600/70 to-indigo-400/80 transition-all"
-                    style={{
-                      height: m.total > 0 && maxMonthly > 0
-                        ? `${Math.max(6, Math.round((m.total / maxMonthly) * 104))}px`
-                        : '2px',
-                      opacity: m.total > 0 ? 1 : 0.25,
-                    }}
-                    title={`${m.label}: ${money(m.total, 'DZD')}`}
+            <SectionLabel>{tr('يستوجب المتابعة', 'À traiter', 'Outstanding')}</SectionLabel>
+            {draftCount === 0 && unmatched === 0 && !loading ? (
+              <p className="px-1 py-2 text-xs text-white/40">
+                {tr('لا شيء معلق.', 'Rien en attente.', 'Nothing outstanding.')}
+              </p>
+            ) : (
+              <ul className="divide-y divide-white/5">
+                {draftCount > 0 && (
+                  <TaskRow
+                    count={draftCount}
+                    label={tr('قيود مسودة بانتظار الترحيل', 'écritures brouillon à valider', 'draft entries awaiting posting')}
+                    onOpen={() => openApp('journal')}
+                    openLabel={tr('فتح اليومية', 'Ouvrir le journal', 'Open journal')}
                   />
-                </div>
-                <span className="truncate text-[10px] uppercase tracking-wide text-white/40">{m.label}</span>
-              </div>
-            ))}
-          </div>
-          {maxMonthly === 0 && !loading && (
-            <p className="mt-2 text-center text-[11px] text-white/35">
-              {tr('لا توجد مقبوضات مسجلة خلال هذه الفترة.', 'Aucun encaissement sur la période.', 'No collections recorded in this window.')}
-            </p>
-          )}
-        </div>
-
-        {/* Attention list */}
-        <div className="flex min-h-0 flex-col rounded-xl border border-white/10 bg-white/[0.03] p-4 lg:col-span-2">
-          <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/85">
-            <AlertTriangle className="h-4 w-4 text-amber-400" />
-            {tr('يتطلب انتباهك', 'Points d’attention', 'Needs your attention')}
-          </h4>
-          <div className="space-y-2">
-            {draftCount === 0 && unmatched === 0 && !loading && (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-300">
-                <CheckCircle2 className="h-4 w-4 flex-none" />
-                {tr('كل شيء نظيف — لا مهام معلقة.', 'Tout est propre — rien en attente.', 'Everything is clean — nothing outstanding.')}
-              </div>
+                )}
+                {unmatched > 0 && (
+                  <TaskRow
+                    count={unmatched}
+                    label={tr('أسطر بنكية غير مطابقة', 'lignes bancaires non rapprochées', 'unmatched bank lines')}
+                    onOpen={() => openApp('reconcile')}
+                    openLabel={tr('فتح التسوية', 'Ouvrir le rapprochement', 'Open reconciliation')}
+                  />
+                )}
+              </ul>
             )}
-            {draftCount > 0 && (
-              <AttentionRow
+
+            {/* Collections — live ledger sums over the last 6 months (bklit Area chart) */}
+            <SectionLabel>{tr('المقبوضات الشهرية (دج)', 'Encaissements mensuels (DZD)', 'Monthly collections (DZD)')}</SectionLabel>
+            <MonthlyCollections
+              empty={!paymentsLoading && maxMonthly <= 0}
+              loading={paymentsLoading}
+              locale={locale}
+              series={monthlySeries}
+              tr={tr}
+            />
+          </div>
+
+          {/* Recent entries register */}
+          <div className="mt-4 flex min-h-0 flex-col lg:mt-0 lg:ps-4">
+            <div className="flex items-center justify-between">
+              <SectionLabel>{tr('آخر القيود', 'Dernières écritures', 'Recent entries')}</SectionLabel>
+              <button
                 onClick={() => openApp('journal')}
-                tone="amber"
-                title={tr('رحّل القيود المسودة', 'Valider les brouillons', 'Post draft journals')}
-                body={tr(`${draftCount} قيد يمنع الإقفال`, `${draftCount} écriture(s) bloquent la clôture`, `${draftCount} entr${draftCount > 1 ? 'ies' : 'y'} blocking the close`)}
-              />
-            )}
-            {unmatched > 0 && (
-              <AttentionRow
-                onClick={() => openApp('reconcile')}
-                tone="purple"
-                title={tr('طابق الأسطر البنكية', 'Rapprocher les lignes', 'Match bank lines')}
-                body={tr(`${unmatched} سطر غير مطابق`, `${unmatched} ligne(s) non rapprochée(s)`, `${unmatched} unmatched line${unmatched > 1 ? 's' : ''}`)}
-              />
-            )}
-          </div>
-
-          {/* Quick launch */}
-          <div className="mt-auto pt-4">
-            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">
-              <Zap className="h-3 w-3" />
-              {tr('تشغيل سريع', 'Lancement rapide', 'Quick launch')}
+                className="mb-2 flex items-center gap-1 text-[11px] font-medium text-white/50 transition-colors hover:text-white/85"
+              >
+                {tr('الكل', 'Tout', 'View all')}
+                <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+              </button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_LAUNCH.map((id) => {
-                const app = APPS.find((a) => a.id === id);
-                if (!app) return null;
-                const Icon = app.icon;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => openApp(id)}
-                    className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[11px] font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    <Icon className="h-3 w-3" />
-                    {tr(app.title.ar, app.title.fr, app.title.en)}
-                  </button>
-                );
-              })}
-            </div>
+            <RecentEntries locale={locale} rows={recentJournals} tr={tr} />
           </div>
         </div>
-      </div>
-
-      {/* Recent journals + accounts footer */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Wallet className="h-4 w-4 flex-none text-white/40" />
-          <span className="truncate text-xs text-white/55">
-            {loading
-              ? tr('جاري القراءة من الدفاتر…', 'Lecture du grand livre…', 'Reading the ledger…')
-              : tr(
-                `${accounts.length} حساباً في الدليل · ${journals.length} قيداً مسجلاً`,
-                `${accounts.length} comptes · ${journals.length} écritures`,
-                `${accounts.length} ledger accounts · ${journals.length} journal entries on record`,
-              )}
-          </span>
-        </div>
-        <button
-          onClick={() => openApp(recentJournals.length > 0 ? 'journal' : 'ledger')}
-          className="flex flex-none items-center gap-1 text-xs font-semibold text-indigo-300 transition-colors hover:text-indigo-200"
-        >
-          {tr('فتح الدفاتر', 'Ouvrir le journal', 'Open the books')}
-          <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
-        </button>
-      </div>
+      )}
     </div>
   );
 }
 
-function KpiCard({ icon, label, value, sub, warn, onClick }: {
-  icon: React.ReactNode; label: string; value: string; sub: string; warn?: boolean; onClick: () => void;
-}) {
+type Tr = (ar: string, fr: string, en: string) => string;
+
+function EmptyLedger({ onOpenLedger, tr }: { onOpenLedger: () => void; tr: Tr }) {
   return (
-    <button
-      onClick={onClick}
-      className="group rounded-xl border border-white/10 bg-white/[0.03] p-3.5 text-start transition-colors hover:border-white/20 hover:bg-white/[0.06]"
-    >
-      <div className="flex items-center justify-between">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5">{icon}</span>
-        {warn && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+      <BookOpen className="h-8 w-8 text-white/20" strokeWidth={1.5} />
+      <div>
+        <p className="text-sm font-medium text-white/70">
+          {tr('الدفاتر فارغة حالياً', 'Le grand livre est vide', 'The ledger is empty')}
+        </p>
+        <p className="mt-1 max-w-sm text-xs leading-relaxed text-white/40">
+          {tr(
+            'ابدأ بإنشاء دليل الحسابات ثم سجّل أول قيد يومية.',
+            'Commencez par le plan comptable, puis saisissez la première écriture.',
+            'Start with the chart of accounts, then record the first journal entry.',
+          )}
+        </p>
       </div>
-      <div className="mt-2.5 truncate text-lg font-semibold tabular-nums text-white">{value}</div>
-      <div className="truncate text-[11px] text-white/40">{label}</div>
-      <div className={`mt-1 truncate text-[10px] ${warn ? 'text-amber-400/90' : 'text-white/35'}`}>{sub}</div>
-    </button>
+      <button
+        onClick={onOpenLedger}
+        className="btn btn-sm btn-primary mt-1"
+      >
+        {tr('فتح دليل الحسابات', 'Ouvrir le plan comptable', 'Open chart of accounts')}
+      </button>
+    </div>
   );
 }
 
-function AttentionRow({ onClick, tone, title, body }: {
-  onClick: () => void; tone: 'amber' | 'purple'; title: string; body: string;
+/** Last-6-month collections summed from live payment rows — bklit time-series chart. */
+function MonthlyCollections({
+  empty, loading, locale, series, tr,
+}: {
+  empty: boolean;
+  loading: boolean;
+  locale: string;
+  series: { date: Date; total: number }[];
+  tr: Tr;
 }) {
-  const color = tone === 'amber'
-    ? 'border-amber-500/25 bg-amber-500/10 text-amber-200'
-    : 'border-purple-500/25 bg-purple-500/10 text-purple-200';
+  if (empty) {
+    return (
+      <p className="px-1 py-2 text-xs text-white/40">
+        {tr(
+          'لا مقبوضات مسجلة في هذه الفترة.',
+          'Aucun encaissement sur cette période.',
+          'No collections recorded in this window.',
+        )}
+      </p>
+    );
+  }
   return (
-    <button
-      onClick={onClick}
-      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-start text-xs transition-opacity hover:opacity-85 ${color}`}
-    >
-      <span>
-        <span className="block font-semibold">{title}</span>
-        <span className="mt-0.5 block opacity-70">{body}</span>
+    <div dir="ltr" className="me-1 mt-1">
+      <AreaChart
+        aspectRatio="2.4 / 1"
+        data={series}
+        margin={{ top: 12, right: 12, bottom: 28, left: 44 }}
+        status={loading ? 'loading' : 'ready'}
+      >
+        <Grid numTicksRows={3} />
+        <Area dataKey="total" fill="var(--chart-line-primary)" fillOpacity={0.22} />
+        <XAxis numTicks={6} />
+        <YAxis numTicks={3} />
+        <ChartTooltip
+          content={({ point }) => (
+            <TooltipContent
+              rows={[{
+                color: 'var(--chart-line-primary)',
+                label: tr('المقبوضات', 'Encaissements', 'Collections'),
+                value: money(Number(point.total ?? 0), 'DZD'),
+              }]}
+              title={point.date instanceof Date
+                ? point.date.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
+                : undefined}
+            />
+          )}
+          showDatePill={false}
+        />
+      </AreaChart>
+    </div>
+  );
+}
+
+function RecentEntries({ locale, rows, tr }: { locale: string; rows: GenericRow[]; tr: Tr }) {
+  if (rows.length === 0) {
+    return (
+      <p className="px-1 py-2 text-xs text-white/40">
+        {tr('لا قيود بعد.', 'Aucune écriture.', 'No entries yet.')}
+      </p>
+    );
+  }
+  return (
+    <div className="min-h-0 flex-1 overflow-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-white/10 text-start text-[10px] uppercase tracking-wider text-white/35">
+            <th className="py-1.5 ps-1 text-start font-medium">{tr('المرجع', 'Référence', 'Reference')}</th>
+            <th className="py-1.5 text-start font-medium">{tr('البيان', 'Libellé', 'Description')}</th>
+            <th className="py-1.5 text-start font-medium">{tr('التاريخ', 'Date', 'Date')}</th>
+            <th className="py-1.5 pe-1 text-end font-medium">{tr('الحالة', 'Statut', 'Status')}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {rows.map((j) => {
+            const status = String(j.status ?? '');
+            const date = j.entry_date ?? j.created_at;
+            return (
+              <tr key={j.id} className="transition-colors hover:bg-white/[0.03]">
+                <td className="py-2 ps-1 font-mono text-[11px] text-white/70">{String(j.reference ?? j.id.slice(0, 8))}</td>
+                <td className="max-w-[160px] truncate py-2 text-white/60">{String(j.description ?? '—')}</td>
+                <td className="py-2 tabular-nums text-white/50">
+                  {date ? new Date(String(date)).toLocaleDateString(locale) : '—'}
+                </td>
+                <td className="py-2 pe-1 text-end">
+                  <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                    status === 'POSTED'
+                      ? 'bg-emerald-500/10 text-emerald-300/90'
+                      : status === 'VOID'
+                        ? 'bg-white/5 text-white/40'
+                        : 'bg-amber-500/10 text-amber-300/90'
+                  }`}>
+                    {status === 'POSTED'
+                      ? tr('مرحّل', 'Validée', 'Posted')
+                      : status === 'VOID'
+                        ? tr('ملغى', 'Annulée', 'Void')
+                        : tr('مسودة', 'Brouillon', 'Draft')}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-2 mt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35 first:mt-1">
+      {children}
+    </div>
+  );
+}
+
+function FactRow({ icon, label, value, onOpen }: {
+  icon: React.ReactNode; label: string; value: string; onOpen: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <dt className="flex items-center gap-2 text-xs text-white/55">
+        <span className="text-white/35">{icon}</span>
+        {label}
+      </dt>
+      <dd>
+        <button
+          onClick={onOpen}
+          className="text-sm font-semibold tabular-nums text-white transition-opacity hover:opacity-70"
+          title={label}
+        >
+          {value}
+        </button>
+      </dd>
+    </div>
+  );
+}
+
+function TaskRow({ count, label, onOpen, openLabel }: {
+  count: number; label: string; onOpen: () => void; openLabel: string;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 py-2.5">
+      <span className="flex items-baseline gap-2 text-xs text-white/70">
+        <span className="text-sm font-semibold tabular-nums text-amber-300/90">{count}</span>
+        {label}
       </span>
-      <ArrowRight className="h-3.5 w-3.5 flex-none rtl:rotate-180" />
-    </button>
+      <button
+        onClick={onOpen}
+        className="flex flex-none items-center gap-1 text-[11px] font-medium text-white/50 transition-colors hover:text-white/85"
+      >
+        {openLabel}
+        <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+      </button>
+    </li>
   );
 }

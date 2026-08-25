@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -150,10 +150,8 @@ export function PlanningWorkspace() {
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)]">
-          {t('التخطيط والميزانية', 'Planification et Budget', 'Planning & Budgeting')}
-        </h3>
+      {/* Toolbar — window titlebar already names the app */}
+      <div className="flex items-center justify-end">
         <div className="flex gap-2">
           {activeBudget && (
             <>

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Spinner } from '@/components/admin/ui';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// Types
 
 interface GroupOpsRow {
   group_id: string;
@@ -26,7 +26,7 @@ interface GroupOpsRow {
   readiness_score: number | null;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 function ProgressBar({
   value,
@@ -63,10 +63,9 @@ function ReadinessBadge({ score }: { score: number }) {
   );
 }
 
-// ── Export Manifest ────────────────────────────────────────────────────────
+// Export Manifest
 
-function exportGroupManifest(group: GroupOpsRow, lang: string) {
-  const isAr = lang === 'ar' || lang === 'dz';
+function exportGroupManifest(group: GroupOpsRow) {
   const rows = [
     ['Group Code', group.code ?? group.group_id],
     ['Departure Date', group.departure_date ?? '—'],
@@ -92,7 +91,7 @@ function exportGroupManifest(group: GroupOpsRow, lang: string) {
   URL.revokeObjectURL(url);
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────
+// Main Component
 
 export function GroupOperationsCenter() {
   const { lang } = useI18n();
@@ -153,7 +152,7 @@ export function GroupOperationsCenter() {
   return (
     <div className={`space-y-5 ${isAr ? 'rtl' : 'ltr'}`}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <TrendingUp className="w-5 h-5 text-[var(--accent)]" />
@@ -170,7 +169,7 @@ export function GroupOperationsCenter() {
         </button>
       </div>
 
-      {/* ── Summary Cards ── */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: t('إجمالي الأفواج', 'Total groupes', 'Total Groups'), value: groups.length, color: 'text-[var(--text-primary)]' },
@@ -184,7 +183,7 @@ export function GroupOperationsCenter() {
         ))}
       </div>
 
-      {/* ── Sort Controls ── */}
+      {/* Sort Controls */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-[var(--text-muted)]">{t('ترتيب حسب', 'Trier par', 'Sort by')}:</span>
         {[
@@ -206,7 +205,7 @@ export function GroupOperationsCenter() {
         ))}
       </div>
 
-      {/* ── Groups List ── */}
+      {/* Groups List */}
       {groups.length === 0 ? (
         <div className="card p-10 text-center text-[var(--text-secondary)]">
           <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
@@ -261,7 +260,7 @@ export function GroupOperationsCenter() {
                   <div className="flex items-center gap-2 shrink-0">
                     <ReadinessBadge score={score} />
                     <button
-                      onClick={() => exportGroupManifest(g, lang)}
+                      onClick={() => exportGroupManifest(g)}
                       className="btn btn-sm p-1.5"
                       title={t('تصدير بيان', 'Exporter manifeste', 'Export Manifest')}
                     >
@@ -327,7 +326,7 @@ export function GroupOperationsCenter() {
                     {/* Export button in expanded view */}
                     <div className="flex justify-end">
                       <button
-                        onClick={() => exportGroupManifest(g, lang)}
+                        onClick={() => exportGroupManifest(g)}
                         className="btn btn-sm inline-flex items-center gap-1.5"
                       >
                         <Download className="h-3.5 w-3.5" />

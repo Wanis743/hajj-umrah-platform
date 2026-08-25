@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SideSheet } from './SideSheet';
-import { User, Package, Calendar, CheckCircle } from 'lucide-react';
+import { User, Package } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 
@@ -25,34 +25,8 @@ export function BookingWorkspaceSheet({ bookingId, onClose }: BookingWorkspaceSh
 
   const [booking, setBooking] = useState<BookingRow | null>(null);
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   
-  const handleAction = async (action: string) => {
-    if (!booking || busy) return;
-    setBusy(true);
-    try {
-      if (action === 'cancel') {
-        const { error } = await supabase.from('bookings').update({ status: 'CANCELLED' }).eq('id', booking.id);
-        if (error) throw error;
-        console.log('Success: ', t('OU,OO O OU+OOO', 'AnnulAc avec succA"s', 'Cancelled successfully'));
-      } else if (action === 'confirm') {
-        const { error } = await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id);
-        if (error) throw error;
-        console.log('Success: ', t('تم التأكيد بنجاح', 'ConfirmAc avec succA"s', 'Confirmed successfully'));
-      } else {
-        console.error('Error: ', 'Action not fully implemented yet');
-      }
-      
-      // Refresh
-      const { data } = await supabase.from('bookings').select('*, pilgrims(*), packages(*)').eq('id', bookingId as string).single();
-      if (data) setBooking(data as unknown as BookingRow);
-    } catch (err: unknown) {
-      console.error('Error: ', err instanceof Error ? err.message : 'Error');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   useEffect(() => {
     if (!bookingId) return;

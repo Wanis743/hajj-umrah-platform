@@ -33,5 +33,18 @@ export default tseslint.config(
       'max-lines-per-function': ['warn', { max: 180, skipBlankLines: true, skipComments: true }],
       'complexity': ['warn', 20],
     },
+  },
+  {
+    // Vendored chart registry sources (`@bklit` / bklit-ui, shadcn registry).
+    // Kept byte-faithful to upstream; they export hooks and palette constants
+    // alongside components, which `only-export-components` forbids by design,
+    // their core components exceed our function-length style metric, and
+    // upstream aliases the d3 curve factory to `any` (biome-exempt there).
+    files: ['src/components/charts/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      'max-lines-per-function': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   }
 );

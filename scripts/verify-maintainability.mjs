@@ -4,6 +4,11 @@ import path from 'node:path';
 const root = process.cwd();
 const src = path.join(root, 'src');
 const protectedDirs = ['services','engine','intelligence','lib','types'];
+// Vendored third-party UI (bklit-ui chart library, see `// NOTE(bklit-vendoring)`
+// markers). Kept byte-faithful to upstream so future syncs diff cleanly; the
+// first-party component-size rules do not apply. eslint.config.js has the
+// matching override for the same reason.
+const vendoredComponentRoots = ['src/components/charts/'];
 const maxComponentBytes = 32000;
 const failures = [];
 const warnings = [];
@@ -22,6 +27,7 @@ function walk(dir) {
 const files = walk(src);
 for (const file of files) {
   const rel = path.relative(root, file).replaceAll(path.sep,'/');
+  if (vendoredComponentRoots.some(d => rel.startsWith(d))) continue;
   const text = fs.readFileSync(file,'utf8');
   const lines = text.split(/\r?\n/).length;
   if (rel.startsWith('src/components/') && file.endsWith('.tsx') && lines > 600) {

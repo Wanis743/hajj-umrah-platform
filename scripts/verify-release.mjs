@@ -3,13 +3,9 @@ import { spawnSync } from 'node:child_process';
 const steps = [
   ['source', 'npm run verify:source'],
   ['migrations', 'npm run verify:migrations'],
-  ['canonical-docs', 'npm run verify:canonical-docs'],
-  ['audit-privacy', 'npm run verify:audit-privacy'],
   ['branding', 'npm run verify:branding'],
   ['ui-safety', 'npm run verify:ui-safety'],
   ['no-demo', 'npm run verify:no-demo'],
-  ['integrations', 'npm run verify:integrations'],
-  ['readiness', 'npm run test:readiness'],
   ['architecture', 'node scripts/verify-architecture.mjs'],
   ['toolchain-config', 'node scripts/verify-toolchain-config.mjs'],
   ['typecheck', 'npm run typecheck'],

@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Bar } from '@/components/charts/bar';
+import { BarChart } from '@/components/charts/bar-chart';
+import { BarXAxis } from '@/components/charts/bar-x-axis';
+import { LineChart, Line } from '@/components/charts/line-chart';
+import { PieChart } from '@/components/charts/pie-chart';
+import { PieSlice } from '@/components/charts/pie-slice';
+import { PieCenter } from '@/components/charts/pie-center';
+import { Grid } from '@/components/charts/grid';
+import { ChartTooltip, TooltipContent } from '@/components/charts/tooltip';
+import { XAxis } from '@/components/charts/x-axis';
+import { YAxis } from '@/components/charts/y-axis';
 import type { Fin } from '../model/useAccountingData';
-import { KCard, RR, Inp, glass, glassInner, mkTT, PAL, fmt, f1, f2, pct, pf } from './Shared';
+import { KCard, RR, Inp, glass, glassInner, PAL, fmt, f1, f2, pct, pf } from './Shared';
 import { DollarSign, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react';
 
-export function OverviewTab({d,dark}:{d:Fin;dark:boolean}){
-  const tt=mkTT(dark); const axC=dark?'#6b7280':'#94a3b8'; const grC=dark?'rgba(255,255,255,0.06)':'rgba(99,102,241,0.08)';
+/** 'YYYY-MM' month labels from get_accounting_series → local first-of-month Date. */
+const monthStart=(m:string)=>{ const[y,mo]=m.split('-').map(Number); return new Date(y||1970,(mo||1)-1,1); };
+
+export function OverviewTab({d}:{d:Fin}){
   return(<div className='space-y-5'>
     <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
       <KCard label='إجمالي الإيرادات'    value={`${fmt(d.totalRevDzd)}`}    sub={`${fmt(d.totalRevSar)} SAR`}         Ic={DollarSign}   grad='bg-gradient-to-br from-emerald-500 to-teal-600'  trend={d.monthlyGrowth}/>
@@ -16,27 +28,41 @@ export function OverviewTab({d,dark}:{d:Fin;dark:boolean}){
     <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
       <div style={glass} className='p-5'>
         <h3 className='text-sm font-bold text-[var(--text-primary)] mb-4'>الإيرادات والمصاريف الشهرية</h3>
-        <div className='h-64'><ResponsiveContainer width='100%' height='100%'>
-          <BarChart data={d.revenueByMonth}>
-            <CartesianGrid strokeDasharray='3 3' stroke={grC} vertical={false}/>
-            <XAxis dataKey='m' stroke={axC} fontSize={10} tickLine={false} axisLine={false}/>
-            <YAxis stroke={axC} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v:number)=>`${Math.round(v/1000)}k`}/>
-            <Tooltip contentStyle={tt} formatter={(v:unknown)=>[fmt(Number(v))+' DZD','']}/>
-            <Legend wrapperStyle={{fontSize:11}}/>
-            <Bar dataKey='rev'    name='إيرادات'  fill='#6366f1' radius={[4,4,0,0]}/>
-            
-            
+        <div dir='ltr'>
+          <BarChart aspectRatio='2 / 1' data={d.revenueByMonth} margin={{top:16,right:8,bottom:28,left:48}} xDataKey='m'>
+            <Grid numTicksRows={4}/>
+            <Bar dataKey='rev' fill='#6366f1'/>
+            <BarXAxis maxLabels={12}/>
+            <YAxis numTicks={4}/>
+            <ChartTooltip showDatePill={false} content={({point})=>(
+              <TooltipContent
+                rows={[{color:'#6366f1',label:'إيرادات',value:`${fmt(Number(point.rev??0))} DZD`}]}
+                title={String(point.m??'')}/>
+            )}/>
           </BarChart>
-        </ResponsiveContainer></div>
+        </div>
       </div>
       <div style={glass} className='p-5'>
         <h3 className='text-sm font-bold text-[var(--text-primary)] mb-4'>طرق الدفع (DZD)</h3>
-        <div className='h-64'><ResponsiveContainer width='100%' height='100%'>
-          <PieChart><Pie data={d.payMethods.map(p=>({name:p.method,value:p.dzd}))} cx='50%' cy='50%' innerRadius={55} outerRadius={90} paddingAngle={4} dataKey='value'>
-            {d.payMethods.map((_,i)=><Cell key={i} fill={PAL[i%PAL.length]}/>)}
-          </Pie>
-          <Tooltip contentStyle={tt} formatter={(v:unknown)=>[fmt(Number(v)),'']}/><Legend wrapperStyle={{fontSize:11}}/></PieChart>
-        </ResponsiveContainer></div>
+        <div className='flex items-center gap-4'>
+          <div className='shrink-0' dir='ltr'>
+            <PieChart cornerRadius={4} data={d.payMethods.map((p,i)=>({label:p.method,value:p.dzd,color:PAL[i%PAL.length]}))} hoverOffset={8} innerRadius={58} padAngle={0.03} size={200}>
+              {d.payMethods.map((p,i)=><PieSlice index={i} key={p.method}/>) }
+              <PieCenter defaultLabel='DZD' formatOptions={{notation:'compact',maximumFractionDigits:1}}/>
+            </PieChart>
+          </div>
+          <ul className='flex-1 min-w-0 space-y-1.5 max-h-56 overflow-y-auto'>
+            {d.payMethods.map((p,i)=>(
+              <li key={p.method} className='flex items-center justify-between gap-2 text-xs'>
+                <span className='flex items-center gap-2 min-w-0 text-[var(--text-secondary)]'>
+                  <span className='h-2.5 w-2.5 shrink-0 rounded-full' style={{background:PAL[i%PAL.length]}}/>
+                  <span className='truncate'>{p.method}</span>
+                </span>
+                <span className='font-bold tabular-nums text-[var(--text-primary)]'>{fmt(p.dzd)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
     <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
@@ -73,9 +99,8 @@ export function IncomeTab({d}:{d:Fin}){
     <RR label='صافي الربح' value={`${fmt(net)}`} bold border color={net>=0?'text-emerald-600':'text-rose-600'}/>
   </div>);
 }
-export function CashFlowTab({d,dark}:{d:Fin;dark:boolean}){
-  const tt=mkTT(dark); const axC=dark?'#6b7280':'#94a3b8'; const grC=dark?'rgba(255,255,255,0.06)':'rgba(99,102,241,0.08)';
-  const data=d.revenueByMonth.map(m=>({m:m.m,inflow:m.rev,net:m.profit}));
+export function CashFlowTab({d}:{d:Fin}){
+  const data=d.revenueByMonth.map(m=>({date:monthStart(m.m),m:m.m,inflow:m.rev,net:m.profit}));
   return(<div className='space-y-4'>
     <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
       <div style={glass} className='p-5 space-y-2'><div className='text-xs font-bold text-[var(--text-muted)] uppercase mb-3'>تدفقات تشغيلية</div>
@@ -95,33 +120,53 @@ export function CashFlowTab({d,dark}:{d:Fin;dark:boolean}){
       </div>
     </div>
     <div style={glass} className='p-5'><h3 className='text-sm font-bold text-[var(--text-primary)] mb-4'>التدفق النقدي الشهري</h3>
-      <div className='h-64'><ResponsiveContainer width='100%' height='100%'>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray='3 3' stroke={grC} vertical={false}/>
-          <XAxis dataKey='m' stroke={axC} fontSize={10} tickLine={false} axisLine={false}/>
-          <YAxis stroke={axC} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v:number)=>`${Math.round(v/1000)}k`}/>
-          <Tooltip contentStyle={tt} formatter={(v:unknown)=>[fmt(Math.abs(Number(v)))+' DZD','']}/>
-          <Legend wrapperStyle={{fontSize:11}}/>
-          <Line type='monotone' dataKey='inflow' name='تدفق داخل' stroke='#10b981' strokeWidth={2} dot={false}/>
-          <Line type='monotone' dataKey='net'    name='صافي نقدي' stroke='#6366f1' strokeWidth={2.5} dot={false}/>
+      <div className='flex items-center gap-4 mb-2 text-xs text-[var(--text-muted)]'>
+        <span className='flex items-center gap-1.5'><span className='h-2.5 w-2.5 rounded-full' style={{background:'#10b981'}}/>تدفق داخل</span>
+        <span className='flex items-center gap-1.5'><span className='h-2.5 w-2.5 rounded-full' style={{background:'#6366f1'}}/>صافي نقدي</span>
+      </div>
+      <div dir='ltr'>
+        <LineChart aspectRatio='2 / 1' data={data} margin={{top:16,right:12,bottom:28,left:48}}>
+          <Grid numTicksRows={4}/>
+          <Line dataKey='inflow' stroke='#10b981'/>
+          <Line dataKey='net' stroke='#6366f1'/>
+          <XAxis numTicks={6}/>
+          <YAxis numTicks={4}/>
+          <ChartTooltip showDatePill={false} content={({point})=>(
+            <TooltipContent
+              rows={[
+                {color:'#10b981',label:'تدفق داخل',value:`${fmt(Math.abs(Number(point.inflow??0)))} DZD`},
+                {color:'#6366f1',label:'صافي نقدي',value:`${fmt(Math.abs(Number(point.net??0)))} DZD`},
+              ]}
+              title={String(point.m??'')}/>
+          )}/>
         </LineChart>
-      </ResponsiveContainer></div>
+      </div>
     </div>
   </div>);
 }
 
-export function AgingTab({d,dark}:{d:Fin;dark:boolean}){
-  const tt=mkTT(dark); const axC=dark?'#6b7280':'#94a3b8'; const colors=['#10b981','#6366f1','#f59e0b','#f97316','#f43f5e'];
+export function AgingTab({d}:{d:Fin}){
+  const colors=['#10b981','#6366f1','#f59e0b','#f97316','#f43f5e'];
+  // One stacked series per bucket so each bar keeps its severity color.
+  const bars=d.arAging.map((b,i)=>Object.assign(
+    { label:b.label, dzd:b.dzd, color:colors[i%colors.length] },
+    Object.fromEntries(d.arAging.map((_,j)=>[`a${j}`, i===j?b.dzd:0]))
+  ));
   return(<div className='space-y-4'>
     <div style={glass} className='p-5'><h3 className='text-sm font-bold text-[var(--text-primary)] mb-4'>تقادم الذمم المدينة (AR Aging)</h3>
-      <div className='h-64'><ResponsiveContainer width='100%' height='100%'>
-        <BarChart data={d.arAging}><CartesianGrid strokeDasharray='3 3' stroke={dark?'rgba(255,255,255,0.06)':'rgba(99,102,241,0.08)'} vertical={false}/>
-          <XAxis dataKey='label' stroke={axC} fontSize={10} tickLine={false} axisLine={false}/>
-          <YAxis stroke={axC} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v:number)=>`${Math.round(v/1000)}k`}/>
-          <Tooltip contentStyle={tt} formatter={(v:unknown)=>[fmt(Number(v))+' DZD','مستحق']}/>
-          <Bar dataKey='dzd' radius={[6,6,0,0]}>{d.arAging.map((_,i)=><Cell key={i} fill={colors[i]}/>)}</Bar>
+      <div dir='ltr'>
+        <BarChart aspectRatio='2 / 1' data={bars} margin={{top:16,right:8,bottom:28,left:48}} stacked stackGap={1} xDataKey='label'>
+          <Grid numTicksRows={4}/>
+          {d.arAging.map((_,i)=><Bar dataKey={`a${i}`} fill={colors[i%colors.length]} key={i}/>)}
+          <BarXAxis showAllLabels/>
+          <YAxis numTicks={4}/>
+          <ChartTooltip showDatePill={false} content={({point})=>(
+            <TooltipContent
+              rows={[{color:String(point.color),label:'مستحق',value:`${fmt(Number(point.dzd??0))} DZD`}]}
+              title={String(point.label??'')}/>
+          )}/>
         </BarChart>
-      </ResponsiveContainer></div>
+      </div>
     </div>
     <div style={glass} className='p-5 space-y-3'>
       <div className='text-xs font-bold text-[var(--text-muted)] uppercase tracking-wide mb-3'>تفصيل الذمم</div>
@@ -229,7 +274,7 @@ export function ProjectionTab({d}:{d:Fin}){
   </div>);
 }
 
-export function TaxTab({d}:{d:Fin}){
+export function TaxTab(_props:{d:Fin}){
   return(<div style={glass} className='p-6 space-y-2 max-w-2xl'>
     <div className='text-xs font-bold text-[var(--text-muted)] uppercase mb-4'>الضرائب والرسوم</div>
     <div className='text-sm text-amber-600 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl'>لا توجد ضرائب مسجلة في دفتر الأستاذ حالياً.</div>
@@ -286,13 +331,13 @@ export function LoanTab(){
   </div>);
 }
 
-export function BepTab({d}:{d:Fin}){
+export function BepTab(_props:{d:Fin}){
   return(<div style={glass} className='p-6 space-y-2 max-w-2xl'>
     <div className='text-xs font-bold text-[var(--text-muted)] uppercase mb-4'>نقطة التعادل</div>
     <div className='text-sm text-amber-600 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl'>يرجى إدخال المصروفات الثابتة في دفتر الأستاذ لحساب التعادل.</div>
   </div>);
 }
-export function BudgetTab({d}:{d:Fin}){
+export function BudgetTab(_props:{d:Fin}){
   return(<div style={glass} className='p-6 space-y-2 max-w-2xl'>
     <div className='text-xs font-bold text-[var(--text-muted)] uppercase mb-4'>الميزانية التقديرية</div>
     <div className='text-sm text-amber-600 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl'>لا توجد بيانات ميزانية معتمدة.</div>

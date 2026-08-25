@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  CheckCircle, RefreshCw, Upload, Scale, Search, Link2, Check, FileSpreadsheet,
+  CheckCircle, RefreshCw, Upload, Search, Link2, Check, FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -168,19 +168,9 @@ export function ReconciliationWorkspace() {
 
   return (
     <div className="h-full flex flex-col text-slate-200">
-      <div className="flex flex-wrap justify-between items-center gap-3 pb-4 border-b border-slate-700/50">
-        <div>
-          <h2 className="text-xl font-light text-white flex items-center gap-3">
-            <Scale className="w-6 h-6 text-purple-400" />
-            {t('مركز التسوية البنكية', 'Rapprochement bancaire', 'Reconciliation Center')}
-          </h2>
-          <p className="text-sm text-slate-400 mt-1">
-            {t('طابق كشوف البنك مع قيود الأستاذ.', 'Comparez relevés et écritures.', 'Match bank statement lines with ledger expectations.')}
-          </p>
-        </div>
-
+      {/* Toolbar — the window titlebar already names the app; no inner masthead */}
+      <div className="flex flex-wrap justify-end items-center gap-2 pb-3 border-b border-slate-700/50">
         {/* Statement picker — previously the statement was chosen silently */}
-        <div className="flex flex-wrap items-center gap-2">
           <select
             value={activeStatement?.id ?? ''}
             onChange={(e) => { setActiveStatementId(e.target.value); setSelectedTx(null); setSelectedLedger(null); }}
@@ -222,7 +212,6 @@ export function ReconciliationWorkspace() {
             {running ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {t('مطابقة تلقائية', 'Rapprochement auto', 'Auto-match')}
           </button>
-        </div>
       </div>
 
       {activeStatement && (

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { OSProvider, useOS } from './os/OSContext';
-import { OS_VERSION } from './os/osTypes';
 import { accent, wallpaper } from './os/theme';
 import { Desktop } from './os/Desktop';
 import { WindowFrame } from './os/Window';
-import { Taskbar, CalendarPanel } from './os/Taskbar';
-import { StartMenu } from './os/StartMenu';
+import { MenuBar } from './os/MenuBar';
+import { Dock } from './os/Dock';
+import { CalendarPanel } from './os/CalendarPanel';
+import { Launchpad } from './os/Launchpad';
 import { CommandPalette } from './os/CommandPalette';
 import { NotificationCenter } from './os/NotificationCenter';
 import { BootScreen } from './os/BootScreen';
@@ -97,19 +98,17 @@ function Shell({ onBack, booted, onBooted }: {
         <WindowFrame key={w.id} win={w} />
       ))}
 
+      {/* Menu bar (top) */}
+      <MenuBar onExit={onBack} />
+
       {/* Overlays */}
-      {overlay === 'start' && <StartMenu onExit={onBack} />}
+      {overlay === 'start' && <Launchpad />}
       {overlay === 'palette' && <CommandPalette onExit={onBack} />}
       {overlay === 'notifications' && <NotificationCenter />}
       {overlay === 'calendar' && <CalendarPanel />}
 
-      {/* Taskbar */}
-      <Taskbar onExit={onBack} />
-
-      {/* Version watermark */}
-      <div className="pointer-events-none absolute bottom-2 start-3 z-[40] text-[10px] font-medium uppercase tracking-[0.25em] text-white/20">
-        v{OS_VERSION}
-      </div>
+      {/* Dock (bottom) */}
+      <Dock onExit={onBack} />
 
       {/* Boot splash — once per session */}
       {!booted && <BootScreen onDone={onBooted} />}

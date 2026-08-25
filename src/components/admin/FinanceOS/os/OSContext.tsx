@@ -8,11 +8,13 @@ import { useSupabaseData } from '@/hooks/useSupabaseData';
 import type { BankTransactionRow, FiscalPeriodRow, GenericRow } from '@/types/database';
 import { APP_MAP, APPS } from './apps';
 import {
-  DEFAULT_PREFS, TASKBAR_INSET,
+  DEFAULT_PREFS, MENUBAR_INSET, DOCK_INSET,
   type OSNotification, type OSPrefs, type OSSignals, type OSWindow, type Rect,
 } from './osTypes';
 
 const STORAGE_WINDOWS = 'financeos.v2.windows';
+// Monotonic suffix for notification ids (no Math.random — verify-source gate).
+let notificationSeq = 0;
 const STORAGE_PREFS = 'financeos.v2.prefs';
 const SESSION_WELCOME = 'financeos.v2.welcomed';
 
@@ -212,11 +214,11 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.setItem(SESSION_WELCOME, '1');
     setSessionNotes([{
       id: 'sys:welcome', kind: 'success',
-      title: tr('مرحباً بك في Finance OS', 'Bienvenue dans Finance OS', 'Welcome to Finance OS'),
+      title: tr('مساحة العمل جاهزة', 'Espace de travail prêt', 'Workspace ready'),
       body: tr(
-        'تم تحميل بيئة سطح المكتب المالية. انقر نقراً مزدوجاً على أيقونة أو افتح قائمة البدء.',
-        "L'environnement financier est prêt. Double-cliquez une icône ou ouvrez le menu Démarrer.",
-        'Your financial desktop is ready. Double-click an icon or open the Start menu to begin.',
+        'انقر نقراً مزدوجاً على أيقونة أو افتح قائمة ابدأ.',
+        'Double-cliquez une icône ou ouvrez le menu Démarrer.',
+        'Double-click an icon or open the Start menu.',
       ),
       time: Date.now(), appId: 'overview',
     }]);
@@ -224,7 +226,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
 
   const pushNotification = useCallback((n: Omit<OSNotification, 'id' | 'time'>) => {
     setSessionNotes((prev) => [
-      { ...n, id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, time: Date.now() },
+      { ...n, id: `n-${Date.now()}-${(notificationSeq += 1)}`, time: Date.now() },
       ...prev,
     ].slice(0, 30));
   }, []);
@@ -263,11 +265,13 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
 
   // ---------- window manager ----------
   const clampRect = useCallback((r: Rect, minW: number, minH: number): Rect => {
-    const deskH = Math.max(360, viewport.h - TASKBAR_INSET);
+    // Windows live between the menu bar (top) and the Dock (bottom).
+    const deskTop = MENUBAR_INSET + 6;
+    const deskH = Math.max(360, viewport.h - deskTop - DOCK_INSET);
     const w = Math.min(Math.max(r.w, minW), viewport.w - 24);
     const h = Math.min(Math.max(r.h, minH), deskH - 12);
     const x = Math.min(Math.max(r.x, 8 - (w - 160)), Math.max(8, viewport.w - w - 8));
-    const y = Math.min(Math.max(r.y, 8), Math.max(8, deskH - h - 8));
+    const y = Math.min(Math.max(r.y, deskTop), Math.max(deskTop, deskTop + deskH - h - 8));
     return { x, y, w, h };
   }, [viewport]);
 
@@ -291,7 +295,7 @@ export function OSProvider({ children }: { children: React.ReactNode }) {
       const cascade = (prev.length % 5) * 28;
       const rect = clampRect({
         x: Math.round((viewport.w - def.defaultSize.w) / 2) + cascade,
-        y: Math.round(Math.max(24, (viewport.h - TASKBAR_INSET - def.defaultSize.h) / 3)) + cascade,
+        y: Math.round(Math.max(MENUBAR_INSET + 12, (viewport.h - DOCK_INSET - def.defaultSize.h) / 3)) + cascade,
         w: def.defaultSize.w,
         h: def.defaultSize.h,
       }, def.minSize.w, def.minSize.h);

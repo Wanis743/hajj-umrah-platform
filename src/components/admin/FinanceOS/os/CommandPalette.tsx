@@ -127,9 +127,9 @@ export function CommandPalette({ onExit }: { onExit: () => void }) {
   };
 
   return (
-    <div className="absolute inset-0 z-[320] bg-black/50 backdrop-blur-sm fos-fade" onClick={() => setOverlay(null)}>
+    <div className="absolute inset-0 z-[470] bg-black/45 fos-fade" onClick={() => setOverlay(null)}>
       <div
-        className="fos-slide-down mx-auto mt-[12vh] w-[min(640px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-white/10 bg-[#12151f]/95 shadow-2xl backdrop-blur-2xl"
+        className="glass fos-slide-down mx-auto mt-[14vh] w-[min(640px,calc(100vw-24px))] overflow-hidden rounded-[18px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3.5">

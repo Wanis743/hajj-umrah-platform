@@ -18,7 +18,6 @@ interface CheckResult {
   detail?: string;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const statusOf = (good: boolean, tolerable: boolean): "OK" | "WARN" | "CRITICAL" =>
   good ? "OK" : tolerable ? "WARN" : "CRITICAL";
 

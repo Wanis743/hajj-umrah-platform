@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
-import Select from '@/components/admin/GlassSelect';
-import { supabase } from '@/lib/supabase';
-import { AlertTriangle, CheckCircle2, ChevronRight, CircleDollarSign, Database, FileWarning, Plane, RefreshCw, ShieldAlert, Users, WalletCards, Activity, TrendingUp, Stethoscope } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Database, FileWarning, Plane, ShieldAlert, Users, Stethoscope } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { DashboardFilters, DashboardRealtimeStatus, DashboardSnapshot } from '@/types/dashboard';
-import GlassDate from '@/components/admin/GlassDate';
 import { DrilldownSheet } from './workspaces/DrilldownSheet';
 import { GroupWorkspaceSheet } from './workspaces/GroupWorkspaceSheet';
 import { InvoiceWorkspaceSheet } from './workspaces/InvoiceWorkspaceSheet';
@@ -24,9 +21,7 @@ const money = (value: number, currency: string) => {
   const formatted = abs >= 1_000_000_000 ? `${(n / 1_000_000_000).toFixed(1)}B` : abs >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : Math.round(n).toLocaleString();
   return `${formatted} ${currency}`;
 };
-const variance = (actual: number, target: number | null) => target == null || target === 0 ? null : ((actual - target) / Math.abs(target)) * 100;
-const trend = (actual: number, previous: number | null) => previous == null || previous === 0 ? null : ((actual - previous) / Math.abs(previous)) * 100;
-export default function CommandCenter({ snapshot, filters, onFiltersChange, onRefresh, onNavigate, realtimeStatus }: CommandCenterProps) {
+export default function CommandCenter({ snapshot, onNavigate }: CommandCenterProps) {
   const { lang } = useI18n();
   const isAr = lang === 'ar' || lang === 'dz';
   const isFr = lang === 'fr';
@@ -51,12 +46,7 @@ export default function CommandCenter({ snapshot, filters, onFiltersChange, onRe
     else if (metric === 'ACTIVE_PILGRIMS') setActivePilgrimId(String(row.id));
     // You can add more metric routing here
   };
-  const openDrilldown = async (metric: string, title: string) => {
-    const { data, error } = await supabase.rpc('get_dashboard_drilldown', { p_metric: metric, p_date_from: filters.dateFrom || null, p_date_to: filters.dateTo || null, p_filter_branch_id: filters.branchId || null, p_filter_package_id: filters.packageId || null });
-    if (!error) setDrilldown({ title, metric, rows: Array.isArray(data) ? data : [] });
-  };
   const closeDrilldown = () => setDrilldown(null);
-  const statusLabel = realtimeStatus === 'LIVE' ? t('مباشر', 'En direct', 'LIVE') : realtimeStatus === 'SYNCING' ? t('مزامنة', 'Synchronisation', 'SYNCING') : realtimeStatus === 'DEGRADED' ? t('متدهور', 'Dégradé', 'DEGRADED') : t('غير متصل', 'Hors ligne', 'OFFLINE');
   const attention = useMemo(() => {
     if (!snapshot) return [] as Array<{ severity: 'critical'|'warning'|'info'; title: string; desc: string; action: string; count: number }>;
     const items: Array<{ severity: 'critical'|'warning'|'info'; title: string; desc: string; action: string; count: number }> = [];
@@ -72,14 +62,6 @@ export default function CommandCenter({ snapshot, filters, onFiltersChange, onRe
       return b.count - a.count;
     });
   }, [snapshot, operations, executive, t]);
-  const cards = snapshot ? [
-    { metric: 'REVENUE', label: t('الإيرادات', 'Chiffre d’affaires', 'Revenue'), value: money(executive?.revenue_dzd ?? 0, 'DZD'), actual: executive?.revenue_dzd ?? 0, target: snapshot.targets.revenue_dzd, previous: snapshot.comparison.revenue_dzd, icon: CircleDollarSign, action: 'financials' },
-    { metric: 'COLLECTION', label: t('المحصّل', 'Encaissé', 'Collected'), value: money(executive?.collected_dzd ?? 0, 'DZD'), actual: executive?.collected_dzd ?? 0, target: snapshot.targets.collection_dzd, previous: snapshot.comparison.collected_dzd, icon: WalletCards, action: 'financials' },
-    { metric: 'PROFIT', label: t('صافي الربح', 'Résultat net', 'Net Profit'), value: money(executive?.net_profit_dzd ?? 0, 'DZD'), actual: executive?.net_profit_dzd ?? 0, target: snapshot.targets.profit_dzd, previous: snapshot.comparison.net_profit_dzd, icon: CircleDollarSign, action: 'financials' },
-    { metric: 'ACTIVE_PILGRIMS', label: t('الحجاج النشطون', 'Pèlerins actifs', 'Active Pilgrims'), value: (executive?.pilgrims ?? 0).toLocaleString(), actual: executive?.pilgrims ?? 0, target: snapshot.targets.pilgrims, previous: null, icon: Users, action: 'pilgrims' },
-    { metric: 'GROUP_READINESS', label: t('الجاهزية', 'Préparation', 'Readiness'), value: `${Math.round(executive?.group_readiness ?? 0)}%`, actual: executive?.group_readiness ?? 0, target: (snapshot.targets as Record<string, unknown>)?.readiness_score ?? null, previous: null, icon: ShieldAlert, action: 'groups' },
-    { metric: 'AT_RISK_RECEIVABLES', label: t('ذمم معرضة للخطر', 'Créances à risque', 'At-Risk Receivables'), value: money(executive?.at_risk_receivables_dzd ?? 0, 'DZD'), actual: executive?.at_risk_receivables_dzd ?? 0, target: null, previous: null, icon: FileWarning, action: 'financials' },
-  ] : [];
     return <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
     
     

@@ -3,13 +3,13 @@ import { Search, CornerDownLeft, Users, CreditCard, UsersRound, Plane, Building2
 import { useI18n } from '@/i18n/I18nProvider';
 import type { NavSection, ExtendedAdminTab } from '@/components/admin/adminDashboardTypes';
 
-import { GroupWorkspaceSheet } from './workspaces/GroupWorkspaceSheet';
-import { InvoiceWorkspaceSheet } from './workspaces/InvoiceWorkspaceSheet';
-import { BookingWorkspaceSheet } from './workspaces/BookingWorkspaceSheet';
-import { PilgrimProfile360 } from './PilgrimProfile360';
-import { FlightWorkspaceSheet } from './workspaces/FlightWorkspaceSheet';
-import { HotelWorkspaceSheet } from './workspaces/HotelWorkspaceSheet';
-import { SupplierWorkspaceSheet } from './workspaces/SupplierWorkspaceSheet';
+
+
+
+
+
+
+
 
 interface CommandPaletteProps {
   open: boolean;
@@ -76,7 +76,7 @@ export default function CommandPalette({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [activePilgrimId, setActivePilgrimId] = useState<string | null>(null);
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
-  const [activeInvoiceId, setActiveInvoiceId] = useState<string | null>(null);
+  const [activeInvoiceId] = useState<string | null>(null);
   const [activeFlightId, setActiveFlightId] = useState<string | null>(null);
   const [activeHotelId, setActiveHotelId] = useState<string | null>(null);
   const [activeSupplierId, setActiveSupplierId] = useState<string | null>(null);

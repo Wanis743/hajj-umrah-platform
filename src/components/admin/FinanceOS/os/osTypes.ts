@@ -33,7 +33,7 @@ export interface AppDef {
   title: LocalizedText;
   desc: LocalizedText;
   icon: LucideIcon;
-  /** Tailwind gradient classes used for the app tile, e.g. "from-indigo-500 to-blue-600". */
+  /** Tailwind gradient classes for the app tile — shared muted treatment. */
   tile: string;
   category: AppCategory;
   defaultSize: { w: number; h: number };
@@ -75,9 +75,10 @@ export interface OSSignals {
   openPeriodLabel: string | null;
 }
 
-/** Height reserved at the bottom edge for the floating taskbar. */
-export const TASKBAR_INSET = 96;
+/** Height of the translucent menu bar pinned to the top edge. */
+export const MENUBAR_INSET = 30;
+/** Space reserved along the bottom edge for the floating Dock. */
+export const DOCK_INSET = 88;
 
-/** Shell version shown in Settings → About and the boot screen. */
-export const OS_VERSION = '26.08.2';
-export const OS_CODENAME = 'Meridian';
+/** Application version — keep in sync with the root package.json. */
+export const APP_VERSION = '1.1.0';

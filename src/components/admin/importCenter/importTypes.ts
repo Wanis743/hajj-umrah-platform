@@ -61,7 +61,7 @@ export const INITIAL_IMPORT_STATE: ImportState = {
   executing: false, executed: false, executionReport: null, error: null,
 };
 
-// ── CSV / JSON parsers ────────────────────────────────────────────────────
+// CSV / JSON parsers
 
 export function parseCSV(text: string): { headers: string[]; rows: Record<string, unknown>[] } {
   const lines = text.trim().split(/\r?\n/);
@@ -91,7 +91,7 @@ export function parseJSON(text: string): { headers: string[]; rows: Record<strin
   }
 }
 
-// ── Error report CSV generator ────────────────────────────────────────────
+// Error report CSV generator
 export function buildErrorReportCsv(validationResults: ImportState['validationResults']): string {
   const errors = validationResults
     .filter(r => r.errors.length > 0 || r.warnings.length > 0)
@@ -104,7 +104,7 @@ export function buildErrorReportCsv(validationResults: ImportState['validationRe
   return ['Row,Status,Errors,Warnings', ...errors.map(e => `${e.row},${e.status},"${e.errors}","${e.warnings}"`)].join('\n');
 }
 
-// ── Template CSV builder ──────────────────────────────────────────────────
+// Template CSV builder
 export function buildTemplateCsv(fields: { labelEn: string; type: string }[]): string {
   const headers = fields.map(f => f.labelEn).join(',');
   const example = fields.map(f => {
@@ -120,7 +120,7 @@ export function buildTemplateCsv(fields: { labelEn: string; type: string }[]): s
   return `${headers}\n${example}\n`;
 }
 
-// ── Download helper ───────────────────────────────────────────────────────
+// Download helper
 export function triggerDownload(content: string, filename: string, mimeType = 'text/csv;charset=utf-8;'): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);

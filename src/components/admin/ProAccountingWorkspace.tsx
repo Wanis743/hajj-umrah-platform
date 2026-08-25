@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { RefreshCw, Clock, Activity, AlertTriangle, Landmark } from 'lucide-react';
-import { useTheme } from '@/theme/ThemeProvider';
 import type { DashboardSnapshot, DashboardFilters, DashboardAnalyticsSnapshot } from '@/types/dashboard';
 
 import { useAccountingData } from './accounting/model/useAccountingData';
@@ -10,9 +9,7 @@ import {
   MarginTab, ProjectionTab, TaxTab, LoanTab, BepTab, BudgetTab, JournalTab
 } from './accounting/widgets/Tabs';
 
-export default function ProAccountingWorkspace({ filters, snapshot, analyticsSnapshot }: { filters: DashboardFilters; snapshot: DashboardSnapshot | null; analyticsSnapshot: DashboardAnalyticsSnapshot | null }) {
-  const { theme } = useTheme();
-  const dark = theme === 'dark';
+export default function ProAccountingWorkspace({ snapshot, analyticsSnapshot }: { filters: DashboardFilters; snapshot: DashboardSnapshot | null; analyticsSnapshot: DashboardAnalyticsSnapshot | null }) {
   const [tab, setTab] = useState<TabId>('overview');
 
   const { data, loading, error, ready, updAt, load } = useAccountingData(snapshot, analyticsSnapshot);
@@ -66,10 +63,10 @@ export default function ProAccountingWorkspace({ filters, snapshot, analyticsSna
       </div>
       {data ? (
         <>
-          {tab === 'overview'   && <OverviewTab    d={data} dark={dark}/>}
+          {tab === 'overview'   && <OverviewTab    d={data}/>}
           {tab === 'income'     && <IncomeTab      d={data}/>}
-          {tab === 'cashflow'   && <CashFlowTab    d={data} dark={dark}/>}
-          {tab === 'aging'      && <AgingTab       d={data} dark={dark}/>}
+          {tab === 'cashflow'   && <CashFlowTab    d={data}/>}
+          {tab === 'aging'      && <AgingTab       d={data}/>}
           {tab === 'ratios'     && <RatiosTab      d={data}/>}
           {tab === 'margin'     && <MarginTab      d={data}/>}
           {tab === 'projection' && <ProjectionTab  d={data}/>}

@@ -1,6 +1,5 @@
 /**
  * Import Pipeline Orchestrator
- * ─────────────────────────────────────────────────────────────────────────────
  * Coordinates all 13 import steps in sequence:
  *   1. Parse     — detect format and parse raw bytes
  *   2. Detect    — detect column headers
@@ -26,7 +25,7 @@ import { validateRow } from '@/engine/import/validator';
 import { supabase } from '@/lib/supabase';
 import type { ImportBatchRowInsert } from '@/types/database';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// Types
 
 export type ImportMode = 'PARTIAL' | 'FULL_REPLACE';
 export type ImportModule = 'pilgrims' | 'bookings' | 'payments' | 'groups' | 'packages';
@@ -85,7 +84,7 @@ export interface ImportPipelineOptions {
   onProgress?: (steps: ImportStep[]) => void;
 }
 
-// ── Column mapping per module ──────────────────────────────────────────────
+// Column mapping per module
 
 const MODULE_TARGET_FIELDS: Record<ImportModule, string[]> = {
   pilgrims: ['full_name', 'full_name_ar', 'passport_number', 'phone', 'email', 'birth_date', 'gender', 'nationality', 'wilaya', 'departure_airport', 'group_id', 'package_id', 'visa_status', 'payment_status', 'status'],
@@ -103,7 +102,7 @@ const REQUIRED_FIELDS: Record<ImportModule, string[]> = {
   packages: ['code', 'name', 'price_dzd'],
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 function makeStep(step: number, name: string): ImportStep {
   return { step, name, status: 'pending' };
@@ -113,9 +112,9 @@ function timestamp(): number {
   return Date.now();
 }
 
-// ── Normalize a raw row based on its module ────────────────────────────────
+// Normalize a raw row based on its module
 
-function normalizeRow(raw: RawRow, module: ImportModule): NormalizedRow {
+function normalizeRow(raw: RawRow, _module: ImportModule): NormalizedRow {
   const out: NormalizedRow = {};
   for (const [key, val] of Object.entries(raw)) {
     const strVal = val != null ? String(val).trim() : '';
@@ -139,7 +138,7 @@ function normalizeRow(raw: RawRow, module: ImportModule): NormalizedRow {
   return out;
 }
 
-// ── Main Pipeline ──────────────────────────────────────────────────────────
+// Main Pipeline
 
 export async function runImportPipeline(
   options: ImportPipelineOptions,
@@ -181,7 +180,7 @@ export async function runImportPipeline(
     notify();
   };
 
-  // ── Step 1: Parse ──────────────────────────────────────────────────────
+  // Step 1: Parse
   let t0 = timestamp();
   setStep(0, 'running');
   if (!rawRows.length) {
@@ -192,14 +191,14 @@ export async function runImportPipeline(
   setStep(0, 'done', `${rawRows.length} rows`, rawRows.length, t0);
   if (upToStep <= 1) return result;
 
-  // ── Step 2: Detect columns ────────────────────────────────────────────
+  // Step 2: Detect columns
   t0 = timestamp();
   setStep(1, 'running');
   const headers = Object.keys(rawRows[0] ?? {});
   setStep(1, 'done', `${headers.length} columns`, headers.length, t0);
   if (upToStep <= 2) return result;
 
-  // ── Step 3: Map columns ───────────────────────────────────────────────
+  // Step 3: Map columns
   t0 = timestamp();
   setStep(2, 'running');
   const targetFields = MODULE_TARGET_FIELDS[module];
@@ -220,7 +219,7 @@ export async function runImportPipeline(
   setStep(2, 'done', `${mappedCount}/${targetFields.length} fields mapped`, mappedCount, t0);
   if (upToStep <= 3) return result;
 
-  // ── Step 4: Normalize ─────────────────────────────────────────────────
+  // Step 4: Normalize
   t0 = timestamp();
   setStep(3, 'running');
   // Remap raw rows using column mapping
@@ -237,7 +236,7 @@ export async function runImportPipeline(
   setStep(3, 'done', `${normalized.length} rows normalized`, normalized.length, t0);
   if (upToStep <= 4) return result;
 
-  // ── Step 5: Validate ──────────────────────────────────────────────────
+  // Step 5: Validate
   t0 = timestamp();
   setStep(4, 'running');
   const required = REQUIRED_FIELDS[module];
@@ -260,7 +259,7 @@ export async function runImportPipeline(
   setStep(4, 'done', `${validRows} valid, ${invalidRows} invalid`, validRows, t0);
   if (upToStep <= 5) return result;
 
-  // ── Step 6: Deduplicate ───────────────────────────────────────────────
+  // Step 6: Deduplicate
   t0 = timestamp();
   setStep(5, 'running');
   let dupCount = 0;
@@ -278,19 +277,19 @@ export async function runImportPipeline(
   setStep(5, 'done', `${dupCount} duplicates found`, dupCount, t0);
   if (upToStep <= 6) return result;
 
-  // ── Step 7: Diff (skip if PARTIAL mode or no existing data lookup) ────
+  // Step 7: Diff (skip if PARTIAL mode or no existing data lookup)
   t0 = timestamp();
   setStep(6, mode === 'PARTIAL' ? 'skipped' : 'running', mode === 'PARTIAL' ? 'Skipped in PARTIAL mode' : 'Comparing with DB');
   if (upToStep <= 7) return result;
 
-  // ── Step 8: Preview ───────────────────────────────────────────────────
+  // Step 8: Preview
   t0 = timestamp();
   setStep(7, 'running');
   result.previewRows = validated.slice(0, 10);
   setStep(7, 'done', `${result.previewRows.length} preview rows`, result.previewRows.length, t0);
   if (upToStep <= 8) return result;
 
-  // ── Step 9: Create batch ──────────────────────────────────────────────
+  // Step 9: Create batch
   t0 = timestamp();
   setStep(8, 'running');
   const { data: batchData, error: batchError } = await supabase.rpc('create_import_batch', {
@@ -308,7 +307,7 @@ export async function runImportPipeline(
   setStep(8, 'done', `Batch ${String(batchData).slice(0, 8)}…`, 1, t0);
   if (upToStep <= 9) return result;
 
-  // ── Step 10: Stage rows ───────────────────────────────────────────────
+  // Step 10: Stage rows
   t0 = timestamp();
   setStep(9, 'running');
   const toStage: ImportBatchRowInsert[] = [];
@@ -343,7 +342,7 @@ export async function runImportPipeline(
   setStep(9, 'done', `${toStage.length} rows staged`, toStage.length, t0);
   if (upToStep <= 10) return result;
 
-  // ── Step 11: Commit ───────────────────────────────────────────────────
+  // Step 11: Commit
   t0 = timestamp();
   setStep(10, 'running');
   const { data: commitData, error: commitError } = await supabase.rpc('apply_import_batch', {
@@ -358,14 +357,14 @@ export async function runImportPipeline(
   setStep(10, 'done', `${result.committedRows} rows committed`, result.committedRows, t0);
   if (upToStep <= 11) return result;
 
-  // ── Step 12: Audit (data lineage) ─────────────────────────────────────
+  // Step 12: Audit (data lineage)
   t0 = timestamp();
   setStep(11, 'running');
   // Lineage is written automatically by apply_import_batch trigger
   setStep(11, 'done', 'Lineage written by DB trigger', undefined, t0);
   if (upToStep <= 12) return result;
 
-  // ── Step 13: Report ───────────────────────────────────────────────────
+  // Step 13: Report
   t0 = timestamp();
   setStep(12, 'running');
   result.success = true;

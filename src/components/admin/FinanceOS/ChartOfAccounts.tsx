@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search, X, Power, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import type { ChartOfAccountRow, JournalLineRow } from '@/types/database';
+import type { ChartOfAccountRow } from '@/types/database';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useJournalLineBalances } from './useJournalLineBalances';
 
 const ACCOUNT_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'] as const;
 
@@ -30,14 +31,6 @@ export function ChartOfAccounts() {
     fallbackData: [],
     limit: 500,
   });
-  // Balances are computed from posted lines — the table has no denormalised
-  // balance column, so showing one from `chart_of_accounts` lied by omission.
-  const { data: lines } = useSupabaseData<JournalLineRow>({
-    table: 'journal_lines',
-    columns: 'id,account_id,currency_code,debit,credit',
-    limit: 2000,
-  });
-
   const { data: staff } = useSupabaseData<Record<string, unknown> & { id: string }>({
     table: 'staff_profiles', columns: 'user_id,agency_id', limit: 50,
   });
@@ -51,15 +44,7 @@ export function ChartOfAccounts() {
     || (a.name && a.name.toLowerCase().includes(searchTerm.toLowerCase())),
   );
 
-  /** Net balance per account (debit − credit; statement readers flip liability/revenue signs). */
-  const balanceById = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const l of lines) {
-      const prev = map.get(l.account_id) ?? 0;
-      map.set(l.account_id, prev + Number(l.debit ?? 0) - Number(l.credit ?? 0));
-    }
-    return map;
-  }, [lines]);
+  const balanceById = useJournalLineBalances();
 
   const netFor = (acc: ChartOfAccountRow): number => {
     const raw = balanceById.get(acc.id) ?? 0;
@@ -116,10 +101,8 @@ export function ChartOfAccounts() {
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)]">
-          {t('دليل الحسابات', 'Plan Comptable', 'Chart of Accounts')}
-        </h3>
+      {/* Toolbar — window titlebar already names the app */}
+      <div className="flex items-center justify-end gap-3">
         <div className="flex gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] rtl:left-auto rtl:right-3" />

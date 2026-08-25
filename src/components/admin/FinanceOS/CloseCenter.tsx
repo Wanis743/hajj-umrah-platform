@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  Check, AlertTriangle, Clock, ShieldCheck, Lock, Loader2, CalendarPlus, RefreshCw,
+  Check, AlertTriangle, Clock, Lock, Loader2, CalendarPlus, RefreshCw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -203,16 +203,8 @@ export function CloseCenter() {
 
   return (
     <div className="h-full flex flex-col text-slate-200">
-      <div className="flex flex-wrap justify-between items-center gap-3 pb-4 border-b border-slate-700/50">
-        <div>
-          <h2 className="text-xl font-light text-white flex items-center gap-3">
-            <ShieldCheck className="w-6 h-6 text-red-400" />
-            {t('مركز الإقفال', 'Centre de clôture', 'Period Close Center')}
-          </h2>
-          <p className="text-sm text-slate-400 mt-1">
-            {t('نفّذ إجراءات نهاية الفترة واقفلها نهائياً.', 'Exécutez les procédures de clôture.', 'Execute period-end procedures and lock the period.')}
-          </p>
-        </div>
+      {/* Toolbar — the window titlebar names the app; keep actions compact */}
+      <div className="flex flex-wrap justify-end items-center gap-2 pb-3 border-b border-slate-700/50">
         <div className="flex gap-2">
           <button
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"

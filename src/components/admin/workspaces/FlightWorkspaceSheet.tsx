@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SideSheet } from './SideSheet';
-import { Plane, AlertTriangle, Users, MapPin, Clock, Info } from 'lucide-react';
+import { Plane, MapPin, Clock } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 import { FlightRow } from '@/types/database';

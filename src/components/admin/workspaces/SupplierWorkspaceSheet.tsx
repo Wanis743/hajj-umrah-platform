@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SideSheet } from './SideSheet';
-import { Truck, Phone, Mail, FileText, AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Truck, Phone, Mail, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 

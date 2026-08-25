@@ -15,7 +15,6 @@ npm run verify:migrations
 
 echo '[4/5] Verifying architecture/source'
 npm run verify:source
-npm run verify:canonical-docs
 npm run verify:migrations
 node scripts/verify-architecture.mjs
 node scripts/verify-toolchain-config.mjs

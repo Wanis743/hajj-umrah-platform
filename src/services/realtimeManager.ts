@@ -1,6 +1,5 @@
 /**
  * RealtimeManager — domain-level Supabase Realtime subscriptions
- * ─────────────────────────────────────────────────────────────────
  * State machine per domain:
  *   DISCONNECTED → CONNECTING → SUBSCRIBED → (event fires listeners)
  *                                  ↓ error
@@ -52,7 +51,7 @@ class RealtimeManager {
   private statusCbs   = new Set<StatusChangeCallback>();
   private lastEventAt = new Map<RealtimeDomain, number>();
 
-  // ── Public: subscribe to domain data events ───────────────────────────
+  // Public: subscribe to domain data events
   subscribe(domain: RealtimeDomain, listener: Subscriber): () => void {
     let set = this.listeners.get(domain);
     if (!set) {
@@ -67,7 +66,7 @@ class RealtimeManager {
     };
   }
 
-  // ── Public: observe connection status changes ─────────────────────────
+  // Public: observe connection status changes
   onStatusChange(cb: StatusChangeCallback): () => void {
     this.statusCbs.add(cb);
     return () => this.statusCbs.delete(cb);
@@ -81,7 +80,7 @@ class RealtimeManager {
     return this.lastEventAt.get(domain) ?? null;
   }
 
-  // ── Internal ──────────────────────────────────────────────────────────
+  // Internal
   private setStatus(domain: RealtimeDomain, status: ChannelStatus) {
     this.statuses.set(domain, status);
     for (const cb of this.statusCbs) cb(domain, status);

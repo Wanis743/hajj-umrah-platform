@@ -1,63 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import { Zap } from 'lucide-react';
-import { OS_VERSION, OS_CODENAME } from './osTypes';
+import { BookOpen } from 'lucide-react';
+import { agencyConfig } from '@/config/agency';
 
-const BOOT_LINES = [
-  'Mounting ledger volume ............ OK',
-  'Starting journal service .......... OK',
-  'Loading chart of accounts ......... OK',
-  'Binding reconciliation engine ..... OK',
-  'Starting desktop compositor ....... OK',
-];
+const BOOT_MS = 1400;
 
 /**
- * The OS boot sequence. Runs once per browser session; click anywhere to skip.
+ * Workspace splash shown once per browser session while the shell mounts.
+ * Displays the real agency identity — no simulated boot logs.
  */
 export function BootScreen({ onDone }: { onDone: () => void }) {
-  const [lineCount, setLineCount] = useState(0);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const lineTimer = window.setInterval(() => {
-      setLineCount((c) => Math.min(c + 1, BOOT_LINES.length));
-    }, 320);
-    const doneTimer = window.setTimeout(onDone, 2300);
+    const started = performance.now();
+    const tick = window.setInterval(() => {
+      setProgress(Math.min(1, (performance.now() - started) / BOOT_MS));
+    }, 50);
+    const doneTimer = window.setTimeout(onDone, BOOT_MS + 250);
     return () => {
-      window.clearInterval(lineTimer);
+      window.clearInterval(tick);
       window.clearTimeout(doneTimer);
     };
   }, [onDone]);
 
   return (
     <div
-      className="absolute inset-0 z-[200] flex cursor-pointer flex-col items-center justify-center bg-[#05070d] text-white"
+      className="absolute inset-0 z-[600] flex cursor-pointer flex-col items-center justify-center bg-[#0a0e14] text-white"
       onClick={onDone}
       role="presentation"
     >
-      <div className="fos-boot-logo flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-700 shadow-[0_0_60px_rgba(99,102,241,0.5)]">
-        <Zap className="h-9 w-9 text-white" />
-      </div>
-      <h1 className="mt-6 text-2xl font-bold tracking-[0.35em]">
-        FINANCE <span className="font-light text-white/60">OS</span>
-      </h1>
-      <p className="mt-1 text-[11px] uppercase tracking-[0.3em] text-white/30">
-        {OS_CODENAME} · v{OS_VERSION}
-      </p>
+      <span className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06]">
+        <BookOpen className="h-7 w-7 text-white/85" strokeWidth={1.6} />
+      </span>
+      <h1 className="mt-5 text-lg font-semibold tracking-wide text-white/90">{agencyConfig.name}</h1>
+      <p className="mt-1 text-xs text-white/40">Finance</p>
 
-      <div className="mt-10 h-1 w-56 overflow-hidden rounded-full bg-white/10">
-        <div className="fos-boot-bar relative h-full rounded-full bg-indigo-500">
-          <span className="fos-bar-sweep absolute inset-y-0 w-1/3 bg-white/40 blur-sm" />
-        </div>
+      <div className="mt-8 h-0.5 w-44 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-white/70 transition-[width] duration-100"
+          style={{ width: `${Math.round(progress * 100)}%` }}
+        />
       </div>
-
-      <div className="mt-6 h-20 font-mono text-[10px] leading-5 text-emerald-400/70" dir="ltr">
-        {BOOT_LINES.slice(0, lineCount).map((line) => (
-          <div key={line}>{line}</div>
-        ))}
-      </div>
-
-      <p className="absolute bottom-8 text-[10px] uppercase tracking-[0.25em] text-white/25">
-        Press anywhere to skip
-      </p>
     </div>
   );
 }

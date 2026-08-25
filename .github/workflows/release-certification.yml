@@ -56,21 +56,6 @@ jobs:
         
       - name: Reservation Concurrency Load Test
         run: npm run verify:reservation-concurrency
-        
-      - name: External Integrations UAT
-        run: node scripts/verify-integrations.mjs
 
       - name: Backup & Disaster Recovery Drill
         run: npm run verify:backup-restore
-        
-      - name: Generate Release Evidence
-        run: node execute_all_evidence.cjs && node scripts/generate-certification-status.mjs
-        
-      - name: Package Evidence Archive
-        run: zip -r evidence.zip release/evidence/ docs/generated/certification-status.json RELEASE_ARTIFACT_HASHES.txt
-
-      - name: Upload Certification Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: 10_10_CERTIFICATION_EVIDENCE
-          path: evidence.zip

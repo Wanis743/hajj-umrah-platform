@@ -48,7 +48,7 @@ export function NotificationCenter() {
   };
 
   return (
-    <div className="fos-pop absolute bottom-[74px] end-3 z-[310] flex max-h-[min(560px,calc(100vh-120px))] w-[min(380px,calc(100vw-16px))] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#131622]/95 shadow-2xl backdrop-blur-2xl">
+    <div className="glass fos-pop absolute top-[38px] end-2 z-[460] flex max-h-[min(560px,calc(100vh-90px))] w-[min(380px,calc(100vw-16px))] flex-col overflow-hidden rounded-2xl">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <div>
           <div className="text-sm font-semibold text-white/90">{tr('مركز الإشعارات', 'Centre de notifications', 'Notifications')}</div>

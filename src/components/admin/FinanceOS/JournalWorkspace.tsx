@@ -98,10 +98,8 @@ export function JournalWorkspace() {
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)]">
-          {t('دفتر اليومية', 'Journal', 'Journal')}
-        </h3>
+      {/* Toolbar — window titlebar already names the app */}
+      <div className="flex items-center justify-end gap-3">
         <div className="flex gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] rtl:left-auto rtl:right-3" />

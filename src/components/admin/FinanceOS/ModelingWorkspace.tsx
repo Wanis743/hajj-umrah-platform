@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { Network, Calculator, Play, Plus, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -131,10 +131,8 @@ export function ModelingWorkspace() {
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)]">
-          {t('النمذجة المالية', 'Modélisation Financière', 'Financial Modeling')}
-        </h3>
+      {/* Toolbar — window titlebar already names the app */}
+      <div className="flex items-center justify-end">
         <div className="flex gap-2">
           <button onClick={simulate} disabled={loading || !activeScenario} className="btn btn-sm btn-primary flex items-center gap-2">
             <Play className="h-4 w-4" /> {loading ? '...' : t('محاكاة', 'Simuler', 'Run Simulation')}

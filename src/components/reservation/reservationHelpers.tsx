@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- constants module shared across sibling components */
 /** Shared small components and utilities for ReservationPage */
 import { type ElementType } from 'react';
 

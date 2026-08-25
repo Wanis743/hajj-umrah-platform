@@ -85,6 +85,38 @@
   --radius-lg: 8px;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.06);
+
+  /* Bklit chart tokens — light surfaces (vendored charts read these vars).
+     Series palette mirrors the dashboard's existing PIE_PAL accents. */
+  --chart-1: #6366f1;
+  --chart-2: #06b6d4;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #f43f5e;
+  --chart-background: rgba(255, 255, 255, 0.6);
+  --chart-foreground: #171717;
+  --chart-foreground-muted: #525252;
+  --chart-label: #737373;
+  --chart-line-primary: #6366f1;
+  --chart-line-secondary: #06b6d4;
+  --chart-crosshair: rgba(99, 102, 241, 0.5);
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-indicator-color: rgba(15, 23, 42, 0.85);
+  --chart-indicator-secondary-color: rgba(15, 23, 42, 0.35);
+  --chart-marker-background: #ffffff;
+  --chart-marker-border: #e5e7eb;
+  --chart-marker-foreground: #262626;
+  --chart-marker-badge-background: #6366f1;
+  --chart-marker-badge-foreground: #ffffff;
+  --chart-segment-background: rgba(15, 23, 42, 0.06);
+  --chart-segment-line: rgba(15, 23, 42, 0.15);
+  --chart-brush-border: rgba(15, 23, 42, 0.1);
+  --chart-tooltip-background: rgba(23, 23, 28, 0.9);
+  --chart-tooltip-foreground: #fafafa;
+  --chart-tooltip-muted: #a3a3a3;
+  --foreground: #171717;
+  --muted-foreground: #737373;
+
   background: var(--bg);
   color: var(--text-primary);
   font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -115,6 +147,36 @@
   --danger-soft: #2b1216;
   --info: #60a5fa;
   --info-soft: #1e3a5f;
+
+  /* Bklit chart tokens — dark surfaces */
+  --chart-1: #818cf8;
+  --chart-2: #22d3ee;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #fb7185;
+  --chart-background: rgba(255, 255, 255, 0.05);
+  --chart-foreground: #f5f5f5;
+  --chart-foreground-muted: #a3a3a3;
+  --chart-label: #737373;
+  --chart-line-primary: #818cf8;
+  --chart-line-secondary: #22d3ee;
+  --chart-crosshair: rgba(255, 255, 255, 0.32);
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-indicator-color: rgba(255, 255, 255, 0.85);
+  --chart-indicator-secondary-color: rgba(255, 255, 255, 0.35);
+  --chart-marker-background: #1c1c1c;
+  --chart-marker-border: #3a3a3a;
+  --chart-marker-foreground: #f5f5f5;
+  --chart-marker-badge-background: #818cf8;
+  --chart-marker-badge-foreground: #0d0d0d;
+  --chart-segment-background: rgba(255, 255, 255, 0.07);
+  --chart-segment-line: rgba(255, 255, 255, 0.18);
+  --chart-brush-border: rgba(255, 255, 255, 0.16);
+  --chart-tooltip-background: rgba(10, 10, 14, 0.92);
+  --chart-tooltip-foreground: #f5f5f5;
+  --chart-tooltip-muted: #a3a3a3;
+  --foreground: #f5f5f5;
+  --muted-foreground: #737373;
 }
 
 /* Numeric alignment for tabular data */
@@ -802,9 +864,6 @@
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-.admin-dashboard .recharts-cartesian-axis-tick text { fill: var(--text-muted); }
-.admin-dashboard .recharts-legend-item-text { color: var(--text-secondary) !important; }
-.admin-dashboard .recharts-cartesian-grid line { stroke: var(--border-subtle); }
 
 /* --- Fallbacks ---------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
@@ -1313,8 +1372,64 @@
   --bg: #0a0c12;
   --bg-subtle: #14161c;
   --radius: 8px;
+
+  /* Bklit chart theme tokens (shadcn registry "@bklit") — dark window chrome.
+     Ring tracks read var(--border); slice/ring defaults read --chart-1..5;
+     center stats read --chart-foreground / --chart-label. */
+  --chart-1: #e0b65a; /* gold */
+  --chart-2: #5fa978; /* oasis */
+  --chart-3: #60a5fa;
+  --chart-4: #fb7185;
+  --chart-5: #a78bfa;
+  --chart-background: rgba(255, 255, 255, 0.06);
+  --chart-foreground: #f4f4f5;
+  --chart-foreground-muted: #a1a1aa;
+  --chart-label: #71717a;
+
+  /* shadcn semantic tokens the vendored charts reference directly
+     (loading pulses, shimmer band, sweep silhouette). Dark-glass values. */
+  --foreground: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  /* Time-series family (Line/Area shells, grid, axes, tooltip, markers). */
+  --chart-line-primary: #e0b65a; /* gold series */
+  --chart-line-secondary: #60a5fa;
+  --chart-crosshair: rgba(255, 255, 255, 0.28);
+  --chart-grid: rgba(255, 255, 255, 0.07);
+  --chart-indicator-color: rgba(255, 255, 255, 0.9);
+  --chart-indicator-secondary-color: rgba(255, 255, 255, 0.4);
+  --chart-marker-background: #1b1e27;
+  --chart-marker-border: rgba(255, 255, 255, 0.16);
+  --chart-marker-foreground: #f4f4f5;
+  --chart-marker-badge-background: #e0b65a;
+  --chart-marker-badge-foreground: #14161c;
+  --chart-segment-background: rgba(255, 255, 255, 0.08);
+  --chart-segment-line: rgba(255, 255, 255, 0.2);
+  --chart-brush-border: rgba(255, 255, 255, 0.2);
+  --chart-tooltip-background: rgba(20, 22, 28, 0.92);
+  --chart-tooltip-foreground: #f4f4f5;
+  --chart-tooltip-muted: #a1a1aa;
+
   background: #0a0c12;
   color: var(--text-primary);
+}
+
+/* Vendored bklit tooltip/axis classes (upstream tailwind theme utilities,
+   defined here as plain rules since our tailwind config has no chart colors).
+   Global so the charts also work on the admin dashboard outside Finance OS —
+   the var()s resolve against whichever scope (.finance-os-root /
+   .admin-dashboard / .dark) the chart renders in. */
+.text-chart-label {
+  color: var(--chart-label);
+}
+.text-chart-tooltip-foreground {
+  color: var(--chart-tooltip-foreground);
+}
+.text-chart-tooltip-muted {
+  color: var(--chart-tooltip-muted);
+}
+.bg-chart-tooltip-background {
+  background-color: var(--chart-tooltip-background);
 }
 
 .finance-os-root .btn {
@@ -1412,25 +1527,6 @@
 }
 .fos-rise { animation: fos-rise 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
 
-/* ---------- taskbar ---------- */
-.fos-taskbar {
-  background: rgba(13, 15, 22, 0.78);
-  backdrop-filter: blur(26px) saturate(1.4);
-  -webkit-backdrop-filter: blur(26px) saturate(1.4);
-  border: 1px solid rgba(255,255,255,0.09);
-  box-shadow: 0 18px 50px -14px rgba(0,0,0,0.7), inset 0 1px 0 0 rgba(255,255,255,0.07);
-}
-.fos-task-btn { position: relative; transition: transform .12s ease, background-color .12s ease; }
-.fos-task-btn:hover { transform: translateY(-2px); }
-.fos-task-btn:active { transform: scale(0.9); }
-.fos-task-btn .fos-run-dot {
-  position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%);
-  width: 4px; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.28);
-  transition: background-color .15s ease, width .15s ease;
-}
-.fos-task-btn[data-running='true'] .fos-run-dot { background: var(--brand-500); }
-.fos-task-btn[data-active='true'] .fos-run-dot { width: 14px; background: #a5b4fc; }
-
 /* ---------- boot ---------- */
 @keyframes fos-boot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 .fos-boot-logo { animation: fos-boot-pulse 2.4s ease-in-out infinite; }
@@ -1447,3 +1543,111 @@
 .finance-os-root ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 .finance-os-root ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); background-clip: padding-box; }
 .finance-os-root ::-webkit-scrollbar-track, .finance-os-root ::-webkit-scrollbar-corner { background: transparent; }
+
+/* ============================================================
+   Finance OS — macOS "liquid glass" material
+   Deep blur + saturation, specular edge refraction, soft depth.
+   ============================================================ */
+
+.finance-os-root .glass {
+  background:
+    linear-gradient(150deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 34%, rgba(255,255,255,0.015) 60%, rgba(255,255,255,0.06) 100%);
+  background-color: rgba(14, 16, 23, 0.52);
+  backdrop-filter: blur(30px) saturate(180%) brightness(1.08);
+  -webkit-backdrop-filter: blur(30px) saturate(180%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.22),
+    0 24px 60px -18px rgba(0, 0, 0, 0.65),
+    0 4px 16px -6px rgba(0, 0, 0, 0.4);
+}
+
+.finance-os-root .glass-sheet {
+  /* Dimmed full-screen material for Launchpad-style overlays */
+  background-color: rgba(10, 12, 18, 0.42);
+  backdrop-filter: blur(38px) saturate(175%) brightness(0.96);
+  -webkit-backdrop-filter: blur(38px) saturate(175%) brightness(0.96);
+}
+
+.finance-os-root .glass-menubar {
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02));
+  background-color: rgba(12, 14, 20, 0.38);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 -1px 0 0 rgba(0,0,0,0.25);
+}
+
+.finance-os-root .glass-item-hover:hover {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.14);
+}
+
+/* --- Dock -------------------------------------------------- */
+
+.finance-os-root .fos-dock-icon {
+  transform-origin: center 100%;
+  transition: transform 90ms ease-out;
+  will-change: transform;
+}
+
+.finance-os-root .fos-dock-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.92);
+  padding: 3px 10px;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.finance-os-root .fos-dock-icon:hover .fos-dock-tip { opacity: 1; }
+
+.finance-os-root .fos-dock-dot {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.55);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+/* --- Launchpad ---------------------------------------------- */
+
+@keyframes fos-launch-in {
+  from { opacity: 0; transform: scale(1.06); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.finance-os-root .fos-launchpad { animation: fos-launch-in 0.22s cubic-bezier(0.16,1,0.3,1); }
+
+@keyframes fos-launch-icon-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.finance-os-root .fos-launch-icon { animation: fos-launch-icon-in 0.28s cubic-bezier(0.16,1,0.3,1) backwards; }
+
+/* --- Liquid glass windows ------------------------------------ */
+
+.finance-os-root .fos-window-frame {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 30px 80px -20px rgba(0,0,0,0.75),
+    0 8px 28px -10px rgba(0,0,0,0.55),
+    0 0 0 0.5px rgba(255,255,255,0.10);
+}
+.finance-os-root .fos-window-frame[data-focused='false'] {
+  box-shadow:
+    0 16px 48px -18px rgba(0,0,0,0.6),
+    0 0 0 0.5px rgba(255,255,255,0.07);
+}

@@ -98,7 +98,7 @@ export const flightCommands=makeCrud('create_flight_command','update_flight_comm
 export const holySiteCampCommands=makeCrud('create_camp_command','update_camp_command','delete_camp_command');
 export const crmCommands=makeCrud('create_crm_lead_command','update_crm_lead_command','delete_crm_lead_command');
 
-// ── Reservation / Booking commands ───────────────────────────────────────────
+// Reservation / Booking commands
 /** Typed result for reservation confirmation */
 export interface ConfirmReservationResult {
   booking_reference: string;
@@ -147,7 +147,7 @@ export const reservationCommands = {
     }),
 };
 
-// ── External Operations commands ───────────────────────────────────────────
+// External Operations commands
 
 export const externalOperationCommands = {
   create: (payload: Record<string, unknown>) =>

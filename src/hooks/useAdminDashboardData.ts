@@ -1,6 +1,5 @@
 /**
  * useAdminDashboardData
- * ─────────────────────────────────────────────────────────────────────────────
  * Fixes in this revision:
  *
  *  1. Realtime status is now derived from realtimeManager.getStatus() — LIVE
@@ -36,7 +35,7 @@ import type { DashboardFilters, DashboardRealtimeStatus, DashboardSnapshot } fro
 import type { ExtendedAdminTab } from '@/components/admin/adminDashboardTypes';
 import { realtimeManager } from '@/services/realtimeManager';
 
-// ── Data fetch helper ─────────────────────────────────────────────────────────
+// Data fetch helper
 async function fetchAllRows(
   table: string,
   columns: string,
@@ -58,7 +57,7 @@ async function fetchAllRows(
   return { data: rows, error: null };
 }
 
-// ── Empty financials sentinel ─────────────────────────────────────────────────
+// Empty financials sentinel
 const EMPTY_FINANCIALS: FinancialSummary = {
   totalRevenueSAR: 0, totalRevenueDZD: 0,
   collectedSAR: 0, collectedDZD: 0,
@@ -70,13 +69,13 @@ const EMPTY_FINANCIALS: FinancialSummary = {
   cateringExpensesSAR: 0,
 };
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
+// Hook
 /* eslint-disable max-lines-per-function, complexity */
 export function useAdminDashboardData(
   activeTab: ExtendedAdminTab,
   dashboardFilters: DashboardFilters,
 ) {
-  // ── Domain state ────────────────────────────────────────────────────────
+  // Domain state
   const [pilgrims,     setPilgrims]     = useState<Pilgrim[]>([]);
   const [packages,     setPackages]     = useState<HajjPackage[]>([]);
   const [hotels,       setHotels]       = useState<HotelInventory[]>([]);
@@ -123,7 +122,7 @@ export function useAdminDashboardData(
     return () => clearTimeout(loadingWatchdog.current);
   }, [dataLoading]);
 
-  // ── Pilgrim mapper (no invented defaults) ────────────────────────────────
+  // Pilgrim mapper (no invented defaults)
   const mapPilgrim = useCallback(
     (r: Record<string, unknown>, pkgById: Map<string, Record<string, unknown>>): Pilgrim => {
       const birth = typeof r.birth_date === 'string' ? new Date(r.birth_date).getTime() : 0;
@@ -176,7 +175,7 @@ export function useAdminDashboardData(
     [],
   );
 
-  // ── fetchAllData — with proper error surfacing (no silent empty arrays) ──
+  // fetchAllData — with proper error surfacing (no silent empty arrays)
   const fetchAllData = useCallback(async () => {
     if (!isSupabaseConfigured) { setDataLoading(false); firstLoadDone.current = true; return; }
     const generation = ++fetchGeneration.current;
@@ -314,7 +313,7 @@ export function useAdminDashboardData(
     }
   }, [mapPilgrim]);
 
-  // ── fetchDashboardSnapshot — with generation guard + SYNCING→LIVE/DEGRADED ─
+  // fetchDashboardSnapshot — with generation guard + SYNCING→LIVE/DEGRADED
   // NOTE: This function does NOT touch dataLoading — only fetchAllData controls
   // the main loading gate. Snapshot is auxiliary (command_center KPIs only).
   const fetchDashboardSnapshot = useCallback(async () => {
@@ -347,7 +346,7 @@ export function useAdminDashboardData(
     // No finally setDataLoading — snapshot does not own the loading gate
   }, [dashboardFilters]);
 
-  // ── Sync financials from snapshot (single source of truth) ──────────────
+  // Sync financials from snapshot (single source of truth)
   useEffect(() => {
     if (!dashboardSnapshot) return;
     const e = dashboardSnapshot.executive;
@@ -366,13 +365,13 @@ export function useAdminDashboardData(
     }));
   }, [dashboardSnapshot]);
 
-  // ── Initial load ─────────────────────────────────────────────────────────
+  // Initial load
   useEffect(() => { void fetchDashboardSnapshot(); }, [fetchDashboardSnapshot]);
   // fetchAllData once on mount — data is fetched for all tabs at once, re-fetched by realtime events
   // NOT on activeTab change (that caused the loading loop — every click blocked the entire UI)
   useEffect(() => { void fetchAllData(); }, [fetchAllData]);
 
-  // ── Debounced refresh (used by realtime triggers) ────────────────────────
+  // Debounced refresh (used by realtime triggers)
   const fetchTimer = useRef<ReturnType<typeof setTimeout>>();
   const refresh = useCallback(() => {
     setDashboardRealtimeStatus('SYNCING');
@@ -388,7 +387,7 @@ export function useAdminDashboardData(
     }, 400);
   }, [activeTab, fetchDashboardSnapshot, fetchAllData]);
 
-  // ── Realtime subscriptions — LIVE only after SUBSCRIBED confirmed ─────────
+  // Realtime subscriptions — LIVE only after SUBSCRIBED confirmed
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setDashboardRealtimeStatus('OFFLINE');

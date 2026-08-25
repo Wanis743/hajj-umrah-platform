@@ -1,7 +1,7 @@
 import React from 'react';
-import { Check, RotateCcw, XSquare, MonitorCog, Wifi, WifiOff, Zap } from 'lucide-react';
+import { BookOpen, Check, RotateCcw, XSquare, MonitorCog, Wifi, WifiOff } from 'lucide-react';
 import { ACCENTS, WALLPAPERS } from '../theme';
-import { OS_CODENAME, OS_VERSION } from '../osTypes';
+import { APP_VERSION } from '../osTypes';
 import { useOS } from '../OSContext';
 import { useAuth } from '@/lib/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -114,13 +114,13 @@ export function SettingsApp() {
       <Section title={tr('حول النظام', 'À propos', 'About this system')}>
         <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-700 shadow-lg">
-              <Zap className="h-5 w-5 text-white" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.06]">
+              <BookOpen className="h-5 w-5 text-white/85" strokeWidth={1.6} />
             </span>
             <div>
-              <div className="text-sm font-bold text-white">Finance OS <span className="font-light text-white/60">{OS_CODENAME}</span></div>
+              <div className="text-sm font-semibold text-white">{tr('النظام المالي', 'Système financier', 'Finance workspace')}</div>
               <div className="text-xs text-white/45">
-                {tr('الإصدار', 'Version', 'Version')} {OS_VERSION}
+                {tr('الإصدار', 'Version', 'Version')} {APP_VERSION}
               </div>
             </div>
           </div>

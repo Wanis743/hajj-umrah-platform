@@ -1,20 +1,14 @@
 import { reportError, reportWarning } from '@/lib/logger';
 import { useState } from 'react';
-import {
-  Download, FileText, FileSpreadsheet, FileJson, Printer,
-  Archive, Table, Filter, ChevronDown, Clock, CheckCircle2,
-  RefreshCw, Users, CalendarCheck, Wallet, UsersRound,
-  BadgeCheck, Plane, Bus, Hotel, Package, FileBarChart,
-  LayoutDashboard,
-} from 'lucide-react';
+import { Download, FileSpreadsheet, FileJson, Printer, Table, Filter, Clock, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { hasPermission, Role } from '@/lib/permissions';
 
-import { ExportFormat, ExportScope, ExportModule, ExportHistoryItem } from './export/types';
+import { ExportFormat, ExportScope, ExportModule } from './export/types';
 import { EXPORT_MODULES } from './export/constants';
-import { generateCSV, generateJSON, downloadBlob } from './export/utils';
+
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
@@ -23,7 +17,6 @@ export function ExportCenter() {
   const { staffProfile } = useAuth();
   const canExportPII = hasPermission(staffProfile?.role as Role, 'exports.pii');
   const canExport = hasPermission(staffProfile?.role as Role, 'exports.create');
-  const MAX_EXPORT_ROWS = 25000;
 
   const isAr = lang === 'ar' || lang === 'dz';
   const isFr = lang === 'fr';
@@ -36,15 +29,14 @@ export function ExportCenter() {
     new Set(allowedFields.map(f => f.key))
   );
   const [format, setFormat] = useState<ExportFormat>('CSV');
-  const [scope, setScope] = useState<ExportScope>('ENTIRE_DATASET');
+  const [scope] = useState<ExportScope>('ENTIRE_DATASET');
   const [exporting, setExporting] = useState(false);
-
-  if (!canExport) return <div className="p-6">Unauthorized to access exports.</div>;
   const [lastExport, setLastExport] = useState<{ filename: string; rows: number } | null>(null);
-  const [history, setHistory] = useState<ExportHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  if (!canExport) return <div className="p-6">Unauthorized to access exports.</div>;
 
   const toggleField = (key: string) => {
     setSelectedFields(prev => {

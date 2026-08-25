@@ -39,7 +39,7 @@ export function SettingsTab({
                         {t('الإعدادات', 'Paramètres', 'Settings')}
                       </h2>
 
-                      {/* ── 1. Agency Identity ── */}
+                      {/* 1. Agency Identity */}
                       <div className="card p-5 space-y-4">
                         <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                           <Briefcase className="h-4 w-4 text-brand-500" />
@@ -65,7 +65,7 @@ export function SettingsTab({
                         </div>
                       </div>
 
-                      {/* ── 2. Operational Settings ── */}
+                      {/* 2. Operational Settings */}
                       <div className="card p-5 space-y-5">
                         <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                           <Settings className="h-4 w-4 text-brand-500" />
@@ -111,7 +111,7 @@ export function SettingsTab({
                         </div>
                       </div>
 
-                      {/* ── 3. System Status ── */}
+                      {/* 3. System Status */}
                       <div className="card p-5 space-y-4">
                         <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                           <Gauge className="h-4 w-4 text-brand-500" />
@@ -151,7 +151,7 @@ export function SettingsTab({
                         </div>
                       </div>
 
-                      {/* ── 4. Auth & Security ── */}
+                      {/* 4. Auth & Security */}
                       <div className="card p-5 space-y-4">
                         <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                           <ShieldCheck className="h-4 w-4 text-brand-500" />

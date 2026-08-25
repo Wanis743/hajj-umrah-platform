@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- constants module shared across sibling components */
 import React from 'react';
 import { BarChart2, FileText, Wallet, AlertTriangle, Scale, Percent, TrendingUp, Receipt, BookOpen, Building2, PiggyBank, Calculator, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { formatMoney } from '@/lib/money';

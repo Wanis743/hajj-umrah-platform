@@ -220,16 +220,11 @@ export function ReportsWorkspace() {
 
   return (
     <div className="h-full flex flex-col space-y-4">
+      {/* Toolbar — window titlebar already names the app */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-xl font-semibold text-[var(--text-primary)] flex items-center gap-2">
-            <FileBarChart className="h-5 w-5 text-cyan-400" />
-            {t('البيانات المالية', 'États financiers', 'Financial Statements')}
-          </h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            {t('محسوبة من القيود المرحّلة فقط', 'Calculés depuis les écritures validées uniquement', 'Computed from POSTED journal entries only')}
-          </p>
-        </div>
+        <p className="text-xs text-[var(--text-muted)]">
+          {t('من القيود المرحّلة فقط', 'Écritures validées uniquement', 'Posted entries only')}
+        </p>
         <div className="flex items-center gap-2">
           {/* Currency chips — only currencies that actually appear in the lines */}
           <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">

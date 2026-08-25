@@ -4,7 +4,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { Wallet, TrendingUp, CreditCard, Receipt, Plus } from 'lucide-react';
 import { Spinner } from '@/components/admin/ui';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
-import type { GenericRow, BookingRow } from '@/types/database';
+import type { GenericRow } from '@/types/database';
 import { supabase } from '@/lib/supabase';
 
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Check', 'Card', 'CCP', 'BaridiMob'];

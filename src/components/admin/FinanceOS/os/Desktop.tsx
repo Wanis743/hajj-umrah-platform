@@ -6,6 +6,7 @@ import { DESKTOP_APPS } from './apps';
 import { useOS } from './OSContext';
 import { wardrobeWallpaperLabel } from './desktopUtils';
 import { useAuth } from '@/lib/auth';
+import { agencyConfig } from '@/config/agency';
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -53,7 +54,7 @@ export function Desktop() {
     >
       {/* Desktop icons — column flow, like a real OS grid */}
       <div
-        className="absolute inset-x-0 top-0 flex max-h-[calc(100%-110px)] flex-col flex-wrap content-start gap-1 p-5"
+        className="absolute inset-x-0 top-9 flex max-h-[calc(100%-150px)] flex-col flex-wrap content-start gap-1 p-5 pt-2"
         style={{ bottom: 104 }}
       >
         {DESKTOP_APPS.map((app) => {
@@ -89,9 +90,9 @@ export function Desktop() {
 
       {/* Widgets column */}
       {prefs.widgets && (
-        <div className="absolute end-5 top-5 flex w-[288px] flex-col gap-3 fos-rise">
+        <div className="absolute end-4 top-[42px] flex w-[288px] flex-col gap-3 fos-rise">
           {/* Clock + identity widget */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-xl backdrop-blur-xl">
+          <div className="glass rounded-2xl p-5">
             <div className="flex items-baseline justify-between">
               <span className="text-4xl font-light tabular-nums tracking-tight text-white">
                 {now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
@@ -115,10 +116,10 @@ export function Desktop() {
           </div>
 
           {/* Live signals widget */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-xl backdrop-blur-xl">
+          <div className="glass rounded-2xl p-4">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-                {tr('نبض الدفاتر', 'Pouls du grand livre', 'Ledger pulse')}
+                {tr('حالة الدفاتر', 'État du grand livre', 'Ledger status')}
               </span>
               {signals.loading && (
                 <span className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/70" />
@@ -154,13 +155,13 @@ export function Desktop() {
       {/* Desktop context menu */}
       {menu && (
         <div
-          className="fos-pop fixed z-[330] w-60 overflow-hidden rounded-xl border border-white/10 bg-[#151823]/95 p-1.5 shadow-2xl backdrop-blur-xl"
+          className="glass fos-pop fixed z-[480] w-60 overflow-hidden rounded-xl p-1.5"
           style={{ left: Math.min(menu.x, window.innerWidth - 250), top: Math.min(menu.y, window.innerHeight - 260) }}
           onPointerDown={(e) => e.stopPropagation()}
         >
           <MenuItem
             icon={<LayoutGrid className="h-4 w-4 text-sky-400" />}
-            label={tr('فتح غرفة القيادة', 'Ouvrir le cockpit', 'Open Cockpit')}
+            label={tr('فتح النظرة العامة', 'Ouvrir la vue d’ensemble', 'Open Overview')}
             onClick={() => { openApp('overview'); setMenu(null); }}
           />
           <MenuItem
@@ -183,15 +184,15 @@ export function Desktop() {
           />
           <MenuItem
             icon={<Info className="h-4 w-4 text-blue-400" />}
-            label={tr('حول Finance OS', 'À propos de Finance OS', 'About Finance OS')}
+            label={tr('حول النظام', 'À propos du système', 'About this system')}
             onClick={() => { openApp('about'); setMenu(null); }}
           />
         </div>
       )}
 
       {/* Empty-desktop hint when there are no windows */}
-      <div className="pointer-events-none absolute bottom-[120px] left-1/2 -translate-x-1/2 text-center text-[11px] font-medium uppercase tracking-[0.3em] text-white/20">
-        Finance OS
+      <div className="pointer-events-none absolute bottom-[120px] left-1/2 -translate-x-1/2 text-center text-[11px] font-medium tracking-wide text-white/20">
+        {agencyConfig.name}
       </div>
     </div>
   );
