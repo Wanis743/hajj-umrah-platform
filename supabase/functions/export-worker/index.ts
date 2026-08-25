@@ -68,6 +68,7 @@ serve(async (req) => {
     const { data: profile } = await supabase.from('staff_profiles').select('role, agency_id').eq('user_id', uid).single();
     if (!profile) throw new Error('Unauthorized: Profile not found');
     const isAdmin = profile.role === 'ADMIN';
+    if (!isAdmin) throw new Error('Unauthorized: admin role required');
 
     const payload = await req.json();
     const { module, dateFrom, dateTo, activeFields, format }: ExportRequest = payload;

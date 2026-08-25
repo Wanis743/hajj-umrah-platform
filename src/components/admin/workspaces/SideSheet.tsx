@@ -1,6 +1,5 @@
 ﻿import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { useTheme } from '@/theme/ThemeProvider';
 import { useI18n } from '@/i18n/I18nProvider';
 
 interface SideSheetProps {
@@ -12,7 +11,6 @@ interface SideSheetProps {
 }
 
 export function SideSheet({ isOpen, onClose, title, children, width = 'max-w-2xl' }: SideSheetProps) {
-  const { theme } = useTheme();
   const { lang } = useI18n();
   const isAr = lang === 'ar';
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SideSheet } from './SideSheet';
-import { Users, AlertTriangle, Calendar, CheckCircle } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 import type { GroupRow } from '@/types/database';

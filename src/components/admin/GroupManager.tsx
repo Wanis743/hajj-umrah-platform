@@ -1,5 +1,5 @@
 import type { GroupRow } from '@/types/database';
-﻿import { useConfirmDialog } from '@/components/ConfirmDialog';
+import { useConfirmDialog } from '@/components/ConfirmDialog';
 import Select from '@/components/admin/GlassSelect';
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -9,7 +9,7 @@ import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { groupCommands } from '@/services/domainCommands';
 import { supabase } from '@/lib/supabase';
 import GlassDate from '@/components/admin/GlassDate';
-import { GroupWorkspaceSheet } from './workspaces/GroupWorkspaceSheet';
+
 
 const GROUP_STATI = ['FORMING', 'READY', 'DEPARTED', 'IN_SAUDI', 'RETURNED', 'CLOSED'];
 
@@ -36,7 +36,7 @@ export function GroupManager({ groups: fallback = [] }: { groups?: GroupRow[] })
   });
   const [packages, setPackages] = useState<GroupRow[]>([]);
   const [guides, setGuides] = useState<GroupRow[]>([]);
-    const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+    const [, setActiveGroupId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     code: '',

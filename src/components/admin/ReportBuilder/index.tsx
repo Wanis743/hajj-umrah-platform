@@ -1,7 +1,7 @@
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { FileBarChart, Download, Printer, FileJson, Filter } from 'lucide-react';
+import { FileBarChart, Filter } from 'lucide-react';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { ReportFilters } from './ReportFilters';
 import { ReportTable } from './ReportTable';
@@ -115,7 +115,7 @@ export default function ReportBuilder() {
   const [sortKey, setSortKey]   = useState('');
   const [sortDir, setSortDir]   = useState<SortDir>('desc');
   const [page, setPage]         = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
+  const [, setShowFilters] = useState(false);
 
   const currentDef = REPORT_TYPES.find(r => r.id === reportType)!;
 

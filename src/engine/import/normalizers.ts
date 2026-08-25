@@ -4,7 +4,7 @@
  * All functions return null for unrecoverable inputs.
  */
 
-// ── Phone Normalization ─────────────────────────────────────────────────────
+// Phone Normalization
 
 /**
  * Normalize Algerian/international phone numbers.
@@ -24,7 +24,7 @@ export function normalizePhone(raw: unknown): string | null {
   return null; // Cannot normalize
 }
 
-// ── Date Normalization ──────────────────────────────────────────────────────
+// Date Normalization
 
 
 
@@ -74,7 +74,7 @@ export function normalizeDate(raw: unknown): string | null {
   return null;
 }
 
-// ── Currency / Amount Normalization ─────────────────────────────────────────
+// Currency / Amount Normalization
 
 /**
  * Parse a currency amount from various formats.
@@ -111,7 +111,7 @@ export function normalizeCurrency(raw: unknown): number | null {
   return isFinite(num) ? num : null;
 }
 
-// ── Arabic Text Normalization ───────────────────────────────────────────────
+// Arabic Text Normalization
 
 /**
  * Normalize Arabic text:
@@ -138,7 +138,7 @@ export function normalizeArabicText(raw: unknown): string | null {
   return s || null;
 }
 
-// ── Passport Normalization ──────────────────────────────────────────────────
+// Passport Normalization
 
 /**
  * Normalize passport number: uppercase, strip spaces and dashes.
@@ -152,7 +152,7 @@ export function normalizePassport(raw: unknown): string | null {
   return s;
 }
 
-// ── String Normalization ────────────────────────────────────────────────────
+// String Normalization
 
 /** General string: trim, collapse whitespace */
 export function normalizeString(raw: unknown): string | null {
@@ -168,7 +168,7 @@ export function normalizeEmail(raw: unknown): string | null {
   return /^[^\s@]+@[^\s@]+.[^\s@]+$/.test(s) ? s : null;
 }
 
-// ── Row Normalization ───────────────────────────────────────────────────────
+// Row Normalization
 
 export type FieldType = 'string' | 'phone' | 'date' | 'currency' | 'arabic' | 'passport' | 'email' | 'integer' | 'boolean';
 

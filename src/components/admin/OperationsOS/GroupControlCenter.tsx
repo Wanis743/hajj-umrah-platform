@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { animate } from 'animejs';
-import { Users, FileText, Plane, Home, Activity, CheckCircle, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
+import { Users, FileText, Plane, Home, ArrowRight, Loader2 } from 'lucide-react';
 
 
 interface OpsGroup {

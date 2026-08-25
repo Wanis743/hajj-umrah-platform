@@ -21,7 +21,11 @@ function walk(dir) {
 }
 roots.forEach(walk);
 const failures = [];
+// Vendored third-party chart library (byte-faithful to upstream bklit-ui).
+// Its only "hit" is a comment explaining why it does NOT use Math.random.
+const vendoredRoots = [`src/components/charts/`];
 for (const file of files) {
+  if (vendoredRoots.some(d => file.replaceAll(path.sep, '/').startsWith(d))) continue;
   const text = fs.readFileSync(file, 'utf8');
   for (const pattern of banned) {
     if (pattern.test(text)) failures.push(`${file}: prohibited pattern ${pattern}`);

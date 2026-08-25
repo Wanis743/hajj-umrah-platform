@@ -4,12 +4,7 @@ import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { externalOperationCommands } from '@/services/domainCommands';
 import { reportError } from '@/lib/logger';
 import { useConfirmDialog } from '@/components/ConfirmDialog';
-import {
-  Plus, AlertTriangle, CheckCircle2, Clock, XCircle,
-  FileText, ExternalLink, Building2, Plane, Hotel,
-  Bus, Shield, Landmark, Globe, Search, ChevronDown,
-  ChevronRight, RefreshCw, Paperclip, AlertCircle
-} from 'lucide-react';
+import { Plus, AlertTriangle, Clock, ExternalLink, Building2, Plane, Hotel, Bus, Shield, Landmark, Globe, Search, ChevronDown, ChevronRight, RefreshCw, Paperclip, AlertCircle } from 'lucide-react';
 import type { ExternalOperationRow } from '@/types/database';
 import { Spinner } from '@/components/admin/ui';
 

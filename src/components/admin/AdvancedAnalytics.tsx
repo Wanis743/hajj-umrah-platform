@@ -1,26 +1,33 @@
-import { reportError, reportWarning } from '@/lib/logger';
+import { reportError } from '@/lib/logger';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useI18n } from '@/i18n/I18nProvider';
-import { useTheme } from '@/theme/ThemeProvider';
 import type { DashboardFilters } from '@/types/dashboard';
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer,
-} from 'recharts';
+import { Area, AreaChart } from '@/components/charts/area-chart';
+import { Line, LineChart } from '@/components/charts/line-chart';
+import { Bar } from '@/components/charts/bar';
+import { BarChart } from '@/components/charts/bar-chart';
+import { BarXAxis } from '@/components/charts/bar-x-axis';
+import { BarYAxis } from '@/components/charts/bar-y-axis';
+import { Grid } from '@/components/charts/grid';
+import { ChartTooltip, TooltipContent } from '@/components/charts/tooltip';
+import { XAxis } from '@/components/charts/x-axis';
+import { YAxis } from '@/components/charts/y-axis';
+import { PieChart } from '@/components/charts/pie-chart';
+import { PieSlice } from '@/components/charts/pie-slice';
+import { PieCenter } from '@/components/charts/pie-center';
 import {
   Activity, RefreshCw, AlertCircle, Clock, CalendarDays, BarChart2,
   TrendingUp, TrendingDown, DollarSign, Users, CreditCard, Percent,
-  Calculator, BookOpen, Scale, PiggyBank, Receipt, Building2, AlertTriangle,
+  BookOpen, AlertTriangle,
 } from 'lucide-react';
 import ProAccountingWorkspace from './ProAccountingWorkspace';
 
 const PIE_PAL = ['#6366f1','#06b6d4','#10b981','#f59e0b','#f43f5e','#8b5cf6','#d4af37'];
+const AGING_COLORS = ['#10b981','#6366f1','#f59e0b','#f97316','#f43f5e'];
 const GOLD='#d4af37', BLUE='#6366f1', PURPLE='#8b5cf6', CYAN='#06b6d4', GREEN='#10b981';
 
 const f1=(x:unknown)=> (typeof x==='number' && Number.isFinite(x) ? x : 0).toFixed(1);
-const f2=(x:unknown)=> (typeof x==='number' && Number.isFinite(x) ? x : 0).toFixed(2);
 
 const glass: React.CSSProperties = {
   background: 'var(--surface)',
@@ -31,17 +38,6 @@ const glass: React.CSSProperties = {
   boxShadow: 'var(--g-shadow), inset 0 1px 0 var(--g-sheen)',
 };
 
-const mkTT = (dark: boolean): React.CSSProperties => ({
-  background: dark ? 'rgba(8,11,20,0.90)' : 'rgba(255,255,255,0.92)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid '+(dark?'rgba(255,255,255,0.13)':'rgba(99,102,241,0.15)'),
-  borderRadius: '16px',
-  boxShadow: dark?'0 20px 48px rgba(0,0,0,0.55)':'0 12px 32px rgba(15,23,42,0.12)',
-  color: dark?'#f8fafc':'#0f172a',
-  fontSize: 12, padding: '10px 14px',
-});
-
 type Scope='period'|'stock';
 import type { DashboardSnapshot, DashboardAnalyticsSnapshot } from "@/types/dashboard";
 interface Props { filters: DashboardFilters; snapshot: DashboardSnapshot | null; }
@@ -49,14 +45,20 @@ interface AData {
   totalRevDzd:number; totalRevSar:number; collectedDzd:number; pendingAmount:number;
   avgPerPilgrim:number; collectionRate:number; visaClearance:number; confirmationRate:number;
   avgAge:number; pilgrimCount:number; monthlyGrowth:number;
-  revenueOverTime:{date:string;amount:number}[];
-  dailyRegs:{date:string;count:number}[];
+  revenueOverTime:{date:Date;amount:number}[];
+  dailyRegs:{date:Date;count:number}[];
   packageDist:{name:string;count:number}[];
   payMethods:{method:string;count:number}[];
   ageDist:{range:string;count:number}[];
   visaStatus:{status:string;count:number}[];
   bkgStatus:{status:string;count:number}[];
   arAging:{label:string;dzd:number}[];
+}
+
+/** RPC series serialize dates as ISO `YYYY-MM-DD` — parse to a local-midnight Date. */
+function parseISODate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
 }
 
 async function fetchData(f: DashboardFilters, execSnap: DashboardSnapshot | null): Promise<{a: AData|null, raw: DashboardAnalyticsSnapshot|null}> {
@@ -69,7 +71,7 @@ async function fetchData(f: DashboardFilters, execSnap: DashboardSnapshot | null
   });
   if (error || !data) return {a:null, raw:null};
   const snap = data as DashboardAnalyticsSnapshot;
-  
+
   const arAging = execSnap ? [
     { label: "الحالي", dzd: execSnap.ar_aging.current_dzd },
     { label: "1-7 أيام", dzd: execSnap.ar_aging["1_7_dzd"] },
@@ -78,7 +80,6 @@ async function fetchData(f: DashboardFilters, execSnap: DashboardSnapshot | null
     { label: "+60 يوم", dzd: execSnap.ar_aging["60_plus_dzd"] }
   ] : [];
 
-  
   let calcAvgAge = 40;
   if (snap.series.age_distribution && snap.series.age_distribution.length > 0) {
     let totalCount = 0;
@@ -118,8 +119,8 @@ async function fetchData(f: DashboardFilters, execSnap: DashboardSnapshot | null
     avgAge: calcAvgAge,
     pilgrimCount: snap.core.pilgrims,
     monthlyGrowth: cGrowth,
-    revenueOverTime: snap.series.cash_collections,
-    dailyRegs: snap.series.daily_registrations,
+    revenueOverTime: snap.series.cash_collections.map(x => ({ date: parseISODate(x.date), amount: x.amount })),
+    dailyRegs: snap.series.daily_registrations.map(x => ({ date: parseISODate(x.date), count: x.count })),
     packageDist: snap.series.package_distribution.map(x => ({ name: x.name, count: x.count })),
     payMethods: snap.series.payment_methods,
     ageDist: snap.series.age_distribution,
@@ -146,7 +147,7 @@ function CC({title,scope,empty,emptyLabel,children}:{title:string;scope:Scope;em
       </div>
       {empty
         ?<div className='h-64 flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border)] text-[var(--text-muted)]'><Activity className='h-5 w-5 opacity-40'/><p className='text-xs'>{emptyLabel}</p></div>
-        :<div className='h-64 lg:h-72'>{children}</div>}
+        :<div>{children}</div>}
     </div>
   );
 }
@@ -173,24 +174,12 @@ function KC({label,value,sub,icon,grad,scope,trend}:{label:string;value:string;s
   );
 }
 
-function RR({label,value,color}:{label:string;value:string;color?:string}){
-  return(
-    <div className='flex items-center justify-between gap-2'>
-      <span className='text-xs text-[var(--text-muted)]'>{label}</span>
-      <span className={`text-sm font-bold tabular-nums ${color??'text-[var(--text-primary)]'}`}>{value}</span>
-    </div>
-  );
-}
-
 // ProAccountingWorkspace is imported from ./ProAccountingWorkspace.tsx
 export default function AdvancedAnalytics({ filters, snapshot }: Props){
-  const{lang}=useI18n(); const{theme}=useTheme();
-  const dark=theme==='dark';
-  const tooltip=mkTT(dark);
-  const axisC=dark?'#6b7280':'#94a3b8';
-  const gridC=dark?'rgba(255,255,255,0.06)':'rgba(99,102,241,0.08)';
+  const{lang}=useI18n();
   const isAr=lang==='ar'||lang==='dz';
   const fmt=(x:number)=>new Intl.NumberFormat('fr-FR').format(Math.round(x));
+  const fmtDay=(d:Date)=>new Intl.DateTimeFormat(isAr?'ar-DZ':'fr-FR',{day:'numeric',month:'short'}).format(d);
   const[data,setData]=useState<AData|null>(null);
   const [anSnap, setAnSnap] = useState<DashboardAnalyticsSnapshot | null>(null);
   const[loading,setLoading]=useState(false);
@@ -215,6 +204,23 @@ export default function AdvancedAnalytics({ filters, snapshot }: Props){
     }
   },[filters.dateFrom,filters.dateTo]);
   useEffect(()=>{ void load(); return()=>{abort.current?.abort();}; },[load]);
+
+  // bklit charts only mount once real rows exist (CC empty-gates below), so a
+  // static "ready" status is honest — fetch-level loading shows page skeletons.
+  const chartStatus = 'ready' as const;
+
+  // Categorical rows reshaped so each bar renders in its own color:
+  // one stacked series per category, only one non-zero segment per row.
+  const payMethodBars = (data?.payMethods??[]).map((p,i)=>Object.assign(
+    { method: p.method, count: p.count, color: PIE_PAL[i%PIE_PAL.length] },
+    Object.fromEntries((data?.payMethods??[]).map((_,j)=>[`s${j}`, i===j?p.count:0]))
+  ));
+  const arAgingBars = (data?.arAging??[]).map((b,i)=>Object.assign(
+    { label: b.label, dzd: b.dzd, color: AGING_COLORS[i%AGING_COLORS.length] },
+    Object.fromEntries((data?.arAging??[]).map((_,j)=>[`a${j}`, i===j?b.dzd:0]))
+  ));
+  const pkgSlices=(data?.packageDist??[]).map((p,i)=>({label:p.name,value:p.count,color:PIE_PAL[i%PIE_PAL.length]}));
+
   if(loading&&!ready)return(
     <div className='space-y-6 p-2'>
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>{[1,2,3,4,5,6,7,8].map(i=><div key={i} className='h-32 skeleton rounded-2xl'/>)}</div>
@@ -263,92 +269,129 @@ export default function AdvancedAnalytics({ filters, snapshot }: Props){
       )}
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
         <CC title='الإيرادات عبر الزمن' scope='period' empty={!data||!data.revenueOverTime?.length} emptyLabel='لا توجد مدفوعات مؤكدة في هذه الفترة'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart data={data?.revenueOverTime??[]}>
-              <defs><linearGradient id='gG' x1='0' y1='0' x2='0' y2='1'><stop offset='5%' stopColor={GOLD} stopOpacity={0.7}/><stop offset='95%' stopColor={GOLD} stopOpacity={0}/></linearGradient></defs>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} vertical={false}/>
-              <XAxis dataKey='date' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis stroke={axisC} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v:number)=>`${Math.round(v/1000)}k`}/>
-              <Tooltip contentStyle={tooltip} formatter={(v:unknown)=>[fmt(Number(v))+' DZD','إيرادات']}/>
-              <Area type='monotone' dataKey='amount' stroke={GOLD} strokeWidth={2.5} fill='url(#gG)'/>
+          <div dir='ltr'>
+            <AreaChart aspectRatio='2 / 1' data={data?.revenueOverTime??[]} margin={{top:16,right:12,bottom:28,left:48}} status={chartStatus}>
+              <Grid numTicksRows={4}/>
+              <Area dataKey='amount' fill={GOLD} fillOpacity={0.28} stroke={GOLD}/>
+              <XAxis numTicks={6}/>
+              <YAxis numTicks={4}/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:GOLD,label:'إيرادات',value:`${fmt(Number(point.amount??0))} DZD`}]}
+                  title={point.date instanceof Date?fmtDay(point.date):undefined}/>
+              )}/>
             </AreaChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
         <CC title='التسجيلات اليومية' scope='period' empty={!data||!data.dailyRegs?.length} emptyLabel='لا توجد تسجيلات في هذه الفترة'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <LineChart data={data?.dailyRegs??[]}>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} vertical={false}/>
-              <XAxis dataKey='date' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <Tooltip contentStyle={tooltip}/>
-              <Line type='monotone' dataKey='count' stroke={BLUE} strokeWidth={2.5} dot={false}/>
+          <div dir='ltr'>
+            <LineChart aspectRatio='2 / 1' data={data?.dailyRegs??[]} margin={{top:16,right:12,bottom:28,left:36}} status={chartStatus}>
+              <Grid numTicksRows={4}/>
+              <Line dataKey='count' stroke={BLUE}/>
+              <XAxis numTicks={6}/>
+              <YAxis numTicks={4} formatLargeNumbers={false}/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:BLUE,label:'تسجيلات',value:fmt(Number(point.count??0))}]}
+                  title={point.date instanceof Date?fmtDay(point.date):undefined}/>
+              )}/>
             </LineChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
         <CC title='توزيع الباقات' scope='stock' empty={!data||!data.packageDist?.length} emptyLabel='لا توجد بيانات باقات'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <PieChart>
-              <Pie data={data?.packageDist??[]} cx='50%' cy='50%' innerRadius={55} outerRadius={90} paddingAngle={4} dataKey='count'>
-                {(data?.packageDist??[]).map((_,i)=><Cell key={i} fill={PIE_PAL[i%PIE_PAL.length]}/>)}
-              </Pie>
-              <Tooltip contentStyle={tooltip}/><Legend wrapperStyle={{fontSize:11}}/>
-            </PieChart>
-          </ResponsiveContainer>
+          <div className='flex items-center gap-4' dir='ltr'>
+            <div className='shrink-0'>
+              <PieChart cornerRadius={4} data={pkgSlices} hoverOffset={8} innerRadius={58} padAngle={0.03} size={200}>
+                {pkgSlices.map((s,i)=><PieSlice index={i} key={s.label}/>) }
+                <PieCenter defaultLabel='باقة' formatOptions={{notation:'compact',maximumFractionDigits:1}}/>
+              </PieChart>
+            </div>
+            <ul className='flex-1 min-w-0 space-y-1.5 max-h-56 overflow-y-auto' dir={isAr?'rtl':'ltr'}>
+              {pkgSlices.map(s=>(
+                <li key={s.label} className='flex items-center justify-between gap-2 text-xs'>
+                  <span className='flex items-center gap-2 min-w-0 text-[var(--text-secondary)]'>
+                    <span className='h-2.5 w-2.5 shrink-0 rounded-full' style={{background:s.color}}/>
+                    <span className='truncate'>{s.label}</span>
+                  </span>
+                  <span className='font-bold tabular-nums text-[var(--text-primary)]'>{fmt(s.value)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </CC>
         <CC title='طرق الدفع' scope='period' empty={!data||!data.payMethods?.length} emptyLabel='لا توجد مدفوعات في هذه الفترة'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={data?.payMethods??[]}>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} vertical={false}/>
-              <XAxis dataKey='method' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <Tooltip contentStyle={tooltip}/>
-              <Bar dataKey='count' radius={[6,6,0,0]}>{(data?.payMethods??[]).map((_,i)=><Cell key={i} fill={PIE_PAL[i%PIE_PAL.length]}/>)}</Bar>
+          <div dir='ltr'>
+            <BarChart aspectRatio='2 / 1' data={payMethodBars} margin={{top:16,right:8,bottom:28,left:40}} stacked stackGap={1} status={chartStatus} xDataKey='method'>
+              <Grid numTicksRows={4}/>
+              {(data?.payMethods??[]).map((_,i)=><Bar dataKey={`s${i}`} fill={PIE_PAL[i%PIE_PAL.length]} key={i}/>)}
+              <BarXAxis showAllLabels/>
+              <YAxis numTicks={4}/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:String(point.color),label:'مدفوعات',value:fmt(Number(point.count??0))}]}
+                  title={String(point.method??'')}/>
+              )}/>
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
         <CC title='التوزيع العمري للمعتمرين' scope='stock' empty={!data||(data.ageDist??[]).every(x=>x.count===0)} emptyLabel='لا توجد بيانات عمرية'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={data?.ageDist??[]}>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} vertical={false}/>
-              <XAxis dataKey='range' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <Tooltip contentStyle={tooltip}/>
-              <Bar dataKey='count' fill={PURPLE} radius={[6,6,0,0]}/>
+          <div dir='ltr'>
+            <BarChart aspectRatio='2 / 1' data={data?.ageDist??[]} margin={{top:16,right:8,bottom:28,left:36}} status={chartStatus} xDataKey='range'>
+              <Grid numTicksRows={4}/>
+              <Bar dataKey='count' fill={PURPLE}/>
+              <BarXAxis/>
+              <YAxis numTicks={4} formatLargeNumbers={false}/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:PURPLE,label:'معتمرون',value:fmt(Number(point.count??0))}]}
+                  title={String(point.range??'')}/>
+              )}/>
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
         <CC title='حالة التأشيرات' scope='stock' empty={!data||!data.visaStatus?.length} emptyLabel='لا توجد بيانات تأشيرات'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={data?.visaStatus??[]} layout='vertical'>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} horizontal={false}/>
-              <XAxis type='number' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis dataKey='status' type='category' stroke={axisC} fontSize={10} tickLine={false} axisLine={false} width={110}/>
-              <Tooltip contentStyle={tooltip}/>
-              <Bar dataKey='count' fill={CYAN} radius={[0,6,6,0]}/>
+          <div dir='ltr'>
+            <BarChart aspectRatio='2 / 1' data={data?.visaStatus??[]} margin={{top:16,right:16,bottom:16,left:112}} orientation='horizontal' status={chartStatus} xDataKey='status'>
+              <Grid horizontal={false} numTicksColumns={4} vertical/>
+              <Bar dataKey='count' fill={CYAN}/>
+              <BarYAxis/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:CYAN,label:'تأشيرات',value:fmt(Number(point.count??0))}]}
+                  title={String(point.status??'')}/>
+              )}/>
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
         <CC title='حالة الحجوزات' scope='stock' empty={!data||!data.bkgStatus?.length} emptyLabel='لا توجد بيانات حجوزات'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={data?.bkgStatus??[]}>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} vertical={false}/>
-              <XAxis dataKey='status' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <Tooltip contentStyle={tooltip}/>
-              <Bar dataKey='count' fill={GREEN} radius={[6,6,0,0]}/>
+          <div dir='ltr'>
+            <BarChart aspectRatio='2 / 1' data={data?.bkgStatus??[]} margin={{top:16,right:8,bottom:28,left:36}} status={chartStatus} xDataKey='status'>
+              <Grid numTicksRows={4}/>
+              <Bar dataKey='count' fill={GREEN}/>
+              <BarXAxis maxLabels={8}/>
+              <YAxis numTicks={4} formatLargeNumbers={false}/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:GREEN,label:'حجوزات',value:fmt(Number(point.count??0))}]}
+                  title={String(point.status??'')}/>
+              )}/>
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
         <CC title='تقادم الذمم المدينة — بالأيام' scope='period' empty={!data||(data.arAging??[]).every(b=>b.dzd===0)} emptyLabel='لا توجد مستحقات معلقة'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={data?.arAging??[]}>
-              <CartesianGrid strokeDasharray='3 3' stroke={gridC} vertical={false}/>
-              <XAxis dataKey='label' stroke={axisC} fontSize={10} tickLine={false} axisLine={false}/>
-              <YAxis stroke={axisC} fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v:number)=>`${Math.round(v/1000)}k`}/>
-              <Tooltip contentStyle={tooltip} formatter={(v:unknown)=>[fmt(Number(v))+' DZD','مستحق']}/>
-              <Bar dataKey='dzd' radius={[6,6,0,0]}>{(data?.arAging??[]).map((_,i)=><Cell key={i} fill={['#10b981','#6366f1','#f59e0b','#f97316','#f43f5e'][i]}/>)}</Bar>
+          <div dir='ltr'>
+            <BarChart aspectRatio='2 / 1' data={arAgingBars} margin={{top:16,right:8,bottom:28,left:48}} stacked stackGap={1} status={chartStatus} xDataKey='label'>
+              <Grid numTicksRows={4}/>
+              {AGING_COLORS.slice(0,(data?.arAging??[]).length).map((c,i)=><Bar dataKey={`a${i}`} fill={c} key={c}/>)}
+              <BarXAxis showAllLabels/>
+              <YAxis numTicks={4}/>
+              <ChartTooltip showDatePill={false} content={({point})=>(
+                <TooltipContent
+                  rows={[{color:String(point.color),label:'مستحق',value:`${fmt(Number(point.dzd??0))} DZD`}]}
+                  title={String(point.label??'')}/>
+              )}/>
             </BarChart>
-          </ResponsiveContainer>
+          </div>
         </CC>
       </div>
       <ProAccountingWorkspace filters={filters} snapshot={snapshot} analyticsSnapshot={anSnap} />

@@ -243,6 +243,7 @@ export const en: Translation = {
       ago: 'Ago',
       hidePassword: 'Hide password',
       showPassword: 'Show password',
+      backendNotConfigured: 'The administration service is not connected. Please contact support.',
       recentActivity: 'Recent Activity',
     },
   };

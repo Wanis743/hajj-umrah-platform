@@ -42,7 +42,7 @@ export interface ValidatorOptions {
   duplicateKeyFields?: string[];
 }
 
-// ── Field-Level Validators ─────────────────────────────────────────────────
+// Field-Level Validators
 
 function validateField(
   field: FieldDefinition,
@@ -134,7 +134,7 @@ function validateField(
   return null;
 }
 
-// ── Duplicate Detection ────────────────────────────────────────────────────
+// Duplicate Detection
 
 function detectDuplicate(
   row: Record<string, unknown>,
@@ -170,7 +170,7 @@ function detectDuplicate(
   };
 }
 
-// ── Conflict Detection ─────────────────────────────────────────────────────
+// Conflict Detection
 
 function detectConflicts(
   imported: Record<string, unknown>,
@@ -197,7 +197,7 @@ function detectConflicts(
     }));
 }
 
-// ── Main Validator ─────────────────────────────────────────────────────────
+// Main Validator
 
 export function validateRow(
   rowIndex: number,

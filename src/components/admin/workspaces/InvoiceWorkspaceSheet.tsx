@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { SideSheet } from './SideSheet';
 import { PaymentModal } from './PaymentModal';
-import { FileText, Download, Mail, CreditCard } from 'lucide-react';
+import { FileText, CreditCard } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { money } from '@/lib/currency';
+
 import { supabase } from '@/lib/supabase';
 import type { BaseRow } from '@/types/database';
 

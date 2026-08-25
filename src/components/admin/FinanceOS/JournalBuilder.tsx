@@ -1,12 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Save, Check, X, AlertCircle, Plus, Trash2, Send } from 'lucide-react';
-import { useAuth } from '@/lib/auth';
+import { AlertCircle, Plus, Trash2, Send } from 'lucide-react';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
 import { ChartOfAccountRow } from '@/types/database';
 
 export function JournalBuilder({ onCancel, onSuccess }: { onCancel: () => void, onSuccess: () => void }) {
-  const { session } = useAuth();
   const { data: accounts } = useSupabaseData<ChartOfAccountRow>({ table: 'chart_of_accounts' });
   
   const [description, setDescription] = useState('');
@@ -18,7 +16,7 @@ export function JournalBuilder({ onCancel, onSuccess }: { onCancel: () => void, 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const mockAccounts = accounts || [];
+  const availableAccounts = accounts ?? [];
 
   const totalDebit = useMemo(() => lines.reduce((sum, l) => sum + (Number(l.debit) || 0), 0), [lines]);
   const totalCredit = useMemo(() => lines.reduce((sum, l) => sum + (Number(l.credit) || 0), 0), [lines]);
@@ -35,7 +33,7 @@ export function JournalBuilder({ onCancel, onSuccess }: { onCancel: () => void, 
       if (lines.some(l => l.debit < 0 || l.credit < 0)) throw new Error('Amounts cannot be negative');
 
       // Create journal entry using the RPC that enforces invariants
-      const { data, error: rpcError } = await supabase.rpc('post_journal_entry', {
+      const { error: rpcError } = await supabase.rpc('post_journal_entry', {
         p_description: description,
         p_reference: reference,
         p_entry_date: new Date().toISOString().split('T')[0],
@@ -117,7 +115,7 @@ export function JournalBuilder({ onCancel, onSuccess }: { onCancel: () => void, 
                 className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="">Select Account...</option>
-                {mockAccounts.map(a => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
+                {availableAccounts.map(a => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
               </select>
             </div>
             <div className="col-span-3">

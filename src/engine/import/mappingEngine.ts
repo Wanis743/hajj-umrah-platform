@@ -22,7 +22,7 @@ export interface ColumnMapping {
   transformation?: string | undefined;
 }
 
-// ── Synonym Dictionary ─────────────────────────────────────────────────────
+// Synonym Dictionary
 
 const SYNONYMS: Record<string, string[]> = {
   full_name: [
@@ -100,7 +100,7 @@ const SYNONYMS: Record<string, string[]> = {
   ],
 };
 
-// ── Similarity Functions ───────────────────────────────────────────────────
+// Similarity Functions
 
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[\s_\-.]/g, '').trim();
@@ -122,12 +122,12 @@ function stringSimilarity(a: string, b: string): number {
   return jaccardSimilarity(na, nb) * 70;
 }
 
-// ── Mapping Engine ─────────────────────────────────────────────────────────
+// Mapping Engine
 
 export function detectColumnMapping(
   sourceColumns: string[],
   targetFields: FieldDefinition[],
-  sampleData?: Record<string, unknown[]>,
+  _sampleData?: Record<string, unknown[]>,
 ): ColumnMapping[] {
   return sourceColumns.map(col => {
     let bestMatch: string | null = null;
@@ -196,7 +196,7 @@ export function detectColumnMapping(
   });
 }
 
-// ── Pre-defined field schemas for each module ─────────────────────────────
+// Pre-defined field schemas for each module
 
 export const PILGRIM_FIELDS: FieldDefinition[] = [
   { key: 'full_name', type: 'string', required: true, labelAr: 'الاسم الكامل', labelFr: 'Nom complet', labelEn: 'Full Name' },

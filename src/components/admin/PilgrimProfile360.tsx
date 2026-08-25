@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 import { Spinner } from '@/components/admin/ui';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// Types
 
 interface PilgrimDetail {
   id: string;
@@ -63,7 +63,7 @@ interface Profile360 {
   missingFields: string[];
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 const COMPLETENESS_FIELDS = [
   'full_name', 'passport_number', 'phone', 'email', 'birth_date',
@@ -92,14 +92,14 @@ const statusBadge = (status: string | null | undefined) => {
   return `inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${map[s] ?? 'bg-gray-100 text-gray-600'}`;
 };
 
-// ── Props ──────────────────────────────────────────────────────────────────
+// Props
 
 export interface PilgrimProfile360Props {
   pilgrimId: string | null;
   onClose: () => void;
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────
+// Main Component
 
 export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props) {
   const { lang } = useI18n();
@@ -193,7 +193,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
       {/* Drawer */}
       <div className="relative z-10 h-full w-full max-w-2xl bg-[var(--surface)] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center gap-3 p-5 border-b border-[var(--border)] shrink-0">
           <div className="h-12 w-12 rounded-full bg-[var(--accent)]/10 flex items-center justify-center shrink-0">
             <User className="h-6 w-6 text-[var(--accent)]" />
@@ -234,7 +234,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
           </button>
         </div>
 
-        {/* ── Completeness bar ── */}
+        {/* Completeness bar */}
         {!loading && profile && (
           <div className="px-5 pt-3 pb-1 shrink-0">
             <div className="flex items-center justify-between mb-1">
@@ -271,7 +271,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
           </div>
         )}
 
-        {/* ── Tabs ── */}
+        {/* Tabs */}
         <div className="flex border-b border-[var(--border)] px-5 shrink-0 mt-1">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -292,7 +292,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
           })}
         </div>
 
-        {/* ── Body ── */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -305,7 +305,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
           ) : (
             <div className="p-5 space-y-5">
 
-              {/* ── PROFILE TAB ── */}
+              {/* PROFILE TAB */}
               {activeTab === 'profile' && (
                 <>
                   <section className="card p-4 space-y-4">
@@ -373,7 +373,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
                 </>
               )}
 
-              {/* ── FINANCE TAB ── */}
+              {/* FINANCE TAB */}
               {activeTab === 'finance' && (
                 <>
                   {/* Summary */}
@@ -417,7 +417,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
                 </>
               )}
 
-              {/* ── TRAVEL TAB ── */}
+              {/* TRAVEL TAB */}
               {activeTab === 'travel' && (
                 <section className="card p-4">
                   <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
@@ -448,7 +448,7 @@ export function PilgrimProfile360({ pilgrimId, onClose }: PilgrimProfile360Props
                 </section>
               )}
 
-              {/* ── AUDIT TAB ── */}
+              {/* AUDIT TAB */}
               {activeTab === 'audit' && (
                 <section className="card p-4">
                   <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">

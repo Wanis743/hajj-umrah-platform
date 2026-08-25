@@ -242,6 +242,7 @@ export const fr: Translation = {
       ago: 'Il y a',
       hidePassword: 'Masquer le mot de passe',
       showPassword: 'Afficher le mot de passe',
+      backendNotConfigured: 'Le service d’administration n’est pas connecté. Veuillez contacter le support.',
       recentActivity: 'Activité récente',
     },
   };

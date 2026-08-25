@@ -64,9 +64,7 @@ function tableToDomain(table: TableName): RealtimeDomain | null {
   return TABLE_TO_DOMAIN[table] ?? null;
 }
 
-/** @deprecated Prefer useQueryResource/usePaginatedResource/useRealtimeResource/useResourceMutation.
- * Kept as a compatibility adapter for legacy screens while the migration is completed.
- */
+/** Generic typed fetch/mutation hook over a Supabase table, used across admin screens. */
 export function useSupabaseData<T = unknown>(options: UseSupabaseDataOptions<T>): UseSupabaseDataReturn<T> {
   const {
     table,

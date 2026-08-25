@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { Search, AlertCircle, ShoppingCart, CheckCircle, Clock, XCircle, CreditCard, Trash2, BadgeCheck } from 'lucide-react';
 import { Spinner } from '@/components/admin/ui';
 import { useSupabaseData } from '@/hooks/useSupabaseData';
-import { reservationCommands, type ConfirmReservationResult } from '@/services/domainCommands';
+import { reservationCommands } from '@/services/domainCommands';
 import type { BookingRow, PilgrimRow, GroupRow, GenericRow } from '@/types/database';
 
 export const BookingManager = () => {

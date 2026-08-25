@@ -1,3 +1,5 @@
+import containerQueries from '@tailwindcss/container-queries';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -50,5 +52,7 @@ export default {
       animation: { 'fade-in': 'fade-in 0.15s ease-out', 'slide-up': 'slide-up 0.2s ease-out' },
     },
   },
-  plugins: [],
+  // containerQueries: vendored @bklit chart center typography uses
+  // `@container/chart-center` + `cqw` clamp units so donut stats scale with the hole.
+  plugins: [containerQueries],
 };

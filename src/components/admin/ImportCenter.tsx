@@ -1,14 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
-import {
-  Upload, FileText, Table, Clipboard, ChevronRight, ChevronLeft,
-  CheckCircle2, AlertCircle, AlertTriangle, XCircle, X,
-  Download, RefreshCw, Play, Eye, RotateCcw, ArrowRight,
-  FileSpreadsheet, Database, GitMerge, Layers,
-} from 'lucide-react';
+import { Upload, Clipboard, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, AlertTriangle, XCircle, X, Download, RefreshCw, Play, Eye, RotateCcw, ArrowRight, Database, GitMerge, Layers } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { supabase } from '@/lib/supabase';
+
 import { runImportPipeline } from '@/engine/import/importPipeline';
-import { detectColumnMapping, FIELD_SCHEMAS, type ColumnMapping } from '@/engine/import/mappingEngine';
+import { detectColumnMapping, FIELD_SCHEMAS } from '@/engine/import/mappingEngine';
 import { validateBatch } from '@/engine/import/validator';
 import {
   type ImportState, type ImportFormat, type ImportMode, type TargetModule,
