@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { Network, Calculator, Play, Plus, TrendingUp, Save } from 'lucide-react';
+import { Network, Calculator, Play, Plus, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/lib/auth';
@@ -148,7 +148,7 @@ export function ModelingWorkspace() {
           <div className="bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4 flex-1 overflow-y-auto">
             <h4 className="font-semibold mb-3">{t('النماذج', 'Modèles', 'Models')}</h4>
             <div className="flex gap-2 mb-4">
-              <input type="text" className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm" placeholder="New Model" value={newModelName} onChange={e => setNewModelName(e.target.value)} />
+              <input type="text" className="w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm" placeholder={t('نموذج جديد', 'Nouveau modèle', 'New model…')} value={newModelName} onChange={e => setNewModelName(e.target.value)} />
               <button onClick={createModel} className="p-1 bg-[var(--brand-500)] text-white rounded"><Plus className="w-4 h-4"/></button>
             </div>
             <div className="space-y-2">
@@ -188,7 +188,7 @@ export function ModelingWorkspace() {
                 
                 {/* Assumptions */}
                 <div className="bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4">
-                  <h4 className="font-semibold mb-4 flex items-center gap-2"><Calculator className="w-4 h-4"/> Assumptions (Inputs)</h4>
+                  <h4 className="font-semibold mb-4 flex items-center gap-2"><Calculator className="w-4 h-4"/>{t('الافتراضات (مدخلات)', 'Hypothèses (entrées)', 'Assumptions (inputs)')}</h4>
                   <div className="space-y-3">
                     {keys.map(k => (
                       <div key={k} className="flex items-center justify-between">
@@ -206,19 +206,19 @@ export function ModelingWorkspace() {
 
                 {/* Projection Canvas */}
                 <div className="bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl p-4 flex flex-col">
-                  <h4 className="font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4"/> Projection (Outputs)</h4>
+                  <h4 className="font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4"/>{t('الإسقاط (مخرجات)', 'Projection (sorties)', 'Projection (outputs)')}</h4>
                   {projection ? (
                     <div className="flex-1 flex flex-col justify-center space-y-4">
                       <div className="flex justify-between items-center p-3 bg-[var(--bg-secondary)] rounded-lg">
-                        <span className="text-sm font-medium">Revenue</span>
+                        <span className="text-sm font-medium">{t('الإيرادات', 'Revenus', 'Revenue')}</span>
                         <span className="font-mono text-green-600">{money(projection.projected_revenue, 'DZD')}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-[var(--bg-secondary)] rounded-lg">
-                        <span className="text-sm font-medium">Direct Costs</span>
+                        <span className="text-sm font-medium">{t('التكاليف المباشرة', 'Coûts directs', 'Direct costs')}</span>
                         <span className="font-mono text-red-600">-{money(projection.projected_cost, 'DZD')}</span>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-[var(--brand-500)]/10 rounded-lg border border-[var(--brand-500)]/30">
-                        <span className="font-bold text-[var(--brand-500)]">Gross Margin</span>
+                        <span className="font-bold text-[var(--brand-500)]">{t('هامش الربح', 'Marge brute', 'Gross margin')}</span>
                         <div className="text-right">
                           <p className="font-mono font-bold text-[var(--brand-500)]">{money(projection.projected_margin, 'DZD')}</p>
                           <p className="text-xs font-bold text-[var(--brand-500)]">{Number(projection.projected_margin_percent).toFixed(1)}%</p>
@@ -227,7 +227,7 @@ export function ModelingWorkspace() {
                     </div>
                   ) : (
                     <div className="flex-1 flex items-center justify-center text-[var(--text-muted)] text-sm">
-                      Run simulation to calculate outputs
+                      {t('شغّل المحاكاة لحساب المخرجات', 'Lancez la simulation pour calculer les sorties', 'Run the simulation to calculate outputs')}
                     </div>
                   )}
                 </div>

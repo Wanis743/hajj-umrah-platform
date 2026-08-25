@@ -236,6 +236,7 @@ export interface Translation {
     ago: string;
     hidePassword: string;
     showPassword: string;
+    backendNotConfigured: string;
     recentActivity: string;
   };
 }

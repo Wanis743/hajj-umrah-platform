@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Lock, Loader2, AlertCircle, ArrowLeft, Eye, EyeOff, Shield, Check } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useRouter } from '@/router/RouterProvider';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { toUserMessage } from '@/lib/errors';
 import { agencyConfig } from '@/config/agency';
 
@@ -17,17 +17,21 @@ export default function AdminLogin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    if (!isSupabaseConfigured) {
+      setError(t.admin.backendNotConfigured);
+      return;
+    }
+    setLoading(true);
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) {
-        setError(authError.message);
+        setError(toUserMessage(authError));
         return;
       }
       navigate('admin');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(toUserMessage(err));
     } finally {
       setLoading(false);
     }

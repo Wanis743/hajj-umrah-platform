@@ -243,6 +243,7 @@ export const dz: Translation = {
       ago: 'مضت',
       hidePassword: 'إخفاء كلمة المرور',
       showPassword: 'إظهار كلمة المرور',
+      backendNotConfigured: 'خدمة الإدارة ماهيش متصلة توا. اتصل بالدعم.',
       recentActivity: 'النشاط الأخير',
     },
   };
