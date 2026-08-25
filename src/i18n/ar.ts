@@ -242,6 +242,7 @@ export const ar: Translation = {
       ago: 'مضت',
       hidePassword: 'إخفاء كلمة المرور',
       showPassword: 'إظهار كلمة المرور',
+      backendNotConfigured: 'خدمة الإدارة غير متصلة حالياً. يرجى التواصل مع الدعم.',
       recentActivity: 'النشاط الأخير',
     },
   };
