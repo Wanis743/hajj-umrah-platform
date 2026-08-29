@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="jrnPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#f3f8ff" />
+      <stop offset="1" stop-color="#d7e7fd" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#jrnPlate)" />
+  <path
+    d="M24 16.6c-2.9-1.9-6.5-2.9-10.1-2.9-.8 0-1.4.6-1.4 1.4v16.8c0 .8.6 1.4 1.4 1.4 3.6 0 7.2 1 10.1 2.9"
+    fill="#bfdbfe"
+    stroke="#2563eb"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M24 16.6c2.9-1.9 6.5-2.9 10.1-2.9.8 0 1.4.6 1.4 1.4v16.8c0 .8-.6 1.4-1.4 1.4-3.6 0-7.2 1-10.1 2.9"
+    fill="#dbeafe"
+    stroke="#2563eb"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  <path d="M24 16.6v19.6" stroke="#2563eb" stroke-width="2" stroke-linecap="round" />
+  <path
+    d="M34.1 9.6l4.3 4.3-9.4 9.4-5.4 1.1 1.1-5.4z"
+    fill="#60a5fa"
+    stroke="#1d4ed8"
+    stroke-width="1.7"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="clsPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#f3f8ff" />
+      <stop offset="1" stop-color="#d7e7fd" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#clsPlate)" />
+  <g fill="#1d4ed8">
+    <rect x="16" y="7.6" width="2.8" height="7" rx="1.4" />
+    <rect x="29.2" y="7.6" width="2.8" height="7" rx="1.4" />
+  </g>
+  <rect x="9.6" y="11.4" width="28.8" height="27" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="2.2" />
+  <path d="M9.6 19.6h28.8" stroke="#2563eb" stroke-width="2.2" />
+  <path
+    d="M17.6 27.8l4.4 4.4 8.4-9"
+    fill="none"
+    stroke="#2563eb"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

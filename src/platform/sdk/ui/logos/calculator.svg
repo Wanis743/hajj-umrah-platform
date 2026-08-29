@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="calPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#f3f8ff" />
+      <stop offset="1" stop-color="#d7e7fd" />
+    </linearGradient>
+    <linearGradient id="calBody" gradientUnits="userSpaceOnUse" x1="12" y1="8" x2="36" y2="40">
+      <stop offset="0" stop-color="#60a5fa" />
+      <stop offset="1" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#calPlate)" />
+  <rect x="11.6" y="8.4" width="24.8" height="31.2" rx="4.2" fill="url(#calBody)" />
+  <rect x="15.2" y="12" width="17.6" height="6.4" rx="1.8" fill="#eff6ff" />
+  <g fill="#dbeafe">
+    <rect x="15.2" y="21.6" width="4.6" height="4.6" rx="1.2" />
+    <rect x="21.7" y="21.6" width="4.6" height="4.6" rx="1.2" />
+    <rect x="28.2" y="21.6" width="4.6" height="4.6" rx="1.2" />
+    <rect x="15.2" y="28" width="4.6" height="4.6" rx="1.2" />
+    <rect x="21.7" y="28" width="4.6" height="4.6" rx="1.2" />
+    <rect x="15.2" y="34.4" width="11.1" height="4.6" rx="1.2" />
+  </g>
+  <rect x="28.2" y="28" width="4.6" height="11" rx="1.2" fill="#fbbf24" />
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="inbPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#f3f8ff" />
+      <stop offset="1" stop-color="#d7e7fd" />
+    </linearGradient>
+    <linearGradient id="inbBody" gradientUnits="userSpaceOnUse" x1="9" y1="14" x2="39" y2="35">
+      <stop offset="0" stop-color="#3b82f6" />
+      <stop offset="1" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#inbPlate)" />
+  <rect x="9" y="13.6" width="30" height="21" rx="3.4" fill="url(#inbBody)" />
+  <path d="M10.4 15.4L24 27.2l13.6-11.8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.6" stroke-linejoin="round" />
+  <path
+    d="M10 33.4l10.4-9M37.8 33.4l-10.2-9"
+    fill="none"
+    stroke="#93c5fd"
+    stroke-width="1.8"
+    stroke-linecap="round"
+  />
+</svg>

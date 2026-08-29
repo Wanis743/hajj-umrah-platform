@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="expPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#fffbeb" />
+      <stop offset="1" stop-color="#fdefc3" />
+    </linearGradient>
+    <linearGradient id="expFront" gradientUnits="userSpaceOnUse" x1="9" y1="18" x2="39" y2="37">
+      <stop offset="0" stop-color="#fbbf24" />
+      <stop offset="1" stop-color="#e08c07" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#expPlate)" />
+  <path
+    d="M9 14.6A2.8 2.8 0 0 1 11.8 11.8h6.6a2.8 2.8 0 0 1 2.2 1.1l2.3 3h13.3A2.8 2.8 0 0 1 39 18.7v2.1H9z"
+    fill="#d97706"
+  />
+  <rect x="9" y="17.6" width="30" height="19.4" rx="3.4" fill="url(#expFront)" />
+  <path d="M9 22.4h30" stroke="#fde68a" stroke-width="1.5" opacity="0.65" />
+</svg>

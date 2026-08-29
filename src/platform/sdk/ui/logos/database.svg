@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="regPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#f3f8ff" />
+      <stop offset="1" stop-color="#d7e7fd" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#regPlate)" />
+  <g>
+    <ellipse cx="24" cy="31.6" rx="11.6" ry="4.4" fill="#1d4ed8" />
+    <rect x="12.4" y="27.2" width="23.2" height="4.4" fill="#1d4ed8" />
+    <ellipse cx="24" cy="27.2" rx="11.6" ry="4.4" fill="#3b82f6" />
+  </g>
+  <g>
+    <ellipse cx="24" cy="24.8" rx="11.6" ry="4.4" fill="#1d4ed8" />
+    <rect x="12.4" y="20.4" width="23.2" height="4.4" fill="#1d4ed8" />
+    <ellipse cx="24" cy="20.4" rx="11.6" ry="4.4" fill="#3b82f6" />
+  </g>
+  <g>
+    <ellipse cx="24" cy="18" rx="11.6" ry="4.4" fill="#1d4ed8" />
+    <rect x="12.4" y="13.6" width="23.2" height="4.4" fill="#1d4ed8" />
+    <ellipse cx="24" cy="13.6" rx="11.6" ry="4.4" fill="#60a5fa" />
+    <ellipse cx="24" cy="13.6" rx="6.4" ry="2.2" fill="#bfdbfe" />
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="setPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#f7f8fa" />
+      <stop offset="1" stop-color="#e5e8ed" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#setPlate)" />
+  <g transform="translate(24 24)" fill="#64748b">
+    <g>
+      <rect x="-3.3" y="-18.4" width="6.6" height="9" rx="1.8" />
+      <rect x="-3.3" y="9.4" width="6.6" height="9" rx="1.8" />
+      <rect x="-18.4" y="-3.3" width="9" height="6.6" rx="1.8" />
+      <rect x="9.4" y="-3.3" width="9" height="6.6" rx="1.8" />
+    </g>
+    <g transform="rotate(45)">
+      <rect x="-3.3" y="-18.4" width="6.6" height="9" rx="1.8" />
+      <rect x="-3.3" y="9.4" width="6.6" height="9" rx="1.8" />
+      <rect x="-18.4" y="-3.3" width="9" height="6.6" rx="1.8" />
+      <rect x="9.4" y="-3.3" width="9" height="6.6" rx="1.8" />
+    </g>
+  </g>
+  <circle cx="24" cy="24" r="11.8" fill="#64748b" />
+  <circle cx="24" cy="24" r="7.6" fill="#94a3b8" />
+  <circle cx="24" cy="24" r="4.6" fill="url(#setPlate)" />
+</svg>

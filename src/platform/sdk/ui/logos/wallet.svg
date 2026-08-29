@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="trsPlate" gradientUnits="userSpaceOnUse" x1="4" y1="2" x2="44" y2="46">
+      <stop offset="0" stop-color="#fffaeb" />
+      <stop offset="1" stop-color="#faeac4" />
+    </linearGradient>
+    <linearGradient id="trsBody" gradientUnits="userSpaceOnUse" x1="10" y1="17" x2="38" y2="37">
+      <stop offset="0" stop-color="#eab308" />
+      <stop offset="1" stop-color="#b45309" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11.5" fill="url(#trsPlate)" />
+  <circle cx="31.4" cy="16.4" r="6.4" fill="#fcd34d" stroke="#b45309" stroke-width="1.8" />
+  <path d="M31.4 12.6v7.6M29 14.6h4.8M29 18.2h4.8" stroke="#b45309" stroke-width="1.4" stroke-linecap="round" />
+  <rect x="9.4" y="17.4" width="29.2" height="19.2" rx="4.2" fill="url(#trsBody)" />
+  <path d="M9.4 24.6h29.2" stroke="#fde68a" stroke-width="1.6" opacity="0.7" />
+  <rect x="26.6" y="26.2" width="12" height="7" rx="3.5" fill="#fcd34d" />
+  <circle cx="30.4" cy="29.7" r="1.9" fill="#b45309" />
+</svg>
