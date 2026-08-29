@@ -40,6 +40,7 @@ import {
   capabilityLabel,
   fmt,
   glyphFor,
+  logoFor,
   useApp,
 } from '@/platform/sdk';
 import { categoryLabel } from '../shared/categories';
@@ -47,6 +48,21 @@ import { type StoreActions, type StoreEntry, canRemove, permissions } from './ca
 
 /** The app glyph, in the tinted rounded square Windows 11 uses for a tile. */
 function AppGlyph({ icon, size }: { icon: string; size: number }) {
+  const logo = logoFor(icon);
+  // A shipped logo replaces the plate here exactly as it does on a Start tile,
+  // so the catalogue shows an app the way the desktop will.
+  if (logo !== null) {
+    return (
+      <img
+        src={logo}
+        alt=""
+        width={size}
+        height={size}
+        draggable={false}
+        style={{ width: size, height: size, flex: 'none', objectFit: 'contain' }}
+      />
+    );
+  }
   const Glyph = glyphFor(icon);
   return (
     <span

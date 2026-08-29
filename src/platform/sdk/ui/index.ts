@@ -8,6 +8,7 @@
 export type { ButtonVariant, ControlSize, Tone } from './tokens';
 export { SERIES_COLORS, clamp, colorAt, niceCeil, toneColor, toneSurface } from './tokens';
 export { APP_GLYPHS, glyphFor } from './glyphs';
+export { APP_LOGOS, logoFor } from './logos';
 
 export type {
   BadgeProps,

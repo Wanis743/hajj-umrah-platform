@@ -1352,6 +1352,17 @@
 .fx-app-icon[data-tone='productivity'] {
   background: linear-gradient(160deg, #0f6cbd, #0c3b6e);
 }
+/* Real artwork replaces the plate outright, as Windows does for an installed
+   app: no gradient, no inner highlight, no rounding of someone else's mark. */
+.fx-app-icon[data-logo='true'] {
+  display: block;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
 /* task view */
 .fx-taskview {
