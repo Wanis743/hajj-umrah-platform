@@ -32,6 +32,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import {
   APP_IDS,
   REG,
+  type FormFactor,
   type LaunchArgs,
   type PowerAction,
   type SnapZone,
@@ -328,6 +329,10 @@ function Shell({
   });
   const hint = ui.snapHint === null ? null : kernel.wm.zoneRect(ui.snapHint);
   const viewport = useKernelView(kernel.wm, () => kernel.wm.viewport());
+  // Read from the WM rather than measured again here, so the chrome and the
+  // geometry can never disagree about which policy is in force.
+  const formFactor = useKernelView(kernel.wm, () => kernel.wm.formFactor());
+  const compact = formFactor === 'compact';
 
   /* -------- work area -------- */
 
@@ -413,6 +418,7 @@ function Shell({
       data-transparency={appearance.transparency ? 'true' : 'false'}
       data-animations={appearance.animations ? 'true' : 'false'}
       data-taskbar={barShown ? 'shown' : 'hidden'}
+      data-form-factor={formFactor}
       // The accent ladder is a set of custom properties, which `CSSProperties`
       // has no way to describe; the cast is the whole of the compromise.
       style={accentVariables(appearance.accent) as CSSProperties}
@@ -435,6 +441,7 @@ function Shell({
             pkg={catalog.get(win.appId as string) ?? null}
             locale={locale}
             args={kernel.processes.get(win.pid)?.args ?? NO_ARGS}
+            formFactor={formFactor}
             onSnapHint={actions.setSnapHint}
             onSnapFlyout={actions.setSnapFlyout}
             onRequestClose={requestClose}
@@ -442,11 +449,12 @@ function Shell({
         ))}
       </div>
 
-      {snapFlyout === null ? null : (
+      {snapFlyout === null || compact ? null : (
         <SnapLayouts
           anchor={snapFlyout}
           locale={locale}
           width={viewport.w}
+          formFactor={formFactor}
           onHover={actions.setSnapHint}
           onPick={(zone) => {
             kernel.wm.snap(snapFlyout.window, zone);
@@ -472,6 +480,7 @@ function Shell({
           appearance={appearance}
           ui={ui}
           actions={actions}
+          formFactor={formFactor}
           onRequestClose={requestClose}
         />
       </div>
@@ -676,6 +685,15 @@ const SNAP_LAYOUTS: readonly SnapLayout[] = [
   { id: 'stack', columns: '1fr', rows: '1fr 1fr', cells: ['top', 'bottom'] },
 ];
 
+/**
+ * Layouts with a cell thinner than a half.
+ *
+ * A third of a 768px tablet is 256px, under the 360px minimum these apps
+ * declare, so the WM collapses those zones onto halves. Offering a tile that
+ * lies about where the window will land is worse than not offering it.
+ */
+const THIRD_LAYOUTS: ReadonlySet<string> = new Set(['thirds', 'wide-left', 'wide-right']);
+
 function zoneLabel(zone: SnapZone, locale: AppLocale): string {
   switch (zone) {
     case 'left':
@@ -712,6 +730,7 @@ interface SnapLayoutsProps {
   readonly locale: AppLocale;
   /** Desktop width, used to keep the flyout on screen near the edges. */
   readonly width: number;
+  readonly formFactor: FormFactor;
   readonly onHover: (zone: SnapZone | null) => void;
   readonly onPick: (zone: SnapZone) => void;
   readonly onDismiss: () => void;
@@ -722,8 +741,10 @@ interface SnapLayoutsProps {
  * snap preview through the window manager, so what you see is where the window
  * will land — not an approximation drawn by the flyout.
  */
-function SnapLayouts({ anchor, locale, width, onHover, onPick, onDismiss }: SnapLayoutsProps) {
+function SnapLayouts({ anchor, locale, width, formFactor, onHover, onPick, onDismiss }: SnapLayoutsProps) {
   const centre = Math.min(Math.max(anchor.x, SNAP_FLYOUT_HALF), Math.max(SNAP_FLYOUT_HALF, width - SNAP_FLYOUT_HALF));
+  const layouts =
+    formFactor === 'desktop' ? SNAP_LAYOUTS : SNAP_LAYOUTS.filter((layout) => !THIRD_LAYOUTS.has(layout.id));
 
   return (
     <div
@@ -736,7 +757,7 @@ function SnapLayouts({ anchor, locale, width, onHover, onPick, onDismiss }: Snap
         onDismiss();
       }}
     >
-      {SNAP_LAYOUTS.map((layout) => (
+      {layouts.map((layout) => (
         <div
           key={layout.id}
           className="fx-snap-tile"

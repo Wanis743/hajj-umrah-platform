@@ -24,6 +24,7 @@ import type {
   EventQuery,
   EventRecord,
   FileDialogSpec,
+  FormFactor,
   Handle,
   IpcMessage,
   LaunchArgs,
@@ -430,6 +431,12 @@ export interface CreateWindowRequest {
 export interface WmSubsystem {
   setViewport(viewport: WmViewport): void;
   viewport(): WmViewport;
+  /**
+   * Which windowing policy the current viewport width earns. Derived, never
+   * set: the shell publishes a width, the answer follows from it, and both
+   * sides read it from the same pure function in the ABI.
+   */
+  formFactor(): FormFactor;
   create(request: CreateWindowRequest): WindowInfo;
   close(id: WindowId): boolean;
   get(id: WindowId): WindowInfo | null;

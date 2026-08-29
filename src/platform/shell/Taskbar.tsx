@@ -17,6 +17,13 @@
  * makes it the containing block for fixed-position descendants, so viewport
  * coordinates would be wrong. Taskbar-local coordinates are correct and stay
  * correct when the viewport resizes.
+ *
+ * Below desktop width the bar keeps its height and its parts — 48px of icons is
+ * already the right density for a thumb — but the centred cluster is abandoned
+ * for a leading, scrollable one, because centring is done with
+ * `translateX(-50%)` on an absolute box and a cluster wider than the bar would
+ * then hang off both ends at once. The two flyouts it owns stop being pinned to
+ * a button and span the bar instead.
  */
 import {
   Bell,
@@ -30,8 +37,15 @@ import {
   Wifi,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { AppId, WindowInfo } from '../kernel/abi';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
+import type { AppId, FormFactor, WindowInfo } from '../kernel/abi';
 import type { InstalledApp, Kernel } from '../kernel/contracts';
 import type { AppLocale } from '../sdk';
 import { MenuFlyout, type MenuEntry } from '../sdk/ui';
@@ -51,6 +65,8 @@ const MENU_HEADER = 26;
 const MENU_PADDING = 10;
 /** Live previews are wireframes, not screenshots; four is plenty. */
 const MAX_PREVIEWS = 4;
+/** Jump-list width, also used to keep one from spilling off a narrow bar. */
+const JUMP_LIST_WIDTH = 220;
 
 /** One taskbar button: an installed app plus whichever windows it owns now. */
 interface TaskItem {
@@ -173,17 +189,20 @@ export interface TaskbarProps {
   readonly appearance: Appearance;
   readonly ui: ShellUi;
   readonly actions: ShellActions;
+  /** Drops centred alignment and un-pins the bar's own flyouts at `compact`. */
+  readonly formFactor: FormFactor;
   /** Close goes through the shell so unsaved work is still confirmed. */
   readonly onRequestClose: (win: WindowInfo) => void;
 }
 
-export function Taskbar({ locale, appearance, ui, actions, onRequestClose }: TaskbarProps) {
+export function Taskbar({ locale, appearance, ui, actions, formFactor, onRequestClose }: TaskbarProps) {
   const kernel = useKernel();
   const run = useKernelAction();
   const barRef = useRef<HTMLDivElement | null>(null);
   const dwell = useRef(0);
   const [preview, setPreview] = useState<Anchor | null>(null);
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
+  const compact = formFactor === 'compact';
 
   const items = useKernelView2(kernel.wm, kernel.apps, () => buildItems(kernel));
 
@@ -241,9 +260,13 @@ export function Taskbar({ locale, appearance, ui, actions, onRequestClose }: Tas
     setPreview(null);
     const bar = barRef.current?.getBoundingClientRect();
     const height = menuHeight(jumpEntries(item, locale));
+    const localX = event.clientX - (bar?.left ?? 0);
+    // A 220px menu opened near the trailing edge of a 375px bar would hang off
+    // the screen. There is always room on a desktop, so it is left alone there.
+    const limit = Math.max(8, (bar?.width ?? 0) - JUMP_LIST_WIDTH - 8);
     setMenu({
       appId: item.app.manifest.id,
-      x: event.clientX - (bar?.left ?? 0),
+      x: compact ? Math.min(Math.max(8, localX), limit) : localX,
       y: -(height + 8),
     });
   };
@@ -292,7 +315,7 @@ export function Taskbar({ locale, appearance, ui, actions, onRequestClose }: Tas
 
   return (
     <div ref={barRef} className="fx-taskbar" onContextMenu={(event) => event.preventDefault()}>
-      {appearance.taskbarAlignment === 'center' ? (
+      {appearance.taskbarAlignment === 'center' && !compact ? (
         <>
           <div className="fx-taskbar-left" />
           <div className="fx-taskbar-center">{cluster}</div>
@@ -308,6 +331,7 @@ export function Taskbar({ locale, appearance, ui, actions, onRequestClose }: Tas
           item={previewItem}
           locale={locale}
           centerX={preview.centerX}
+          compact={compact}
           onEnter={holdPreview}
           onLeave={closePreview}
           onPick={(win) => {
@@ -327,7 +351,7 @@ export function Taskbar({ locale, appearance, ui, actions, onRequestClose }: Tas
           entries={jumpEntries(menuItem, locale)}
           onSelect={(id) => onJumpSelect(menuItem, id)}
           onDismiss={() => setMenu(null)}
-          minWidth={220}
+          minWidth={JUMP_LIST_WIDTH}
         />
       ) : null}
     </div>
@@ -475,6 +499,8 @@ interface PreviewFlyoutProps {
   readonly item: TaskItem;
   readonly locale: AppLocale;
   readonly centerX: number;
+  /** Span the bar instead of pointing at a button, which a phone has no room for. */
+  readonly compact: boolean;
   readonly onEnter: () => void;
   readonly onLeave: () => void;
   readonly onPick: (win: WindowInfo) => void;
@@ -486,12 +512,17 @@ interface PreviewFlyoutProps {
  * card is a wireframe of the window's own geometry rather than a fake screenshot
  * — it still tells the user which window is which, and it never lies.
  */
-function PreviewFlyout({ item, locale, centerX, onEnter, onLeave, onPick, onClose }: PreviewFlyoutProps) {
+function PreviewFlyout({ item, locale, centerX, compact, onEnter, onLeave, onPick, onClose }: PreviewFlyoutProps) {
   const shown = item.windows.slice(0, MAX_PREVIEWS);
+  // Four cards centred on a 40px button need 600px of bar to sit under; a phone
+  // has 375, so it becomes a strip across the bar and wraps in CSS instead.
+  const anchor: CSSProperties = compact
+    ? { insetInline: 8, bottom: 'calc(100% + 8px)' }
+    : { left: centerX, bottom: 'calc(100% + 8px)', transform: 'translateX(-50%)' };
   return (
     <div
       className="fx-flyout fx-tb-preview"
-      style={{ left: centerX, bottom: 'calc(100% + 8px)', transform: 'translateX(-50%)' }}
+      style={anchor}
       onPointerEnter={onEnter}
       onPointerLeave={onLeave}
     >

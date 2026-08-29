@@ -59,9 +59,15 @@ import { AppIcon } from './icons';
 export const FLYOUT_DISMISS_SELECTOR =
   '.fx-flyout, .fx-taskbar, .fx-menu, .fx-dialog, .fx-toast-host';
 
-/** Bottom-corner anchoring, mirrored automatically in RTL. */
-const trayAnchor = { insetInlineEnd: 8, bottom: 'calc(var(--fx-taskbar) + 8px)' } as const;
-const startAnchor = { insetInlineStart: 8, bottom: 'calc(var(--fx-taskbar) + 8px)' } as const;
+/**
+ * Bottom-corner anchoring, mirrored automatically in RTL.
+ *
+ * An attribute rather than an inline style, because an inline style outranks
+ * every stylesheet rule: below desktop width these flyouts become full-bleed
+ * sheets, and `data-anchor` lets fluent.css say so without `!important`.
+ */
+const TRAY_ANCHOR = 'tray';
+const START_ANCHOR = 'start';
 
 const LANGS: readonly { readonly id: ShellLang; readonly label: string }[] = [
   { id: 'ar', label: 'العربية' },
@@ -94,7 +100,7 @@ export function QuickSettings({ locale, appearance, onDismiss }: QuickSettingsPr
   const look = (name: string, value: string | boolean) => kernel.registry.set(REG.userAppearance, name, value);
 
   return (
-    <div className="fx-flyout fx-quick" style={trayAnchor} role="dialog" aria-label="Quick settings">
+    <div className="fx-flyout fx-quick" data-anchor={TRAY_ANCHOR} role="dialog" aria-label="Quick settings">
       <div className="fx-quick-grid">
         <QuickTile
           on={appearance.theme === 'dark'}
@@ -304,7 +310,7 @@ export function NotificationCentre({ locale, onDismiss }: NotificationCentreProp
   };
 
   return (
-    <div className="fx-flyout fx-notif" style={trayAnchor} role="dialog" aria-label="Notifications">
+    <div className="fx-flyout fx-notif" data-anchor={TRAY_ANCHOR} role="dialog" aria-label="Notifications">
       <div className="fx-notif-head">
         <span className="fx-subtitle-text">{locale.tr('الإشعارات', 'Notifications', 'Notifications')}</span>
         <button
@@ -415,7 +421,7 @@ export function CalendarFlyout({ locale }: CalendarFlyoutProps) {
   };
 
   return (
-    <div className="fx-flyout fx-cal" style={trayAnchor} role="dialog" aria-label="Calendar">
+    <div className="fx-flyout fx-cal" data-anchor={TRAY_ANCHOR} role="dialog" aria-label="Calendar">
       <div className="fx-cal-now">
         <span className="fx-title-text">{fmt.time(now, locale.lang)}</span>
         <span className="fx-caption-text">{fmt.date(now, locale.lang)}</span>
@@ -564,7 +570,7 @@ export function WidgetsBoard({ locale, onDismiss }: WidgetsBoardProps) {
   const work = services.reduce((total, service) => total + service.workCompleted, 0);
 
   return (
-    <div className="fx-flyout fx-widgets fx-scroll" style={startAnchor} role="dialog" aria-label="Widgets">
+    <div className="fx-flyout fx-widgets fx-scroll" data-anchor={START_ANCHOR} role="dialog" aria-label="Widgets">
       <Widget glyph={<Clock size={14} />} title={locale.tr('الوقت', 'Heure', 'Clock')}>
         <div className="fx-widget-clock">
           <span className="fx-widget-time">{fmt.time(now, locale.lang)}</span>

@@ -152,7 +152,7 @@ export function SearchPanel({ locale, onDismiss }: SearchPanelProps) {
   return (
     <div
       className="fx-flyout fx-search"
-      style={{ left: '50%', transform: 'translateX(-50%)', bottom: 'calc(var(--fx-taskbar) + 8px)' }}
+      data-anchor="center"
       role="dialog"
       aria-label={locale.tr('البحث', 'Rechercher', 'Search')}
     >

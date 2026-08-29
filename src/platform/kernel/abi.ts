@@ -368,6 +368,34 @@ export type SnapZone =
   | 'leftTwoThirds'
   | 'rightTwoThirds';
 
+/**
+ * How much room the shell has to work with.
+ *
+ * A desktop metaphor is a claim about the display, not about the software: free
+ * dragging, thirteen snap zones and a 640px Start menu are all bets on a pointer
+ * and a wide viewport. Below that width the same window manager has to behave
+ * like a phone's — one window at a time, filling the space it is given.
+ *
+ * It lives in the ABI rather than in the shell because both sides need the same
+ * answer: the window manager decides geometry from it, the shell decides chrome
+ * density from it, and a disagreement between the two would put a maximized
+ * window under a taskbar. One pure function, no ambient state, no measuring —
+ * the shell measures and the kernel is told, as with every other viewport fact.
+ *
+ * `desktop` is deliberately the widest band: everything at or above it behaves
+ * exactly as it did before form factors existed.
+ */
+export type FormFactor = 'compact' | 'medium' | 'desktop';
+
+/** Lower bound of each band, in CSS pixels of shell width. */
+export const FORM_FACTOR_MIN_WIDTH = { compact: 0, medium: 700, desktop: 1024 } as const;
+
+export function formFactorFor(width: number): FormFactor {
+  if (width >= FORM_FACTOR_MIN_WIDTH.desktop) return 'desktop';
+  if (width >= FORM_FACTOR_MIN_WIDTH.medium) return 'medium';
+  return 'compact';
+}
+
 export interface WindowInfo {
   readonly id: WindowId;
   readonly pid: Pid;

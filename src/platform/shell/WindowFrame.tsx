@@ -16,10 +16,25 @@
  *   - hover the maximize button to get the snap-layout flyout;
  *   - double-click the title bar to toggle maximize;
  *   - a dirty window asks before closing.
+ *
+ * None of which apply on a phone. At the `compact` form factor the window *is*
+ * the work area — the WM refuses to move or resize it — so the frame stops
+ * offering gestures that cannot succeed: no drag, no tear-off, no grips, no
+ * maximize button. What is left is a title, a minimize and a close, which is
+ * what a mobile app chrome is.
  */
 import { Minus, Square, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
-import type { AppId, AppManifest, LaunchArgs, SnapZone, WindowId, WindowInfo, WindowRect } from '../kernel/abi';
+import type {
+  AppId,
+  AppManifest,
+  FormFactor,
+  LaunchArgs,
+  SnapZone,
+  WindowId,
+  WindowInfo,
+  WindowRect,
+} from '../kernel/abi';
 import type { AppLocale, AppPackage } from '../sdk/types';
 import { AppSurface } from './appHost';
 import { useKernel } from './bindings';
@@ -107,6 +122,8 @@ export interface WindowFrameProps {
   readonly locale: AppLocale;
   /** Launch arguments of the owning process, handed to the app runtime. */
   readonly args: LaunchArgs;
+  /** Drops the drag, resize and maximize affordances at `compact`. */
+  readonly formFactor: FormFactor;
   /** Live snap preview; the shell paints it above the desktop, below windows. */
   readonly onSnapHint: (zone: SnapZone | null) => void;
   /** Anchor for the snap-layout flyout, in desktop coordinates. */
@@ -296,10 +313,22 @@ function useFrameGestures(
  * The frame
  * ------------------------------------------------------------------ */
 
-export function WindowFrame({ win, pkg, locale, args, onSnapHint, onSnapFlyout, onRequestClose }: WindowFrameProps) {
+export function WindowFrame({
+  win,
+  pkg,
+  locale,
+  args,
+  formFactor,
+  onSnapHint,
+  onSnapFlyout,
+  onRequestClose,
+}: WindowFrameProps) {
   const { wm } = useKernel();
   const frameRef = useRef<HTMLDivElement | null>(null);
   const gestures = useFrameGestures(win, frameRef, onSnapHint, onSnapFlyout);
+  // A window that fills the screen and cannot be moved has no use for a drag
+  // handle; wiring one would capture the pointer and do nothing with it.
+  const tiled = formFactor === 'compact';
 
   if (win.state === 'minimized') return null;
 
@@ -330,11 +359,11 @@ export function WindowFrame({ win, pkg, locale, args, onSnapHint, onSnapFlyout, 
     >
       <div
         className="fx-titlebar"
-        onPointerDown={gestures.onPointerDown}
-        onPointerMove={gestures.onPointerMove}
-        onPointerUp={gestures.onPointerUp}
-        onPointerCancel={gestures.onPointerUp}
-        onDoubleClick={() => wm.toggleMaximize(win.id)}
+        onPointerDown={tiled ? undefined : gestures.onPointerDown}
+        onPointerMove={tiled ? undefined : gestures.onPointerMove}
+        onPointerUp={tiled ? undefined : gestures.onPointerUp}
+        onPointerCancel={tiled ? undefined : gestures.onPointerUp}
+        onDoubleClick={tiled ? undefined : () => wm.toggleMaximize(win.id)}
       >
         <div className="fx-titlebar-text">
           {manifest === null ? null : <AppIcon icon={manifest.icon} category={manifest.category} size={16} />}
@@ -351,21 +380,23 @@ export function WindowFrame({ win, pkg, locale, args, onSnapHint, onSnapFlyout, 
           >
             <Minus size={14} strokeWidth={1.6} />
           </button>
-          <button
-            type="button"
-            className="fx-caption-btn"
-            title={locale.tr('تكبير', 'Agrandir', 'Maximize')}
-            aria-label={locale.tr('تكبير', 'Agrandir', 'Maximize')}
-            onPointerEnter={gestures.armSnapFlyout}
-            onPointerLeave={gestures.disarmSnapFlyout}
-            onClick={() => {
-              gestures.disarmSnapFlyout();
-              onSnapFlyout(null);
-              wm.toggleMaximize(win.id);
-            }}
-          >
-            {win.state === 'maximized' ? <RestoreGlyph /> : <Square size={12} strokeWidth={1.6} />}
-          </button>
+          {tiled ? null : (
+            <button
+              type="button"
+              className="fx-caption-btn"
+              title={locale.tr('تكبير', 'Agrandir', 'Maximize')}
+              aria-label={locale.tr('تكبير', 'Agrandir', 'Maximize')}
+              onPointerEnter={gestures.armSnapFlyout}
+              onPointerLeave={gestures.disarmSnapFlyout}
+              onClick={() => {
+                gestures.disarmSnapFlyout();
+                onSnapFlyout(null);
+                wm.toggleMaximize(win.id);
+              }}
+            >
+              {win.state === 'maximized' ? <RestoreGlyph /> : <Square size={12} strokeWidth={1.6} />}
+            </button>
+          )}
           <button
             type="button"
             className="fx-caption-btn"
@@ -393,7 +424,7 @@ export function WindowFrame({ win, pkg, locale, args, onSnapHint, onSnapFlyout, 
         />
       </div>
 
-      {win.state === 'normal'
+      {win.state === 'normal' && !tiled
         ? GRIPS.map((spec) => (
             <div
               key={spec.id}

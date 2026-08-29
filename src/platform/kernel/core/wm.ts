@@ -13,12 +13,21 @@
  *   - Virtual desktops, with windows moved between them and z-order per desktop.
  *   - MRU focus ordering for the Alt+Tab switcher.
  *   - Cascade / tile / minimize-all for the desktop context menu.
+ *
+ * All of which assume a desktop. Below 1024px of shell width the same manager
+ * runs a narrower policy (see `POLICIES`): windows open filling the work area,
+ * and below 700px they are the work area — no dragging, no resizing, no snapping,
+ * because half of a 375px screen is 187px and no app here fits in that. The
+ * width arrives through `setViewport` like every other viewport fact; the kernel
+ * is not allowed to measure anything itself.
  */
 import {
   desktopId as toDesktopId,
+  formFactorFor,
   windowId as toWindowId,
   type AppId,
   type DesktopId,
+  type FormFactor,
   type Pid,
   type SnapZone,
   type WindowId,
@@ -33,8 +42,37 @@ import { createSignal } from './store';
 
 /** Gap between cascaded windows, matching the shell's 8px rhythm. */
 const CASCADE_STEP = 28;
-/** Minimum sane viewport so geometry maths never divides by zero. */
-const MIN_VIEWPORT = { w: 640, h: 480 } as const;
+/**
+ * Minimum sane viewport so geometry maths never divides by zero.
+ *
+ * 320px is the narrowest phone still in circulation. It used to be 640, which
+ * silently told the WM a 375px screen was 640px wide — every window then opened
+ * 265px off the right edge, which is most of why the shell was unusable on a
+ * phone before form factors existed.
+ */
+const MIN_VIEWPORT = { w: 320, h: 360 } as const;
+
+/**
+ * What a shell this wide is allowed to do.
+ *
+ * Written as three flags rather than `if (factor === …)` scattered through the
+ * class so that `desktop` — all false — provably runs the code it always ran:
+ * every guard below reads "unless this is a desktop".
+ */
+interface WindowPolicy {
+  /** One window at a time, filling the work area. No drag, resize or snap. */
+  readonly tiled: boolean;
+  /** Windows open filled, but the user may still pull them out and arrange them. */
+  readonly openMaximized: boolean;
+  /** Thirds are narrower than the apps' own minimums; offer halves instead. */
+  readonly halvesOnly: boolean;
+}
+
+const POLICIES: Readonly<Record<FormFactor, WindowPolicy>> = {
+  compact: { tiled: true, openMaximized: true, halvesOnly: true },
+  medium: { tiled: false, openMaximized: true, halvesOnly: true },
+  desktop: { tiled: false, openMaximized: false, halvesOnly: false },
+};
 
 interface MutableWindow {
   readonly id: WindowId;
@@ -52,6 +90,12 @@ interface MutableWindow {
   dirty: boolean;
   progress: number | null;
   badge: number | null;
+  /**
+   * True when it was the form factor that maximized this window, not the user.
+   * Widening the shell back to desktop width hands those windows their floating
+   * geometry back and leaves the ones the user maximized alone.
+   */
+  autoMaximized: boolean;
   readonly minSize: { readonly w: number; readonly h: number };
   readonly resizable: boolean;
 }
@@ -84,7 +128,12 @@ class Wm implements WmSubsystem {
     const w = Math.max(MIN_VIEWPORT.w, Math.round(viewport.w));
     const h = Math.max(MIN_VIEWPORT.h, Math.round(viewport.h));
     if (w === this.port.w && h === this.port.h && viewport.insetBottom === this.port.insetBottom) return;
+    const was = formFactorFor(this.port.w);
     this.port = { w, h, insetTop: viewport.insetTop, insetBottom: viewport.insetBottom };
+    const now = formFactorFor(w);
+    // Crossing a boundary changes the rules, not just the numbers, so it runs
+    // before the re-flow below and lets it place the windows it just retyped.
+    if (now !== was) this.applyFormFactor(POLICIES[now]);
 
     // Re-flow: maximized and snapped windows follow the viewport; free-floating
     // windows are nudged back on-screen if the viewport shrank past them.
@@ -104,11 +153,19 @@ class Wm implements WmSubsystem {
     return this.port;
   }
 
+  formFactor(): FormFactor {
+    return formFactorFor(this.port.w);
+  }
+
   /* ---------------- lifecycle ---------------- */
 
   create(request: CreateWindowRequest): WindowInfo {
     const id = toWindowId(shortId('win'));
-    const rect = this.cascadeSlot(request.defaultSize);
+    const policy = this.policy();
+    // Off a desktop a window opens filled, but it still needs somewhere
+    // plausible to unfold back into if the shell is later widened.
+    const restoreRect = policy.openMaximized ? this.floatSlot(request.defaultSize) : this.cascadeSlot(request.defaultSize);
+    const rect = policy.openMaximized ? this.workArea(false) : restoreRect;
     this.topZ += 1;
     const window: MutableWindow = {
       id,
@@ -116,8 +173,8 @@ class Wm implements WmSubsystem {
       appId: request.appId,
       title: request.title,
       rect,
-      restoreRect: rect,
-      state: 'normal',
+      restoreRect,
+      state: policy.openMaximized ? 'maximized' : 'normal',
       zone: null,
       desktop: this.active,
       z: this.topZ,
@@ -125,6 +182,7 @@ class Wm implements WmSubsystem {
       dirty: false,
       progress: null,
       badge: null,
+      autoMaximized: policy.openMaximized,
       minSize: request.minSize,
       resizable: request.resizable,
     };
@@ -209,6 +267,9 @@ class Wm implements WmSubsystem {
   setRect(id: WindowId, rect: WindowRect): void {
     const window = this.windows.get(id as string);
     if (window === undefined) return;
+    // Compact has nowhere to move a window to. The shell does not wire the drag
+    // handles there, but a Win+Arrow chord or an app could still call in.
+    if (this.policy().tiled) return;
     const clamped = this.clampToWorkArea({
       x: Math.round(rect.x),
       y: Math.round(rect.y),
@@ -221,25 +282,34 @@ class Wm implements WmSubsystem {
       window.state = 'normal';
       window.zone = null;
     }
+    // Whatever the policy did, the user has now overridden it by hand.
+    window.autoMaximized = false;
     window.restoreRect = clamped;
     this.signal.bump();
   }
 
   setState(id: WindowId, state: WindowStateName): void {
     const window = this.windows.get(id as string);
-    if (window === undefined || window.state === state) return;
+    if (window === undefined) return;
+    // Compact has no floating state to return to, so "normal" means "filled".
+    const coerced = this.policy().tiled && state === 'normal';
+    const target: WindowStateName = coerced ? 'maximized' : state;
+    if (window.state === target) return;
     if (window.state === 'normal') window.restoreRect = window.rect;
 
-    window.state = state;
-    if (state === 'maximized') {
+    window.state = target;
+    if (target === 'maximized') {
       window.rect = this.workArea(false);
       window.zone = null;
-    } else if (state === 'fullscreen') {
+      window.autoMaximized = coerced;
+    } else if (target === 'fullscreen') {
       window.rect = this.workArea(true);
       window.zone = null;
-    } else if (state === 'normal') {
+      window.autoMaximized = false;
+    } else if (target === 'normal') {
       window.rect = this.clampToWorkArea(window.restoreRect);
       window.zone = null;
+      window.autoMaximized = false;
     }
     this.signal.bump();
   }
@@ -247,10 +317,24 @@ class Wm implements WmSubsystem {
   snap(id: WindowId, zone: SnapZone): WindowInfo | null {
     const window = this.windows.get(id as string);
     if (window === undefined) return null;
+    // Compact: a half of 375px is 187px, narrower than any app's minimum. Snap
+    // still means "show me this one", so it fills instead of failing.
+    if (this.policy().tiled) {
+      if (window.state === 'normal') window.restoreRect = window.rect;
+      window.rect = this.workArea(false);
+      window.state = 'maximized';
+      window.zone = null;
+      window.autoMaximized = true;
+      this.focusInternal(id);
+      this.signal.bump();
+      return this.snapshot(window);
+    }
+    const target = this.resolveZone(zone);
     if (window.state === 'normal') window.restoreRect = window.rect;
-    window.rect = this.zoneRect(zone);
+    window.rect = this.zoneRect(target);
     window.state = 'snapped';
-    window.zone = zone;
+    window.zone = target;
+    window.autoMaximized = false;
     this.focusInternal(id);
     this.signal.bump();
     return this.snapshot(window);
@@ -258,12 +342,13 @@ class Wm implements WmSubsystem {
 
   zoneRect(zone: SnapZone): WindowRect {
     const area = this.workArea(false);
+    if (this.policy().tiled) return area;
     const halfW = Math.round(area.w / 2);
     const halfH = Math.round(area.h / 2);
     const third = Math.round(area.w / 3);
     const twoThirds = area.w - third;
 
-    switch (zone) {
+    switch (this.resolveZone(zone)) {
       case 'left':
         return { x: area.x, y: area.y, w: halfW, h: area.h };
       case 'right':
@@ -314,10 +399,7 @@ class Wm implements WmSubsystem {
   restore(id: WindowId): void {
     const window = this.windows.get(id as string);
     if (window === undefined) return;
-    if (window.state === 'minimized') {
-      window.state = window.zone !== null ? 'snapped' : 'normal';
-      window.rect = window.zone !== null ? this.zoneRect(window.zone) : this.clampToWorkArea(window.restoreRect);
-    }
+    if (window.state === 'minimized') this.wake(window);
     this.focusInternal(id);
     this.signal.bump();
   }
@@ -325,6 +407,8 @@ class Wm implements WmSubsystem {
   toggleMaximize(id: WindowId): void {
     const window = this.windows.get(id as string);
     if (window === undefined) return;
+    // Compact windows are always filled; there is no other size to toggle to.
+    if (this.policy().tiled) return;
     if (!window.resizable) return;
     this.setState(id, window.state === 'maximized' ? 'normal' : 'maximized');
   }
@@ -387,6 +471,11 @@ class Wm implements WmSubsystem {
   /* ---------------- arrangement ---------------- */
 
   cascade(): void {
+    // Cascading 900px windows past each other needs a desktop to cascade on.
+    if (this.policy().openMaximized) {
+      this.fillAll();
+      return;
+    }
     const area = this.workArea(false);
     let index = 0;
     for (const window of this.onActiveDesktop()) {
@@ -394,6 +483,7 @@ class Wm implements WmSubsystem {
       const h = Math.min(Math.round(area.h * 0.72), Math.max(window.minSize.h, 620));
       window.state = 'normal';
       window.zone = null;
+      window.autoMaximized = false;
       window.rect = this.clampToWorkArea({
         x: area.x + 24 + index * CASCADE_STEP,
         y: area.y + 24 + index * CASCADE_STEP,
@@ -407,6 +497,12 @@ class Wm implements WmSubsystem {
   }
 
   tile(): void {
+    // A grid still works on a tablet — two 384px columns beat one 768px one —
+    // but not on a phone, where a single column is the grid.
+    if (this.policy().tiled) {
+      this.fillAll();
+      return;
+    }
     const windows = this.onActiveDesktop().filter((window) => window.state !== 'minimized');
     if (windows.length === 0) return;
     const area = this.workArea(false);
@@ -420,6 +516,7 @@ class Wm implements WmSubsystem {
       const row = Math.floor(index / columns);
       window.state = 'normal';
       window.zone = null;
+      window.autoMaximized = false;
       window.rect = {
         x: area.x + column * cellW,
         y: area.y + row * cellH,
@@ -515,13 +612,102 @@ class Wm implements WmSubsystem {
     if (window === undefined) return;
     this.topZ += 1;
     window.z = this.topZ;
-    if (window.state === 'minimized') {
-      window.state = window.zone !== null ? 'snapped' : 'normal';
-      window.rect = window.zone !== null ? this.zoneRect(window.zone) : this.clampToWorkArea(window.restoreRect);
-    }
+    if (window.state === 'minimized') this.wake(window);
     this.focusedId = id;
     this.mru = [id, ...this.mru.filter((candidate) => candidate !== id)];
   }
+
+  /* ---------------- form factor ---------------- */
+
+  private policy(): WindowPolicy {
+    return POLICIES[formFactorFor(this.port.w)];
+  }
+
+  /**
+   * Un-minimizing. Which geometry a window wakes into is exactly the question a
+   * form factor answers, so it is asked in one place rather than duplicated
+   * between `restore` and `focus`.
+   */
+  private wake(window: MutableWindow): void {
+    const policy = this.policy();
+    if (window.zone !== null && !policy.tiled) {
+      window.state = 'snapped';
+      window.rect = this.zoneRect(window.zone);
+    } else if (policy.openMaximized) {
+      window.state = 'maximized';
+      window.zone = null;
+      window.autoMaximized = true;
+      window.rect = this.workArea(false);
+    } else {
+      window.state = 'normal';
+      window.zone = null;
+      window.rect = this.clampToWorkArea(window.restoreRect);
+    }
+  }
+
+  /**
+   * Crossing a form-factor boundary, in whichever direction.
+   *
+   * Only windows the policy itself maximized are handed back — that is the whole
+   * point of `autoMaximized`. Narrowing the shell fills the screen with what is
+   * open; widening it again unfolds those windows and leaves the ones the user
+   * maximized by hand exactly as they were.
+   */
+  private applyFormFactor(policy: WindowPolicy): void {
+    for (const window of this.windows.values()) {
+      if (policy.openMaximized) {
+        if (window.state !== 'normal' && window.state !== 'snapped') continue;
+        if (window.state === 'normal') window.restoreRect = window.rect;
+        window.state = 'maximized';
+        window.zone = null;
+        window.autoMaximized = true;
+      } else if (window.autoMaximized) {
+        window.autoMaximized = false;
+        if (window.state !== 'maximized') continue;
+        window.state = 'normal';
+        window.zone = null;
+        window.rect = this.clampToWorkArea(window.restoreRect);
+      }
+    }
+  }
+
+  /**
+   * The zone a shell this wide can actually honour.
+   *
+   * A third of 768px is 256px, under the 360px minimum most of these apps
+   * declare, so the WM would hand back a rect the frame then refuses to fit.
+   * Thirds collapse onto the half nearest where the user aimed instead of being
+   * silently mis-sized. Idempotent: halves resolve to themselves.
+   */
+  private resolveZone(zone: SnapZone): SnapZone {
+    if (!this.policy().halvesOnly) return zone;
+    switch (zone) {
+      case 'leftThird':
+      case 'centerThird':
+      case 'leftTwoThirds':
+        return 'left';
+      case 'rightThird':
+      case 'rightTwoThirds':
+        return 'right';
+      default:
+        return zone;
+    }
+  }
+
+  /** "Arrange" without room to arrange in: show one thing at a time. */
+  private fillAll(): void {
+    const area = this.workArea(false);
+    for (const window of this.onActiveDesktop()) {
+      if (window.state === 'normal') window.restoreRect = window.rect;
+      window.state = 'maximized';
+      window.zone = null;
+      window.autoMaximized = true;
+      window.rect = area;
+    }
+    this.signal.bump();
+  }
+
+  /* ---------------- geometry internals ---------------- */
 
   /** The rectangle windows may occupy: viewport minus reserved shell edges. */
   private workArea(ignoreInsets: boolean): WindowRect {
@@ -553,6 +739,18 @@ class Wm implements WmSubsystem {
     const baseX = Math.max(area.x + 16, Math.round(area.x + (area.w - w) / 2) - 60);
     const baseY = Math.max(area.y + 12, Math.round(area.y + (area.h - h) / 2) - 40);
     return this.clampToWorkArea({ x: baseX + offset, y: baseY + offset, w, h });
+  }
+
+  /**
+   * Where a window would float if there were room for it.
+   *
+   * Deliberately *not* clamped to the current work area: this is the rect a
+   * policy-maximized window unfolds into once the shell is wide again, and
+   * clamping it to today's 375px would shrink the app permanently. The clamp
+   * happens on the way out, in `wake` and `applyFormFactor`.
+   */
+  private floatSlot(size: { readonly w: number; readonly h: number }): WindowRect {
+    return { x: 24, y: this.port.insetTop + 24, w: size.w, h: size.h };
   }
 
   private snapshot(window: MutableWindow): WindowInfo {

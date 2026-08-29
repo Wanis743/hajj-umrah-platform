@@ -514,6 +514,28 @@
   }
 }
 
+/*
+ * Where a flyout hangs off the taskbar.
+ *
+ * These were inline styles on each flyout, which meant no stylesheet could ever
+ * move them: an inline declaration outranks every rule, `!important` included.
+ * As attributes they are overridable, which is what lets the compact form
+ * factor further down turn all four of them into bottom sheets.
+ */
+.fx-flyout[data-anchor='tray'] {
+  inset-inline-end: 8px;
+  bottom: calc(var(--fx-taskbar) + 8px);
+}
+.fx-flyout[data-anchor='start'] {
+  inset-inline-start: 8px;
+  bottom: calc(var(--fx-taskbar) + 8px);
+}
+.fx-flyout[data-anchor='center'] {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--fx-taskbar) + 8px);
+}
+
 /* context menu */
 .fx-menu {
   min-width: 200px;
@@ -3005,4 +3027,269 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ================================================================== *
+ * Form factors
+ *
+ * Everything above this line describes a desktop, because that is what a
+ * taskbar, a 640px Start menu and a draggable window are. What follows is the
+ * same shell told it has less room:
+ *
+ *   `compact` (under 700px of shell width) is a phone. The window *is* the work
+ *     area — the window manager refuses to move or resize it — so the chrome
+ *     stops implying otherwise, and every flyout becomes a bottom sheet because
+ *     a 600px palette anchored to the centre of a 375px bar is off-screen.
+ *   `medium` (700–1023px) is a tablet. The desktop arrangement survives — free
+ *     drag, resize and snap all still work — but the targets grow to finger size
+ *     and the generous padding comes in.
+ *   `desktop` (1024px and up) matches nothing below, on purpose. Not one
+ *     declaration in this section applies to it, so nothing here can change what
+ *     a wide screen already did.
+ *
+ * The switch is an attribute rather than a media query, and deliberately so: the
+ * shell is embedded in the admin dashboard, so its own box is narrower than the
+ * viewport and `@media (max-width)` would answer a question nobody asked.
+ * `FinanceOS.tsx` measures the shell with a `ResizeObserver`, the kernel turns
+ * that width into a form factor, and the chrome here and the geometry there read
+ * the same single answer — which is why a maximized window can never end up
+ * under a taskbar that thinks it is somewhere else.
+ * ================================================================== */
+
+/* ---------------- touch targets ---------------- */
+
+/*
+ * 44px is the smallest thing a fingertip hits reliably. The bar itself stays
+ * 48px at every form factor: `TASKBAR_HEIGHT` in the shell is what the window
+ * manager subtracts from the work area, and making that depend on the width
+ * would make the viewport depend on an inset that depends on the viewport.
+ */
+.fos[data-form-factor='medium'] {
+  --fx-titlebar: 40px;
+}
+.fos[data-form-factor='compact'] {
+  --fx-titlebar: 44px;
+  --fx-caption-btn: 44px;
+}
+.fos[data-form-factor='compact'] .fx-tb-btn,
+.fos[data-form-factor='medium'] .fx-tb-btn {
+  width: 44px;
+  height: 44px;
+}
+.fos[data-form-factor='compact'] .fx-tray-btn,
+.fos[data-form-factor='medium'] .fx-tray-btn {
+  height: 44px;
+}
+.fos[data-form-factor='compact'] .fx-menu-item,
+.fos[data-form-factor='medium'] .fx-menu-item {
+  height: 40px;
+}
+/* A 96px snap tile is a target as well as a picture. */
+.fos[data-form-factor='medium'] .fx-snap-tile {
+  width: 104px;
+  height: 68px;
+}
+/* Centring an overlay inside 24px of margin is a desktop habit. */
+.fos[data-form-factor='compact'] .fx-switcher,
+.fos[data-form-factor='medium'] .fx-switcher {
+  max-width: calc(100% - 16px);
+}
+
+/* ---------------- compact: the window is the screen ---------------- */
+
+/*
+ * The window manager will not move or resize a window at this form factor, and
+ * `WindowFrame` drops the grips and the maximize button to match. The frame's
+ * remaining decoration is a claim about a wallpaper the user cannot see behind a
+ * full-bleed window, so it goes too — what is left reads as a mobile app bar.
+ */
+.fos[data-form-factor='compact'] .fx-window {
+  border-radius: 0;
+  border-color: transparent;
+  box-shadow: none;
+}
+.fos[data-form-factor='compact'] .fx-titlebar {
+  padding-inline-start: 14px;
+}
+
+/*
+ * A phone taskbar cannot centre its cluster: centring is `translateX(-50%)` on
+ * an absolutely-positioned box, so a cluster wider than the bar hangs off both
+ * ends at once. `Taskbar.tsx` renders the leading variant instead, and here it
+ * becomes a row that scrolls — running apps stay reachable rather than being
+ * silently clipped. The 6px show-desktop sliver is a pointer affordance with no
+ * touch equivalent, so it is not drawn at all.
+ */
+.fos[data-form-factor='compact'] .fx-taskbar {
+  padding-inline: 4px;
+  gap: 4px;
+}
+.fos[data-form-factor='compact'] .fx-taskbar-left {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.fos[data-form-factor='compact'] .fx-taskbar-left::-webkit-scrollbar {
+  display: none;
+}
+.fos[data-form-factor='compact'] .fx-show-desktop {
+  display: none;
+}
+/*
+ * Two lines of tabular numbers do not fit in a 44px button. The date is one tap
+ * away in the calendar flyout, and the full stamp is still the button's tooltip.
+ */
+.fos[data-form-factor='compact'] .fx-tray-clock {
+  padding-inline: 6px;
+}
+.fos[data-form-factor='compact'] .fx-tray-clock span:last-child {
+  display: none;
+}
+
+/* ---------------- compact: flyouts become sheets ---------------- */
+
+/*
+ * Every flyout is anchored to a corner or the centre of the taskbar and sized in
+ * fixed pixels — 640 for Start, 600 for Search, 400 for the widgets board. None
+ * of those fit. They all become the same shape instead: full-bleed above the
+ * taskbar, as tall as the room allows.
+ *
+ * This is only sayable because `Flyouts.tsx` and `Search.tsx` moved their
+ * anchoring out of inline styles and into `data-anchor`. An inline declaration
+ * outranks every rule in every stylesheet, `!important` included, so before that
+ * change no amount of CSS could have reached these four boxes.
+ *
+ * `animation-name` is reset alongside the geometry on purpose: the centred
+ * flyouts animate to `transform: translateX(-50%)`, which would yank a
+ * full-width sheet half its own width sideways the instant the animation landed.
+ */
+.fos[data-form-factor='compact'] .fx-flyout[data-anchor='tray'],
+.fos[data-form-factor='compact'] .fx-flyout[data-anchor='start'],
+.fos[data-form-factor='compact'] .fx-flyout[data-anchor='center'],
+.fos[data-form-factor='compact'] .fx-start {
+  inset-inline: 8px;
+  width: auto;
+  max-width: none;
+  transform: none;
+  animation-name: fx-flyout-in;
+}
+/*
+ * `calc(100vw - …)` was already wrong for an embedded shell — it measures the
+ * browser, not the box this OS lives in — and at a sheet's width it is wrong by
+ * more. Height is capped against the shell instead, which is what `100%` means
+ * inside `.fos`.
+ */
+.fos[data-form-factor='compact'] .fx-quick,
+.fos[data-form-factor='compact'] .fx-notif,
+.fos[data-form-factor='compact'] .fx-cal,
+.fos[data-form-factor='compact'] .fx-widgets,
+.fos[data-form-factor='compact'] .fx-search,
+.fos[data-form-factor='compact'] .fx-start {
+  max-height: calc(100% - var(--fx-taskbar) - 16px);
+}
+/*
+ * The hover preview is anchored inline by `Taskbar.tsx` at this form factor,
+ * because it needs the bar's own box to do it; only the size and the animation
+ * are this stylesheet's business. Cards shrink so two still fit side by side
+ * before the flex container wraps them.
+ */
+.fos[data-form-factor='compact'] .fx-tb-preview {
+  max-width: none;
+  animation-name: fx-flyout-in;
+}
+.fos[data-form-factor='compact'] .fx-tb-preview-card {
+  width: 158px;
+}
+
+/* ---------------- compact: Start menu ---------------- */
+
+/*
+ * Six fixed columns of 88px tiles are what makes the menu 640px wide. Fluid
+ * columns give four across a 375px phone and six again as soon as there is room,
+ * and the recommended list — two columns of icon-plus-two-lines — becomes one.
+ */
+.fos[data-form-factor='compact'] .fx-start-grid {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+.fos[data-form-factor='compact'] .fx-start-tile {
+  height: 80px;
+}
+.fos[data-form-factor='compact'] .fx-start-rec {
+  grid-template-columns: 1fr;
+}
+.fos[data-form-factor='compact'] .fx-start-search {
+  padding: 14px 16px 10px;
+}
+.fos[data-form-factor='compact'] .fx-start-body {
+  padding: 0 16px 10px;
+}
+.fos[data-form-factor='compact'] .fx-start-footer {
+  padding: 10px 16px;
+}
+/* ---------------- task view, desktop, dialogs ---------------- */
+
+/*
+ * The task view reflows on its own — `auto-fit` cards grow to fill the row — but
+ * 48px of padding around a 220px minimum is a wide-screen luxury. Lowering the
+ * minimum is what lets three windows show as three cards instead of one column.
+ */
+.fos[data-form-factor='compact'] .fx-tv-cards {
+  padding: 16px 16px 12px;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.fos[data-form-factor='compact'] .fx-tv-strip {
+  padding: 8px 16px 16px;
+}
+.fos[data-form-factor='medium'] .fx-tv-cards {
+  padding: 24px 24px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.fos[data-form-factor='medium'] .fx-tv-strip {
+  padding: 12px 24px 24px;
+}
+.fos[data-form-factor='compact'] .fx-desk-icon {
+  width: 76px;
+}
+.fos[data-form-factor='compact'] .fx-toast-host {
+  inset-inline: 8px;
+  width: auto;
+}
+
+/*
+ * A modal is the one surface that has to fit on any screen. 48px of side margin
+ * plus 24px of body padding leaves 279px of a 375px phone for the message, so
+ * both come in — and the wide variant, which the file picker uses, stops asking
+ * for 760px it cannot have.
+ */
+.fos[data-form-factor='compact'] .fx-dialog {
+  width: calc(100% - 24px);
+}
+.fos[data-form-factor='compact'] .fx-dialog[data-wide='true'] {
+  width: calc(100% - 24px);
+  height: calc(100% - 48px);
+}
+.fos[data-form-factor='compact'] .fx-dialog-body,
+.fos[data-form-factor='compact'] .fx-dialog-footer {
+  padding: 16px;
+}
+/*
+ * The picker is a 168px places column beside a file list, which at 351px of
+ * dialog leaves 183px for filenames. Stacking them keeps both: places become a
+ * scrolling row of chips above a list that gets the whole width.
+ */
+.fos[data-form-factor='compact'] .fx-picker-main {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.fos[data-form-factor='compact'] .fx-picker-places {
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-inline-end: 0;
+  border-block-end: 1px solid var(--fx-divider);
+}
+.fos[data-form-factor='compact'] .fx-picker-places::-webkit-scrollbar {
+  display: none;
 }
