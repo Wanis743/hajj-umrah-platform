@@ -7,10 +7,22 @@
  * same scroll behaviour.
  */
 import clsx from 'clsx';
-import { ChevronRight, Inbox, X, type LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { ChevronRight, Inbox, PanelLeft, PanelRight, X, type LucideIcon } from 'lucide-react';
+import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { AppRuntimeContext } from '../context';
 import { Button, IconButton } from './primitives';
+import { fitRails, splitGeometry, useElementWidth, type RailFit } from './responsive';
 import { toneColor, toneSurface, type Tone } from './tokens';
+
+/**
+ * Trilingual labels for chrome this kit adds on its own — the fold toggles have
+ * no author to write their tooltips. The context is read optionally and falls
+ * back to English, so every component here still renders outside an app window.
+ */
+function useKitLabels(): (ar: string, fr: string, en: string) => string {
+  const runtime = useContext(AppRuntimeContext);
+  return runtime === null ? (_ar, _fr, en) => en : runtime.locale.tr;
+}
 
 /* ------------------------------------------------------------------ *
  * App frame
@@ -32,8 +44,170 @@ export interface AppFrameProps {
   padded?: boolean;
   /** Lets content scroll instead of clipping (default true). */
   scroll?: boolean;
+  /** Accessible name for the navigation rail, used once it folds into a drawer. */
+  navLabel?: string;
+  /** Accessible name for the detail pane, used once it folds into a drawer. */
+  asideLabel?: string;
 }
 
+interface FoldDrawerProps {
+  readonly side: 'start' | 'end';
+  readonly title: string;
+  readonly closeLabel: string;
+  readonly width: number;
+  readonly onClose: () => void;
+  readonly children: ReactNode;
+}
+
+/** A folded rail, re-offered as a sheet over the content it had to give up. */
+function FoldDrawer({ side, title, closeLabel, width, onClose, children }: FoldDrawerProps) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      // Stop here: the shell closes windows on Escape, and a drawer is a layer
+      // of its own, so dismissing it must not also dismiss the app.
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+
+  // Picking a destination means you are done with the drawer. Only navigation
+  // items count — a checkbox or an expander inside the rail is not a departure.
+  const dismissOnPick =
+    side === 'start'
+      ? (event: { target: EventTarget }) => {
+          if ((event.target as HTMLElement).closest('.fx-nav-item') !== null) onClose();
+        }
+      : undefined;
+
+  return (
+    <>
+      <div className="fx-fold-scrim" onPointerDown={onClose} />
+      <aside
+        className="fx-fold-sheet"
+        data-side={side}
+        aria-label={title}
+        style={{ width: `min(${width}px, calc(100% - 40px))` }}
+        onClick={dismissOnPick}
+      >
+        <div className="fx-fold-sheet-head">
+          <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--fx-caption)', fontWeight: 600 }}>{title}</span>
+          <IconButton icon={X} label={closeLabel} onClick={onClose} size={14} />
+        </div>
+        <div className="fx-fold-sheet-body" data-side={side}>
+          {children}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+interface FrameBarProps {
+  readonly commands: ReactNode;
+  readonly fold: RailFit;
+  readonly open: 'nav' | 'aside' | null;
+  readonly navName: string;
+  readonly asideName: string;
+  readonly onToggle: (side: 'nav' | 'aside') => void;
+}
+
+/**
+ * The command bar, plus a way back to whichever rails folded. Once folded it
+ * wraps instead of scrolling: a command bar can hold an open menu, and a scroll
+ * container would clip it.
+ */
+function FrameBar({ commands, fold, open, navName, asideName, onToggle }: FrameBarProps) {
+  const folded = fold.nav || fold.aside;
+  return (
+    <div className="fx-commandbar" style={folded ? { flexWrap: 'wrap' } : undefined}>
+      {fold.nav ? (
+        <IconButton icon={PanelLeft} label={navName} active={open === 'nav'} onClick={() => onToggle('nav')} />
+      ) : null}
+      {commands}
+      {fold.aside ? (
+        <span style={{ marginInlineStart: 'auto', display: 'inline-flex' }}>
+          <IconButton icon={PanelRight} label={asideName} active={open === 'aside'} onClick={() => onToggle('aside')} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+interface FrameBodyProps {
+  readonly nav: ReactNode;
+  readonly navWidth: number;
+  readonly aside: ReactNode;
+  readonly asideWidth: number;
+  readonly fold: RailFit;
+  readonly padded: boolean | undefined;
+  readonly scroll: boolean;
+  readonly children: ReactNode;
+}
+
+/** The rails that are still in flow, either side of the content region. */
+function FrameBody({ nav, navWidth, aside, asideWidth, fold, padded, scroll, children }: FrameBodyProps) {
+  return (
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
+      {nav !== undefined && !fold.nav ? (
+        <div
+          style={{
+            width: navWidth,
+            flex: 'none',
+            borderInlineEnd: '1px solid var(--fx-divider)',
+            overflow: 'auto',
+            padding: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            background: 'var(--fx-card-secondary)',
+          }}
+        >
+          {nav}
+        </div>
+      ) : null}
+      <div
+        className={scroll ? 'fx-scroll' : undefined}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          padding: padded === true ? 16 : 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: scroll ? 'auto' : 'hidden',
+        }}
+      >
+        {children}
+      </div>
+      {aside !== undefined && !fold.aside ? (
+        <div
+          style={{
+            width: asideWidth,
+            flex: 'none',
+            borderInlineStart: '1px solid var(--fx-divider)',
+            overflow: 'auto',
+            background: 'var(--fx-card-secondary)',
+          }}
+        >
+          {aside}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The frame folds its rails when its own box gets too narrow to hold them.
+ *
+ * Two things are deliberate. The trigger is the frame's width and not the
+ * screen's, because a quarter-snapped window on a 4K desktop has exactly the
+ * problem a phone has — see `fitRails`, whose threshold is chosen so no app can
+ * fold at or above its declared `minSize`, which is why nothing on a desktop
+ * moves. And a folded rail becomes a drawer rather than disappearing: an app
+ * whose navigation is simply gone below 400px is not responsive, it is broken.
+ */
 export function AppFrame({
   commands,
   nav,
@@ -44,57 +218,85 @@ export function AppFrame({
   children,
   padded,
   scroll = true,
+  navLabel,
+  asideLabel,
 }: AppFrameProps) {
+  const [frame, width] = useElementWidth<HTMLDivElement>();
+  const tr = useKitLabels();
+  const [drawer, setDrawer] = useState<'nav' | 'aside' | null>(null);
+  const close = useCallback(() => setDrawer(null), []);
+  const toggle = useCallback((side: 'nav' | 'aside') => {
+    setDrawer((current) => (current === side ? null : side));
+  }, []);
+
+  const fold = fitRails(width, nav === undefined ? null : navWidth, aside === undefined ? null : asideWidth);
+  const folded = fold.nav || fold.aside;
+  // Derived, not stored: widening the window puts a rail back in flow, and its
+  // drawer has to close in the same paint rather than one effect later.
+  const open = drawer !== null && (drawer === 'nav' ? fold.nav : fold.aside) ? drawer : null;
+  // …and then forgotten, one paint later. Without this, a window widened past the
+  // fold and narrowed again would spring open a drawer the user never asked for
+  // twice: the rail came back in flow, which is a dismissal of its own.
+  useEffect(() => {
+    if (drawer !== null && open === null) setDrawer(null);
+  }, [drawer, open]);
+
+  const navName = navLabel ?? tr('التنقل', 'Navigation', 'Navigation');
+  const asideName = asideLabel ?? tr('التفاصيل', 'Détails', 'Details');
+  const sheet =
+    open === null
+      ? null
+      : open === 'nav'
+        ? { side: 'start' as const, title: navName, width: navWidth, content: nav }
+        : { side: 'end' as const, title: asideName, width: asideWidth, content: aside };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0 }}>
-      {commands !== undefined ? <div className="fx-commandbar">{commands}</div> : null}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0 }}>
-        {nav !== undefined ? (
-          <div
-            style={{
-              width: navWidth,
-              flex: 'none',
-              borderInlineEnd: '1px solid var(--fx-divider)',
-              overflow: 'auto',
-              padding: 6,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              background: 'var(--fx-card-secondary)',
-            }}
-          >
-            {nav}
-          </div>
-        ) : null}
-        <div
-          className={scroll ? 'fx-scroll' : undefined}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 0,
-            padding: padded === true ? 16 : 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: scroll ? 'auto' : 'hidden',
-          }}
-        >
-          {children}
-        </div>
-        {aside !== undefined ? (
-          <div
-            style={{
-              width: asideWidth,
-              flex: 'none',
-              borderInlineStart: '1px solid var(--fx-divider)',
-              overflow: 'auto',
-              background: 'var(--fx-card-secondary)',
-            }}
-          >
-            {aside}
-          </div>
-        ) : null}
-      </div>
+    <div
+      ref={frame}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+        // Only once a drawer is possible, so a desktop frame stays exactly the
+        // containing block it has always been.
+        position: folded ? 'relative' : undefined,
+      }}
+    >
+      {commands !== undefined || folded ? (
+        <FrameBar
+          commands={commands}
+          fold={fold}
+          open={open}
+          navName={navName}
+          asideName={asideName}
+          onToggle={toggle}
+        />
+      ) : null}
+      <FrameBody
+        nav={nav}
+        navWidth={navWidth}
+        aside={aside}
+        asideWidth={asideWidth}
+        fold={fold}
+        padded={padded}
+        scroll={scroll}
+      >
+        {children}
+      </FrameBody>
       {status !== undefined ? <div className="fx-statusbar">{status}</div> : null}
+      {sheet !== null ? (
+        <FoldDrawer
+          side={sheet.side}
+          title={sheet.title}
+          closeLabel={tr('إغلاق', 'Fermer', 'Close')}
+          width={sheet.width}
+          onClose={close}
+        >
+          {sheet.content}
+        </FoldDrawer>
+      ) : null}
     </div>
   );
 }
@@ -428,7 +630,7 @@ export interface SplitPaneProps {
 /** Draggable two-pane splitter using pointer capture (no drag libraries). */
 export function SplitPane({ first, second, initial = 280, min = 160, max = 720, direction = 'horizontal' }: SplitPaneProps) {
   const [size, setSize] = useState(initial);
-  const container = useRef<HTMLDivElement | null>(null);
+  const [container, width] = useElementWidth<HTMLDivElement>();
   const dragging = useRef(false);
 
   useEffect(() => {
@@ -447,15 +649,16 @@ export function SplitPane({ first, second, initial = 280, min = 160, max = 720, 
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
-  }, [direction, min, max]);
+  }, [container, direction, min, max]);
 
-  const horizontal = direction === 'horizontal';
+  const geometry = splitGeometry(direction, width, size, min);
+
   return (
     <div
       ref={container}
       style={{
         display: 'flex',
-        flexDirection: horizontal ? 'row' : 'column',
+        flexDirection: geometry.column ? 'column' : 'row',
         flex: 1,
         minHeight: 0,
         minWidth: 0,
@@ -463,9 +666,7 @@ export function SplitPane({ first, second, initial = 280, min = 160, max = 720, 
     >
       <div
         style={{
-          width: horizontal ? size : undefined,
-          height: horizontal ? undefined : size,
-          flex: 'none',
+          ...geometry.first,
           minWidth: 0,
           minHeight: 0,
           display: 'flex',
@@ -476,18 +677,15 @@ export function SplitPane({ first, second, initial = 280, min = 160, max = 720, 
         {first}
       </div>
       <div
-        onPointerDown={(event) => {
-          dragging.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        style={{
-          flex: 'none',
-          width: horizontal ? 5 : undefined,
-          height: horizontal ? undefined : 5,
-          cursor: horizontal ? 'col-resize' : 'row-resize',
-          background: 'var(--fx-divider)',
-          touchAction: 'none',
-        }}
+        onPointerDown={
+          geometry.stacked
+            ? undefined
+            : (event) => {
+                dragging.current = true;
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }
+        }
+        style={{ ...geometry.grip, flex: 'none', background: 'var(--fx-divider)', touchAction: 'none' }}
       />
       <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {second}

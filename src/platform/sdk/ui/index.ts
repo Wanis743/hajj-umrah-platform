@@ -80,6 +80,9 @@ export {
 export type { Column, DataGridProps, KpiTileProps, SortState, TreeNode, TreeViewProps } from './data';
 export { DataGrid, KpiTile, PropertyRow, TreeView } from './data';
 
+export type { RailFit, SplitGeometry } from './responsive';
+export { CONTENT_MIN, fitRails, splitGeometry, useElementWidth } from './responsive';
+
 export type {
   BarChartProps,
   BarDatum,

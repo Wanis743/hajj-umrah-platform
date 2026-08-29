@@ -3293,3 +3293,76 @@
 .fos[data-form-factor='compact'] .fx-picker-places::-webkit-scrollbar {
   display: none;
 }
+
+/* ================================================================== *
+ * Folded rails
+ *
+ * `AppFrame` folds its navigation and detail rails out of the flow when its own
+ * box is too narrow to hold them, and re-offers each one as a drawer over the
+ * content. These classes exist only in that state, which is why — unlike the
+ * section above — they are not gated on `data-form-factor`: the trigger is the
+ * width of one app's frame, not of the shell. A quarter-snapped window folds
+ * while the maximised one beside it does not, on the same screen. Nothing here
+ * can match at a desktop size, because no window can be narrower than its app's
+ * declared `minSize` and the fold threshold sits below every one of them
+ * (`CONTENT_MIN`, in `sdk/ui/responsive.ts`).
+ *
+ * The animations are the existing flyout ones on purpose: they translate on Y
+ * and reset to `none`, so a drawer reads the same in Arabic as in French — a
+ * sideways slide would need a physical direction the sheet does not know.
+ * ================================================================== */
+
+.fx-fold-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.34);
+  animation: fx-fade var(--fx-fast) var(--fx-ease-out);
+}
+.fx-fold-sheet {
+  position: absolute;
+  inset-block: 0;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--fx-solid);
+  box-shadow: var(--fx-shadow-flyout);
+  animation: fx-flyout-in var(--fx-normal) var(--fx-ease-out);
+}
+.fx-fold-sheet[data-side='start'] {
+  inset-inline-start: 0;
+  border-inline-end: 1px solid var(--fx-stroke);
+}
+.fx-fold-sheet[data-side='end'] {
+  inset-inline-end: 0;
+  border-inline-start: 1px solid var(--fx-stroke);
+}
+.fx-fold-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 40px;
+  padding-block: 4px;
+  padding-inline: 12px 6px;
+  border-bottom: 1px solid var(--fx-divider);
+  background: var(--fx-layer-alt);
+  color: var(--fx-text-secondary);
+}
+/*
+ * The body reproduces the rail it replaced: the navigation rail is a 6px-padded
+ * column of items, the detail pane is a plain scroller its own content pads.
+ */
+.fx-fold-sheet-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+.fx-fold-sheet-body[data-side='start'] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+}
