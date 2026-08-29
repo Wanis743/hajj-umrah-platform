@@ -8,7 +8,7 @@
  *
  * `defineApp` exists to make the interesting fields of a manifest the ones you
  * actually read. Size, resizability and instancing have the same answer for most
- * apps; spelling them out 21 times would bury the fields that differ.
+ * apps; spelling them out 19 times would bury the fields that differ.
  */
 import type { AppManifest, Localized } from '@/platform/kernel/abi';
 

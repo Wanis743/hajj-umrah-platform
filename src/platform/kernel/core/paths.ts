@@ -16,7 +16,7 @@ export interface ParsedPath {
 /**
  * Characters Windows forbids in a file name. The C0 control range is included
  * deliberately: a NUL or an escape smuggled into a name would be invisible in
- * Explorer while still addressing a different file.
+ * any file listing while still addressing a different file.
  */
 // eslint-disable-next-line no-control-regex -- rejecting control characters is the point
 const ILLEGAL = /[<>:"/|?*\u0000-\u001f]/;

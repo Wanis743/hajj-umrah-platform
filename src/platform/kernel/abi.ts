@@ -164,7 +164,7 @@ export interface VfsStat {
   readonly readOnly: boolean;
   /** Volume letter that owns the node (`C`, `X`, `L`). */
   readonly volume: string;
-  /** Hidden nodes are skipped by Explorer unless "show hidden" is on. */
+  /** Hidden nodes are skipped by file views unless "show hidden" is on. */
   readonly hidden: boolean;
 }
 
@@ -560,7 +560,7 @@ export const IPC_CHANNELS = {
   ledgerCommand: 'system/ledger-command',
   /** `{ theme, accent, language }` — appearance changed in Settings. */
   appearance: 'system/appearance',
-  /** `{ path, kind }` — filesystem mutation, for Explorer views. */
+  /** `{ path, kind }` — filesystem mutation, for any open file view. */
   fileChanged: 'system/file-changed',
   /** `{ period, action }` — a fiscal period opened or closed. */
   periodChanged: 'system/period-changed',
@@ -570,7 +570,7 @@ export const IPC_CHANNELS = {
   health: 'system/health',
   /**
    * `{}` — the installed-app inventory changed: an install, a removal, a pin or
-   * a launch count. Start, the taskbar and the Store all render that inventory,
+   * a launch count. Start, the taskbar and Settings all render that inventory,
    * so one broadcast keeps every view of it honest.
    */
   appsChanged: 'system/apps-changed',
@@ -896,9 +896,8 @@ export interface AppManifest {
  *
  * The manifest is what the publisher declared; everything beside it is what this
  * machine and this user have since done with it. It lives in the ABI rather than
- * behind it because the Store, Settings and Task Manager all have to show the
- * same record, and only the first of those is allowed to know how the registry
- * stores it.
+ * behind it because Start, Settings and Task Manager all have to show the same
+ * record, and none of them is allowed to read the registry hive it is kept in.
  */
 export interface AppInventoryRecord {
   readonly manifest: AppManifest;
@@ -919,7 +918,6 @@ export type LaunchArgs = Readonly<Record<string, string>>;
  * ------------------------------------------------------------------ */
 
 export const APP_IDS = {
-  explorer: appId('com.financeos.explorer'),
   terminal: appId('com.financeos.terminal'),
   taskManager: appId('com.financeos.taskmanager'),
   settings: appId('com.financeos.settings'),
@@ -927,7 +925,6 @@ export const APP_IDS = {
   registryEditor: appId('com.financeos.regedit'),
   notepad: appId('com.financeos.notepad'),
   calculator: appId('com.financeos.calculator'),
-  store: appId('com.financeos.store'),
   sheets: appId('com.financeos.sheets'),
   inbox: appId('com.financeos.inbox'),
   dashboard: appId('com.financeos.dashboard'),

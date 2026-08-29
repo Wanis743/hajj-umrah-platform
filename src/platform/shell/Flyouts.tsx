@@ -617,7 +617,7 @@ export function WidgetsBoard({ locale, onDismiss }: WidgetsBoardProps) {
       <Widget
         glyph={<HardDrive size={14} />}
         title={locale.tr('التخزين', 'Stockage', 'Storage')}
-        onOpen={() => launch(APP_IDS.explorer, { path: 'C:\\' })}
+        onOpen={() => launch(APP_IDS.settings, { command: 'page:storage' })}
       >
         {volumes.map((volume) => (
           <div key={volume.letter} className="fx-quick-volume">
@@ -637,7 +637,6 @@ export function WidgetsBoard({ locale, onDismiss }: WidgetsBoardProps) {
       <Widget
         glyph={<FileClock size={14} />}
         title={locale.tr('ملفات حديثة', 'Fichiers récents', 'Recent files')}
-        onOpen={() => launch(APP_IDS.explorer, { path: `${KERNEL_USER_FOLDER}\\Documents` })}
       >
         {docs.length === 0 ? (
           <p className="fx-caption-text">{locale.tr('لا شيء بعد', 'Rien pour l’instant', 'Nothing yet')}</p>

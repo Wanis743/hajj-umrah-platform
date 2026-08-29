@@ -85,7 +85,7 @@ interface Rect {
 const asSortKey = (value: string): SortKey =>
   (SORT_KEYS as readonly string[]).includes(value) ? (value as SortKey) : 'name';
 
-/** Explorer's ordering rule: folders lead, then the chosen column. */
+/** Windows' ordering rule: folders lead, then the chosen column. */
 const compareStats =
   (sort: SortKey, locale: AppLocale) =>
   (a: VfsStat, b: VfsStat): number => {
@@ -139,7 +139,7 @@ function bandHits(cells: Map<string, HTMLElement>, origin: DOMRect, band: Rect):
   return found;
 }
 
-/** `New folder`, `New folder (2)`, … — the same disambiguation Explorer uses. */
+/** `New folder`, `New folder (2)`, … — the same disambiguation Windows uses. */
 function uniqueName(taken: ReadonlySet<string>, base: string, extension: string): string {
   let candidate = `${base}${extension}`;
   let counter = 2;

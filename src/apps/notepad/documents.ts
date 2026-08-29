@@ -273,7 +273,7 @@ export function useDocuments(): Documents {
   /**
    * Second launch of a single-instance app: the kernel re-activates this process
    * and posts the new args instead of spawning another Notepad. That is what turns
-   * "open another file from Explorer" into another tab in this window.
+   * "open another file from the desktop" into another tab in this window.
    */
   useIpc(CHANNEL_ACTIVATED, (message) => {
     const payload = message.payload as { readonly args?: Readonly<Record<string, string>> } | null;

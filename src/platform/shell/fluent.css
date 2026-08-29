@@ -1809,7 +1809,7 @@
   inset: 0;
 }
 /*
- * Icons flow top-to-bottom then wrap into the next column, the way Explorer
+ * Icons flow top-to-bottom then wrap into the next column, the way Windows
  * arranges the desktop. The grid starts at the desktop's own origin because the
  * marquee and the context menu are positioned from its bounding box.
  */

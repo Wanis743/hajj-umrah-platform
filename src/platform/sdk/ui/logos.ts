@@ -3,7 +3,7 @@
  *
  * An app names its icon as a string (`'book-open'`), and {@link glyphFor}
  * resolves that name to a Lucide glyph the shell strokes on a category-tinted
- * plate. That plate is a *placeholder*: it gives 21 apps a coherent Start menu
+ * plate. That plate is a *placeholder*: it gives 19 apps a coherent Start menu
  * without anyone drawing anything. Real artwork replaces it, which is what
  * Windows does for an installed app — the logo is the identity, not the tile
  * behind it.
@@ -18,8 +18,9 @@
  * icons at eight sizes between 16px and 56px, and one vector covers all of them.
  *
  * This table lives in the SDK next to `glyphs.ts` for the same reason that one
- * does — the shell paints Start tiles and taskbar buttons from it, the Store
- * paints the same app in its catalogue, and the Store cannot import the shell.
+ * does — the shell paints Start tiles and taskbar buttons from it, and an app
+ * that lists other apps has to reach the same artwork without importing the
+ * shell, which the boundary forbids it.
  */
 
 /**

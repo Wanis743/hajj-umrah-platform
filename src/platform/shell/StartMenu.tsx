@@ -46,9 +46,9 @@ type Row =
   | { readonly kind: 'file'; readonly stat: VfsStat };
 
 /**
- * Apps a user may start. System components (Explorer, Settings, Terminal) belong
- * in the list exactly as they do in Windows — `systemComponent` only means the
- * app cannot be uninstalled, which the tile menu enforces separately. Policy
+ * Apps a user may start. System components (Settings, Terminal, Task Manager)
+ * belong in the list exactly as they do in Windows — `systemComponent` only means
+ * the app cannot be uninstalled, which the tile menu enforces separately. Policy
  * disables an app by clearing `enabled`, and that is the only thing hidden here.
  */
 const launchable = (apps: readonly InstalledApp[]): readonly InstalledApp[] =>

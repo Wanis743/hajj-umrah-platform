@@ -184,7 +184,7 @@ export function useStatementsActions(): StatementsActions {
 /**
  * Reads one path as a report, complaining once if it is not one.
  *
- * Shared by the Open dialog and the file association, because a `.fxreport` that Explorer
+ * Shared by the Open dialog and the file association, because a `.fxreport` that a double-click
  * hands over is read exactly the way one the user picked is. The two failures are told apart
  * in the words: a file the OS could not read is the OS's problem, and a file that is not a
  * report is the file's — and a window that says "could not open" to both teaches nobody
@@ -223,7 +223,7 @@ async function readReport(
  * A cold launch carries the path in `runtime.args`; a launch of an already-running window
  * arrives on `CHANNEL_ACTIVATED` instead, because the kernel re-activates the process rather
  * than spawning a second one. Both land on the same applied report, which is what lets
- * double-clicking a `.fxreport` in Explorer mean the same thing either way.
+ * double-clicking a `.fxreport` on the desktop mean the same thing either way.
  */
 export function useReportAssociation(onReport: (report: SavedReport) => void): void {
   const runtime = useApp();

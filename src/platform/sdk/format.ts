@@ -92,7 +92,7 @@ export function relativeTime(value: string | number | Date, lang: AppLang = 'fr'
   return rtf.format(Math.round(deltaSec / 86400), 'day');
 }
 
-/** Byte sizes for Explorer and Task Manager. */
+/** Byte sizes for Task Manager and the Settings storage page. */
 export function bytes(value: number, lang: AppLang = 'fr'): string {
   if (!Number.isFinite(value) || value < 0) return '—';
   const units = ['B', 'KB', 'MB', 'GB'];

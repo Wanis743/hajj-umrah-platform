@@ -9,7 +9,7 @@
  * `.fxjournal` is a *draft* — an unposted entry saved to a file so a batch can be
  * prepared away from the books, reviewed, and posted later (or from another
  * machine). That is what `fs.read`/`fs.write` are for, together with the CSV
- * export; the association makes double-clicking one in Explorer open it here.
+ * export; the association makes double-clicking one on the desktop open it here.
  */
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';

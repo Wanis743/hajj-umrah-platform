@@ -17,7 +17,7 @@ export function basename(path: string): string {
   return name === '' ? trimmed : name;
 }
 
-/** Parent directory; a volume root is its own parent, as in Explorer. */
+/** Parent directory; a volume root is its own parent, as in Windows. */
 export function dirname(path: string): string {
   const trimmed = path.replace(/\\+$/, '');
   const cut = trimmed.lastIndexOf('\\');
@@ -71,7 +71,7 @@ export function isValidName(name: string): boolean {
   return !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(name);
 }
 
-/** `q1.csv` + `['q1.csv']` → `q1 (2).csv`, the way Explorer resolves a collision. */
+/** `q1.csv` + `['q1.csv']` → `q1 (2).csv`, the way Windows resolves a collision. */
 export function uniqueName(desired: string, taken: readonly string[]): string {
   const lower = new Set(taken.map((entry) => entry.toLowerCase()));
   if (!lower.has(desired.toLowerCase())) return desired;

@@ -234,9 +234,10 @@ class KernelImpl implements Kernel {
       this.wm.closeForProcess(record.pid);
     });
 
-    // The inventory is shared state — the Store changes it, Start and the taskbar
-    // draw it. The registry's own listeners are shell-side; this bridge is what
-    // lets an *app* see an install, a removal or a pin without polling for it.
+    // The inventory is shared state — a pin or a removal in Start changes it,
+    // Start, the taskbar and Settings draw it. The registry's own listeners are
+    // shell-side; this bridge is what lets an *app* see an install, a removal or
+    // a pin without polling for it.
     this.apps.subscribe(() => {
       this.bus.publish(this.systemPid, IPC_CHANNELS.appsChanged, {});
     });
@@ -382,10 +383,11 @@ class KernelImpl implements Kernel {
     const stat = this.vfs.stat(path);
     if (!stat.ok) return stat;
 
-    // Folders belong to Explorer; files go to whoever claims their content type.
+    // No file manager ships in this image, so a folder opens at a prompt in that
+    // folder; files go to whoever claims their content type.
     const target =
       stat.value.kind === 'directory'
-        ? APP_IDS.explorer
+        ? APP_IDS.terminal
         : this.apps.handlerFor(stat.value.contentType, extname(path));
     if (target === null) {
       return fail('NOT_SUPPORTED', `No installed application opens ${extname(path) || 'this file'}`, { path });

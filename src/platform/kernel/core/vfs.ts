@@ -284,7 +284,7 @@ export function createVfs(log: KernelLogger): VfsHandle {
   return new Vfs(log);
 }
 
-/** Name shown in Explorer's address bar for a volume root. */
+/** Name shown in a file dialog's address bar for a volume root. */
 export function displayName(path: string): string {
   return relative(path) === '' ? `${volumeOf(path) ?? '?'}:` : basename(path);
 }

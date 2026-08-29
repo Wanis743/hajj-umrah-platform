@@ -3,7 +3,7 @@
  *
  * The kernel is the *only* layer allowed to touch `localStorage` — apps reach
  * storage through the VFS and the registry, which is what makes their state
- * inspectable in Explorer and Regedit instead of hidden in browser storage.
+ * inspectable in Terminal and Regedit instead of hidden in browser storage.
  *
  * Writes are coalesced through a flusher so a burst of registry sets costs one
  * serialization, and every access is defensive: private-browsing modes and

@@ -5,7 +5,7 @@
  *   `C:` persistent — the user's documents, survives reload via `KernelStorage`.
  *   `X:` memory     — scratch space, cleared at shutdown (temp files, exports).
  *   `L:` projection — a read-only *view* of ledger data published by a service,
- *                     so the chart of accounts is browsable in Explorer.
+ *                     so the chart of accounts is browsable as files.
  *
  * All three share one tree implementation: an in-memory directory graph with
  * case-insensitive lookup and case-preserving names, exactly like NTFS.

@@ -2,10 +2,10 @@
  * Application registry — the installed-software inventory.
  *
  * An app exists to the OS because its manifest is registered here. That gives
- * the shell one place to read from (Start, taskbar pins, the Store's installed
- * list, jump lists), and it gives the user one place to inspect: every record is
- * mirrored into `HKLM\SOFTWARE\FinanceOS\Apps`, so Regedit shows the same
- * inventory the Store does.
+ * the shell one place to read from (Start, taskbar pins, jump lists) and Settings
+ * one inventory to list, and it gives the user one place to inspect: every record
+ * is mirrored into `HKLM\SOFTWARE\FinanceOS\Apps`, so Regedit shows the same
+ * inventory Settings does.
  *
  * The split between machine and user state matches Windows:
  *   - HKLM holds what was installed (version, publisher, capabilities);
@@ -55,8 +55,8 @@ class AppRegistry implements AppRegistrySubsystem {
   /**
    * The installation media, in effect: every manifest the host has ever handed
    * this kernel, kept whether or not the app is currently installed. Uninstall
-   * forgets the installation, not where it came from, which is what lets the
-   * Store put a removed app back without reloading the page.
+   * forgets the installation, not where it came from, which is what lets
+   * `restore` put a removed app back without reloading the page.
    */
   private readonly image = new Map<string, AppManifest>();
   private readonly signal = createSignal();

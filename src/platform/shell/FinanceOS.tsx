@@ -885,9 +885,6 @@ function handleEscape(env: Shortcuts, event: KeyboardEvent): void {
 function handleWinChord(env: Shortcuts, event: KeyboardEvent): boolean {
   const { kernel, actions } = env;
   switch (event.key.toLowerCase()) {
-    case 'e':
-      void kernel.launch(APP_IDS.explorer);
-      return true;
     case 'i':
       void kernel.launch(APP_IDS.settings);
       return true;

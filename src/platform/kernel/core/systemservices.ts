@@ -537,7 +537,7 @@ function periodGuard(): ServiceDefinition {
 }
 
 /* ------------------------------------------------------------------ *
- * FinanceOS.SearchIndexer — file index for Explorer and Start
+ * FinanceOS.SearchIndexer — file index for Start and Open/Save dialogs
  * ------------------------------------------------------------------ */
 
 interface IndexRow {
@@ -557,9 +557,9 @@ function searchIndexer(): ServiceDefinition {
     name: SERVICE_NAMES.searchIndexer,
     display: text('فهرسة البحث', 'Indexation de la recherche', 'Search Indexer'),
     description: text(
-      'يفهرس الملفات على جميع الأقراص حتى يكون البحث في المستكشف وقائمة ابدأ فوريًا.',
-      'Indexe les fichiers de tous les volumes pour que la recherche dans l’Explorateur et le menu Démarrer soit instantanée.',
-      'Indexes files across every volume so Explorer and Start search resolve instantly.',
+      'يفهرس الملفات على جميع الأقراص حتى يكون البحث في قائمة ابدأ ومربعات الفتح فوريًا.',
+      'Indexe les fichiers de tous les volumes pour que la recherche dans le menu Démarrer et les boîtes de dialogue soit instantanée.',
+      'Indexes files across every volume so Start and file dialog search resolve instantly.',
     ),
     startType: 'automaticDelayed',
     capabilities: ['fs.read', 'fs.write'],

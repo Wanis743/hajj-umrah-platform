@@ -788,7 +788,7 @@ class Dispatcher implements DispatcherHandle {
     sink({ channel, from: target, at: this.deps.clock.iso(), payload });
   }
 
-  /** Broadcasts a filesystem mutation so Explorer views refresh themselves. */
+  /** Broadcasts a filesystem mutation so open file views refresh themselves. */
   private announceFile(caller: Pid, path: string, kind: 'created' | 'modified' | 'deleted'): void {
     this.deps.bus.publish(caller, IPC_CHANNELS.fileChanged, { path, kind });
   }

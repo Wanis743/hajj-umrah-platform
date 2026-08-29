@@ -514,7 +514,7 @@ export interface NotificationSubsystem {
  * ------------------------------------------------------------------ */
 
 /**
- * The public inventory row, unchanged from the ABI: what the Store shows an app
+ * The public inventory row, unchanged from the ABI: what Settings shows a person
  * and what Start shows the shell are the same record, so there is only one.
  */
 export type InstalledApp = AppInventoryRecord;

@@ -259,7 +259,7 @@ export function useJournalActions(): JournalActions {
  * Reads one path as a draft, complaining once if it is not one.
  *
  * Shared by the Open dialog and the file association, because a `.fxjournal`
- * that Explorer hands over is read exactly the way one the user picked is.
+ * that a double-click hands over is read exactly the way one the user picked is.
  */
 async function readDraft(
   runtime: ReturnType<typeof useApp>,

@@ -18,7 +18,7 @@
  * into a message, or take the CSV to a meeting.
  *
  * No file association. A dashboard is a view of the book, not a document; there is
- * nothing here to open from Explorer.
+ * nothing here to open from the desktop.
  */
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';

@@ -590,7 +590,7 @@ export interface TreeViewProps {
   indent?: number;
 }
 
-/** Registry/Explorer style tree. Expansion is controlled by the caller. */
+/** Registry-style tree. Expansion is controlled by the caller. */
 export function TreeView({
   nodes,
   selectedId,

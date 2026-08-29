@@ -3,7 +3,7 @@
  *
  * The associations are the important half. `handlerFor` is first-match-wins over
  * the installed manifests, so whatever Notepad claims here is what a double-click
- * in Explorer opens — and by claiming `text/plain`, `text/markdown` and
+ * on the desktop opens — and by claiming `text/plain`, `text/markdown` and
  * `application/json` it becomes the default opener for everything in the image
  * that is text and is not a spreadsheet or a ledger document.
  *

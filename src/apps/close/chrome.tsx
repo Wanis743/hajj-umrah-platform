@@ -7,7 +7,7 @@
  * the rules, and a window that refuses a close the server would accept is a window
  * lying about who is in charge.
  *
- * The rail is the periods, grouped by year the way Explorer groups by date, with the
+ * The rail is the periods, grouped by year the way Windows groups files by date, with the
  * month's task progress pinned above them so it stays visible in every view. A closed
  * period carries a padlock; that is the whole state somebody needs at a glance.
  */

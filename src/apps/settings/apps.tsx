@@ -1,12 +1,12 @@
 /**
  * Settings — installed apps and default apps.
  *
- * The inventory arrives through `apps.list`, which is the same record the Store
- * reads, so the two pages agree by construction: same install dates, same policy
- * state, and the app names are the localised ones from the manifest rather than
- * the English `DisplayName` the HKLM mirror happens to store. Subscribing to
- * `CHANNEL_APPS_CHANGED` means an install performed in the Store — or by a
- * `store` command in Terminal — lands here without a refresh.
+ * The inventory arrives through `apps.list`, which is the record the kernel keeps
+ * for every installed app, so this page and the Start menu agree by construction:
+ * same install dates, same policy state, and the app names are the localised ones
+ * from the manifest rather than the English `DisplayName` the HKLM mirror happens
+ * to store. Subscribing to `CHANNEL_APPS_CHANGED` means a pin or a removal made
+ * anywhere in the OS lands here without a refresh.
  *
  * Default apps are the one thing here that writes. An association is a value
  * under `HKCU\Software\FinanceOS\AppSettings\Associations` named after the file
@@ -47,7 +47,7 @@ const NO_REQUEST = {} as const;
 
 const ASSOCIATIONS_KEY = `${REG.userAppSettings}\\Associations`;
 
-/** The file types this OS understands, named the way Explorer names them. */
+/** The file types this OS understands, named the way Windows names them. */
 const FILE_TYPES: readonly { readonly ext: string; readonly label: Localized }[] = [
   { ext: '.txt', label: { ar: 'ملف نصي', fr: 'Document texte', en: 'Text document' } },
   { ext: '.log', label: { ar: 'سجل', fr: 'Journal', en: 'Log file' } },

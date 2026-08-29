@@ -17,7 +17,6 @@ import { calculatorManifest } from './calculator/manifest';
 import { closeManifest } from './close/manifest';
 import { dashboardManifest } from './dashboard/manifest';
 import { eventViewerManifest } from './eventviewer/manifest';
-import { explorerManifest } from './explorer/manifest';
 import { inboxManifest } from './inbox/manifest';
 import { journalManifest } from './journal/manifest';
 import { ledgerManifest } from './ledger/manifest';
@@ -29,13 +28,11 @@ import { registryEditorManifest } from './regedit/manifest';
 import { settingsManifest } from './settings/manifest';
 import { sheetsManifest } from './sheets/manifest';
 import { statementsManifest } from './statements/manifest';
-import { storeManifest } from './store/manifest';
 import { taskManagerManifest } from './taskmanager/manifest';
 import { terminalManifest } from './terminal/manifest';
 import { treasuryManifest } from './treasury/manifest';
 
 export const APP_PACKAGES: readonly AppPackage[] = [
-  { manifest: explorerManifest, load: () => import('./explorer/App') },
   { manifest: terminalManifest, load: () => import('./terminal/App') },
   { manifest: taskManagerManifest, load: () => import('./taskmanager/App') },
   { manifest: settingsManifest, load: () => import('./settings/App') },
@@ -44,7 +41,6 @@ export const APP_PACKAGES: readonly AppPackage[] = [
   { manifest: notepadManifest, load: () => import('./notepad/App') },
   { manifest: calculatorManifest, load: () => import('./calculator/App') },
   { manifest: sheetsManifest, load: () => import('./sheets/App') },
-  { manifest: storeManifest, load: () => import('./store/App') },
   // The first window of the morning, and the one every other finance app is opened
   // from: it reads the whole book and hands the work to whichever app owns it.
   { manifest: dashboardManifest, load: () => import('./dashboard/App') },

@@ -3,13 +3,13 @@
  *
  * Two shapes, one component. An app with no artwork gets the Windows treatment
  * of a rounded gradient plate behind a glyph — that plate is what makes a Start
- * menu of 21 apps read as one system without anyone drawing anything. An app
+ * menu of 19 apps read as one system without anyone drawing anything. An app
  * that ships a logo gets the logo alone, full bleed, because a real mark *is*
  * the identity and a tile behind it only dilutes it.
  *
  * Both lookups are name → asset and live in the SDK (`ui/glyphs`, `ui/logos`)
- * because a manifest is data and cannot import React, and because the Store
- * resolves the very same names and cannot import the shell.
+ * because a manifest is data and cannot import React, and because an app that
+ * lists other apps resolves the very same names and cannot import the shell.
  */
 import type { AppCategoryId } from '../kernel/abi';
 import { logoFor } from '../sdk/ui/logos';
