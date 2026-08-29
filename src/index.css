@@ -45,13 +45,706 @@
   .text-balance {
     text-wrap: balance;
   }
-  .glass-light {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
+}
+
+/* ============================================================
+   MIRAGE GLASS — the public site
+   ------------------------------------------------------------
+   The admin dashboard has had a full glass system for a while
+   (AURORA GLASS, further down, scoped to `.admin-dashboard`).
+   The public site had two four-line helpers, so every section
+   fell back to `bg-white + border + shadow-sm` and read flat.
+   This is the same idea in the site's own palette: warm sand
+   tints instead of indigo, light-first instead of dark-first.
+
+   Tokens are `--gl-*`; primitives are `.gl-*`. Nothing here is
+   scoped to a wrapper class, because the public site *is* the
+   default document — but every rule is namespaced so it cannot
+   reach into `.admin-dashboard` or Finance OS (`fx-*`).
+   ============================================================ */
+
+:root {
+  --gl-blur: 18px;
+  --gl-blur-lg: 26px;
+  --gl-blur-xl: 40px;
+  --gl-sat: 170%;
+
+  /* Fill: three depths. Soft floats over imagery, plain is the
+     default card, raised is a popover or a modal panel. */
+  --gl-tint-soft: rgba(255, 255, 255, 0.34);
+  --gl-tint: rgba(255, 255, 255, 0.62);
+  --gl-tint-raised: rgba(255, 255, 255, 0.82);
+  --gl-tint-sunk: rgba(255, 255, 255, 0.46);
+
+  --gl-line: rgba(255, 255, 255, 0.68);
+  --gl-line-strong: rgba(232, 214, 184, 0.9);
+  --gl-sheen: rgba(255, 255, 255, 0.92);
+
+  --gl-shadow: 0 8px 24px -10px rgba(61, 42, 28, 0.2), 0 2px 6px -3px rgba(61, 42, 28, 0.1);
+  --gl-shadow-lg: 0 26px 60px -22px rgba(61, 42, 28, 0.28), 0 6px 18px -10px rgba(61, 42, 28, 0.14);
+  --gl-shadow-xl: 0 48px 110px -34px rgba(42, 29, 19, 0.4), 0 10px 28px -14px rgba(42, 29, 19, 0.2);
+
+  --gl-text: #3d2a1c;
+  --gl-text-soft: #7e522b;
+  --gl-accent: #3f8a5b;
+  --gl-accent-strong: #2e6e47;
+  --gl-gold: #c99a3e;
+
+  --gl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --gl-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* Height the fixed header actually occupies, so anchors and
+     sticky offsets are derived from one number. */
+  --gl-nav-h: 76px;
+}
+
+.dark {
+  --gl-tint-soft: rgba(42, 29, 19, 0.4);
+  --gl-tint: rgba(52, 37, 24, 0.58);
+  --gl-tint-raised: rgba(46, 33, 22, 0.86);
+  --gl-tint-sunk: rgba(24, 17, 11, 0.55);
+
+  --gl-line: rgba(255, 255, 255, 0.12);
+  --gl-line-strong: rgba(232, 214, 184, 0.24);
+  --gl-sheen: rgba(255, 255, 255, 0.14);
+
+  --gl-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.7), 0 2px 8px -4px rgba(0, 0, 0, 0.5);
+  --gl-shadow-lg: 0 30px 70px -26px rgba(0, 0, 0, 0.8), 0 8px 22px -12px rgba(0, 0, 0, 0.55);
+  --gl-shadow-xl: 0 54px 120px -38px rgba(0, 0, 0, 0.88), 0 12px 30px -16px rgba(0, 0, 0, 0.6);
+
+  --gl-text: #f5ecdc;
+  --gl-text-soft: #d9bb8a;
+  --gl-accent: #5fa978;
+  --gl-accent-strong: #8fcaa0;
+  --gl-gold: #e0b65a;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --gl-nav-h: 88px;
   }
-  .glass-dark {
-    background: rgba(42, 29, 19, 0.85);
-    backdrop-filter: blur(12px);
+}
+
+/* --- Document behaviour the public site depends on ---------- */
+
+html {
+  /* Stops iOS Safari inflating body text when a phone is rotated. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Reserves the scrollbar track so locking the body for a modal does not
+     shift the whole page sideways by ~15px. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  /* Blurred aurora orbs bleed past the viewport by design; without this
+     they hand every phone a horizontal scrollbar. `clip` is preferred
+     over `hidden` because it does not make the body a scroll container,
+     so `position: sticky` inside keeps working. */
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* A fixed header means an in-page anchor otherwise lands *underneath* it.
+   One rule, derived from the same variable the header is sized by. */
+:where(section[id], [data-anchor]) {
+  scroll-margin-top: calc(var(--gl-nav-h) + 12px);
+}
+
+/* Grey flash on tap, and the 300ms wait for a double-tap that will never
+   come, are both removed for real controls only — not for text. */
+:where(button, a, [role='button'], summary, label) {
+  -webkit-tap-highlight-color: transparent;
+}
+:where(button, a[href], [role='button'], summary) {
+  touch-action: manipulation;
+}
+
+/* One focus ring for the whole public site, keyboard-only, and visible on
+   glass (where a 1px outline disappears into the blur). The admin shell is
+   excluded — it has its own. */
+:focus-visible:not(.admin-dashboard *) {
+  outline: 2px solid var(--gl-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: rgba(63, 138, 91, 0.25);
+}
+
+/* --- Surfaces ----------------------------------------------- *
+ * Three depths, one recipe: tint + blur + hairline + lift, with an inset
+ * top sheen that is what actually sells the material — a frosted pane
+ * catches light on its top edge, and without that line the blur just
+ * looks like a low-opacity div.
+ * ------------------------------------------------------------ */
+
+.gl-card,
+.gl-panel,
+.gl-tile {
+  position: relative;
+  border: 1px solid var(--gl-line);
+  background: var(--gl-tint);
+  -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(var(--gl-sat));
+  backdrop-filter: blur(var(--gl-blur)) saturate(var(--gl-sat));
+  box-shadow: var(--gl-shadow), inset 0 1px 0 var(--gl-sheen);
+  transition:
+    transform 0.45s var(--gl-ease),
+    box-shadow 0.45s var(--gl-ease),
+    border-color 0.45s var(--gl-ease),
+    background 0.45s var(--gl-ease);
+}
+
+.gl-card {
+  border-radius: 18px;
+}
+
+/* A panel is the heavier of the two: modals, popovers, anything that has
+   to stay legible over arbitrary content rather than over a section. */
+.gl-panel {
+  border-radius: 22px;
+  background: var(--gl-tint-raised);
+  -webkit-backdrop-filter: blur(var(--gl-blur-xl)) saturate(var(--gl-sat));
+  backdrop-filter: blur(var(--gl-blur-xl)) saturate(var(--gl-sat));
+  box-shadow: var(--gl-shadow-xl), inset 0 1px 0 var(--gl-sheen);
+}
+
+/* A tile floats over imagery, so it is the thinnest tint of the three. */
+.gl-tile {
+  border-radius: 14px;
+  background: var(--gl-tint-soft);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.gl-sunk {
+  background: var(--gl-tint-sunk);
+  box-shadow: inset 0 1px 3px rgba(61, 42, 28, 0.09);
+}
+
+/* Lift is opt-in: a testimonial that cannot be clicked should not rise
+   under the cursor. Guarded by `hover: hover` so a phone does not leave
+   a card stuck in its hover state after a tap. */
+@media (hover: hover) and (pointer: fine) {
+  .gl-lift:hover {
+    transform: translateY(-5px);
+    background: var(--gl-tint-raised);
+    border-color: var(--gl-line-strong);
+    box-shadow: var(--gl-shadow-lg), inset 0 1px 0 var(--gl-sheen);
+  }
+  .gl-lift-sm:hover {
+    transform: translateY(-2px);
+    border-color: var(--gl-line-strong);
+    box-shadow: var(--gl-shadow), inset 0 1px 0 var(--gl-sheen);
+  }
+}
+.gl-lift:active,
+.gl-lift-sm:active {
+  transform: translateY(-1px) scale(0.995);
+}
+
+/* The specular sweep. Pure decoration, so it is pointer-events: none and
+   dies with prefers-reduced-motion. The travel is on `background-position`
+   rather than `transform`, so the highlight stays inside the card's own box
+   and no ancestor needs `overflow: hidden` to clip it. */
+.gl-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 60%
+  );
+  background-size: 300% 100%;
+  background-position: 135% 0;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 0.3s var(--gl-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .gl-sheen:hover::after {
+    opacity: 1;
+    animation: gl-sweep 0.85s var(--gl-ease);
+  }
+}
+@keyframes gl-sweep {
+  from { background-position: 135% 0; }
+  to { background-position: -35% 0; }
+}
+
+/* --- Chips, rules, dividers --------------------------------- */
+
+.gl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--gl-line);
+  border-radius: 9999px;
+  background: var(--gl-tint);
+  -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(var(--gl-sat));
+  backdrop-filter: blur(var(--gl-blur)) saturate(var(--gl-sat));
+  box-shadow: inset 0 1px 0 var(--gl-sheen);
+  color: var(--gl-text);
+}
+
+/* Over photography the tint has to come from the image, not from the theme,
+   or the chip goes opaque against a dark hero and stops looking like glass. */
+.gl-chip-onimage {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+/* A hairline that reads on glass: one bright pixel over one dark one. */
+.gl-hairline {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--gl-line-strong) 18%,
+    var(--gl-line-strong) 82%,
+    transparent
+  );
+}
+
+/* The same line as a top border, for a row *inside* a card — a meta strip
+   under a description, a caption under a quotation. Separate from
+   `.gl-hairline` because that one is a standalone 1px-tall element and
+   putting it on a flex row would collapse the row to a single pixel. */
+.gl-divide-t {
+  border-top: 1px solid var(--gl-line-strong);
+}
+
+/* --- Fields -------------------------------------------------- *
+ * `font-size: 16px` on the mobile side is not a style choice: below 16px,
+ * iOS Safari zooms the whole page in when the field takes focus and does
+ * not zoom back out, which is the single worst control bug a form can
+ * have on a phone. It drops to the design size from `sm` up.
+ * ------------------------------------------------------------ */
+
+.gl-field {
+  width: 100%;
+  border: 1px solid var(--gl-line-strong);
+  border-radius: 14px;
+  background: var(--gl-tint-raised);
+  -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(140%);
+  backdrop-filter: blur(var(--gl-blur)) saturate(140%);
+  box-shadow: inset 0 1px 2px rgba(61, 42, 28, 0.06);
+  color: var(--gl-text);
+  font-size: 16px;
+  line-height: 1.5;
+  transition:
+    border-color 0.25s var(--gl-ease),
+    box-shadow 0.25s var(--gl-ease),
+    background 0.25s var(--gl-ease);
+}
+@media (min-width: 640px) {
+  .gl-field {
+    font-size: 0.95rem;
+  }
+}
+.gl-field::placeholder {
+  color: rgba(126, 82, 43, 0.55);
+}
+.dark .gl-field::placeholder {
+  color: rgba(232, 214, 184, 0.42);
+}
+.gl-field:hover:not(:disabled) {
+  border-color: rgba(63, 138, 91, 0.42);
+}
+.gl-field:focus {
+  outline: none;
+  border-color: var(--gl-accent);
+  background: var(--gl-tint-raised);
+  box-shadow: 0 0 0 4px rgba(63, 138, 91, 0.16), inset 0 1px 2px rgba(61, 42, 28, 0.05);
+}
+.gl-field:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.gl-field[aria-invalid='true'] {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
+}
+
+/* --- Controls ------------------------------------------------ *
+ * `min-height: 44px` is the WCAG 2.5.5 / platform target size. Every
+ * control on the site inherits it from here rather than each component
+ * guessing, which is how the theme toggle ended up a 36px square.
+ * ------------------------------------------------------------ */
+
+.gl-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  border-radius: 9999px;
+  padding: 0.65rem 1.5rem;
+  font-weight: 600;
+  white-space: nowrap;
+  isolation: isolate;
+  transition:
+    transform 0.3s var(--gl-ease),
+    box-shadow 0.3s var(--gl-ease),
+    background 0.3s var(--gl-ease),
+    border-color 0.3s var(--gl-ease);
+}
+.gl-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* A tap target that stays 44px however small its icon is. */
+.gl-tap {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gl-btn-primary {
+  background-image: linear-gradient(135deg, #4a9a67 0%, #3f8a5b 48%, #2e6e47 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 10px 26px -10px rgba(46, 110, 71, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.gl-btn-glass {
+  border: 1px solid var(--gl-line);
+  background: var(--gl-tint);
+  -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(var(--gl-sat));
+  backdrop-filter: blur(var(--gl-blur)) saturate(var(--gl-sat));
+  box-shadow: var(--gl-shadow), inset 0 1px 0 var(--gl-sheen);
+  color: var(--gl-text);
+}
+
+/* Sits on the hero photograph, so it takes its colour from the image. */
+.gl-btn-onimage {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(var(--gl-blur)) saturate(150%);
+  backdrop-filter: blur(var(--gl-blur)) saturate(150%);
+  box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gl-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 38px -12px rgba(46, 110, 71, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  }
+  .gl-btn-glass:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: var(--gl-tint-raised);
+    border-color: var(--gl-line-strong);
+    box-shadow: var(--gl-shadow-lg), inset 0 1px 0 var(--gl-sheen);
+  }
+  .gl-btn-onimage:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.24);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+}
+.gl-btn-primary:active:not(:disabled),
+.gl-btn-glass:active:not(:disabled),
+.gl-btn-onimage:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+/* --- Header, scrim, sheet ------------------------------------ */
+
+.gl-nav {
+  /* Pays back the notch inset the `viewport-fit=cover` meta tag opted into. */
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid transparent;
+  transition:
+    background 0.4s var(--gl-ease),
+    box-shadow 0.4s var(--gl-ease),
+    border-color 0.4s var(--gl-ease),
+    padding 0.3s var(--gl-ease);
+}
+.gl-nav-glass {
+  background: var(--gl-tint-raised);
+  -webkit-backdrop-filter: blur(var(--gl-blur-lg)) saturate(var(--gl-sat));
+  backdrop-filter: blur(var(--gl-blur-lg)) saturate(var(--gl-sat));
+  border-bottom-color: var(--gl-line);
+  box-shadow: var(--gl-shadow);
+}
+
+.gl-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 29, 19, 0.58);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
+  animation: gl-fade 0.25s var(--gl-ease) both;
+}
+@keyframes gl-fade {
+  from { opacity: 0; }
+}
+
+/* A mobile menu is a sheet, not a dropdown: it has to be scrollable when
+   the phone is in landscape and it has to clear the home indicator. */
+.gl-sheet {
+  max-height: calc(100vh - var(--gl-nav-h) - 24px);
+  max-height: calc(100svh - var(--gl-nav-h) - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* A dialog panel. Same scroll discipline as the sheet, but measured against
+   the whole viewport instead of the space under the header. `90vh` was the
+   old value and it is wrong on a phone in landscape, where the visible area
+   is roughly 380px tall and a 90vh panel runs off both ends. */
+.gl-modal {
+  max-height: calc(100vh - 1.5rem);
+  max-height: calc(100svh - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+@media (min-width: 640px) {
+  .gl-modal {
+    max-height: calc(100vh - 4rem);
+    max-height: calc(100svh - 4rem);
+  }
+}
+
+/* Body scroll lock for open overlays. `position: fixed` is deliberately not
+   used — it loses the scroll position on iOS. The overlay's own scroller
+   carries `overscroll-behavior: contain`, so the page behind never moves. */
+body.gl-locked {
+  overflow: hidden;
+}
+
+/* --- Living backdrop ---------------------------------------- *
+ * Glass needs something behind it to refract. On a flat cream page a blur
+ * has nothing to do, which is exactly why the old cards looked flat even
+ * where they already had `backdrop-blur`. These are the warm equivalent of
+ * the admin aurora: three slow orbs in sand, oasis and gold.
+ * ------------------------------------------------------------ */
+
+.gl-aurora {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.gl-aurora span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(72px);
+  will-change: transform;
+}
+.gl-aurora span:nth-child(1) {
+  width: 46vw;
+  height: 46vw;
+  min-width: 260px;
+  min-height: 260px;
+  top: -14vw;
+  inset-inline-start: -10vw;
+  background: radial-gradient(circle, rgba(63, 138, 91, 0.3), transparent 68%);
+  animation: gl-orb-a 28s var(--gl-ease) infinite alternate;
+}
+.gl-aurora span:nth-child(2) {
+  width: 40vw;
+  height: 40vw;
+  min-width: 220px;
+  min-height: 220px;
+  bottom: -14vw;
+  inset-inline-end: -8vw;
+  background: radial-gradient(circle, rgba(201, 154, 62, 0.26), transparent 68%);
+  animation: gl-orb-b 34s var(--gl-ease) infinite alternate;
+}
+.gl-aurora span:nth-child(3) {
+  width: 34vw;
+  height: 34vw;
+  min-width: 200px;
+  min-height: 200px;
+  top: 36%;
+  inset-inline-start: 44%;
+  background: radial-gradient(circle, rgba(200, 154, 94, 0.2), transparent 70%);
+  animation: gl-orb-c 40s var(--gl-ease) infinite alternate;
+}
+
+.dark .gl-aurora span {
+  opacity: 0.5;
+  filter: blur(88px);
+}
+@keyframes gl-orb-a { to { transform: translate3d(7vw, 8vh, 0) scale(1.2); } }
+@keyframes gl-orb-b { to { transform: translate3d(-8vw, -6vh, 0) scale(0.88); } }
+@keyframes gl-orb-c { to { transform: translate3d(-5vw, 7vh, 0) scale(1.14); } }
+
+/* Any section that stacks glass over an aurora needs its own paint context,
+   or the orbs' blur bleeds into the neighbouring section. */
+.gl-stack {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Full-height that is actually full height on a phone. `100vh` on mobile
+   Safari and Chrome means the viewport *without* the browser chrome, so a
+   `min-h-screen` hero is ~110px taller than the screen and its bottom
+   content sits under the address bar. `svh` is the small viewport height —
+   the one that is always visible. The `vh` line stays as the fallback. */
+.gl-screen-h {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* --- Scroll reveal ------------------------------------------- *
+ * The existing `.reveal` stays as-is: one observed wrapper per section, one
+ * `is-visible` class. `.reveal-item` extends it to the children of that
+ * wrapper, so a grid of cards arrives as a wave instead of a single block
+ * without needing an observer per card. Delays live on classes rather than
+ * inline styles so `prefers-reduced-motion` can drop the whole set.
+ * ------------------------------------------------------------ */
+
+.reveal {
+  transition:
+    opacity 0.8s var(--gl-ease),
+    transform 0.8s var(--gl-ease);
+}
+/* `translate` rather than `transform`, deliberately: a revealed card is very
+   often also a `.gl-lift`, and a wrapper-scoped `transform: none` would be
+   more specific than `.gl-lift:hover`'s and silently kill the hover lift.
+   The independent transform properties compose instead of overwriting. */
+.reveal .reveal-item {
+  opacity: 0;
+  translate: 0 22px;
+  transition:
+    opacity 0.7s var(--gl-ease),
+    translate 0.7s var(--gl-ease);
+}
+.reveal.is-visible .reveal-item {
+  opacity: 1;
+  translate: 0 0;
+}
+.reveal-d1 { transition-delay: 0.08s; }
+.reveal-d2 { transition-delay: 0.16s; }
+.reveal-d3 { transition-delay: 0.24s; }
+.reveal-d4 { transition-delay: 0.32s; }
+.reveal-d5 { transition-delay: 0.4s; }
+
+/* --- No backdrop-filter ------------------------------------- *
+ * Firefox with the pref off, older WebKit, and anything in a low-power
+ * mode that drops the filter. Without this the tints stay translucent
+ * with nothing blurring behind them and body text lands on a photograph
+ * at whatever contrast the photograph happens to have.
+ * ------------------------------------------------------------ */
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gl-card,
+  .gl-panel,
+  .gl-chip,
+  .gl-field,
+  .gl-btn-glass,
+  .gl-nav-glass {
+    background: #fdfaf4;
+    border-color: #e8d6b8;
+  }
+  .dark .gl-card,
+  .dark .gl-panel,
+  .dark .gl-chip,
+  .dark .gl-field,
+  .dark .gl-btn-glass,
+  .dark .gl-nav-glass {
+    background: #322317;
+    border-color: rgba(232, 214, 184, 0.22);
+  }
+  /* These three sit on photography, so they go dark rather than cream. */
+  .gl-tile,
+  .gl-chip-onimage,
+  .gl-btn-onimage {
+    background: rgba(42, 29, 19, 0.82);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+  }
+  .gl-scrim {
+    background: rgba(42, 29, 19, 0.88);
+  }
+  /* Un-blurred orbs are just coloured blobs. */
+  .gl-aurora {
+    display: none;
+  }
+}
+
+/* --- Reduced motion ----------------------------------------- *
+ * Everything decorative stops. `animate-spin` is left alone on purpose:
+ * a spinner is state, not decoration, and freezing it would say the app
+ * had hung.
+ * ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .gl-aurora span,
+  .animate-slow-zoom,
+  .animate-float,
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-pop,
+  .animate-bounce,
+  .animate-pulse {
+    animation: none !important;
+  }
+  .gl-sheen::after {
+    display: none;
+  }
+  .gl-lift:hover,
+  .gl-lift-sm:hover,
+  .gl-lift:active,
+  .gl-lift-sm:active,
+  .gl-btn-primary:hover,
+  .gl-btn-glass:hover,
+  .gl-btn-onimage:hover,
+  .gl-btn-primary:active,
+  .gl-btn-glass:active,
+  .gl-btn-onimage:active {
+    transform: none;
+  }
+  .reveal-d1,
+  .reveal-d2,
+  .reveal-d3,
+  .reveal-d4,
+  .reveal-d5 {
+    transition-delay: 0s;
+  }
+  .reveal .reveal-item {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+}
+
+/* Forced-contrast users lose the whole point of a hairline, so give them
+   a real border and drop the tints toward opaque. */
+@media (prefers-contrast: more) {
+  :root {
+    --gl-line: rgba(61, 42, 28, 0.55);
+    --gl-line-strong: rgba(61, 42, 28, 0.8);
+    --gl-tint: rgba(255, 255, 255, 0.92);
+    --gl-tint-raised: rgba(255, 255, 255, 0.98);
+  }
+  .dark {
+    --gl-line: rgba(255, 255, 255, 0.45);
+    --gl-line-strong: rgba(255, 255, 255, 0.7);
+    --gl-tint: rgba(38, 27, 18, 0.94);
+    --gl-tint-raised: rgba(38, 27, 18, 0.98);
   }
 }
 

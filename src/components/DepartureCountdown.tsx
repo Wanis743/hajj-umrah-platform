@@ -1,5 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Plane, Loader2 } from 'lucide-react';
+/**
+ * The next-departure countdown.
+ *
+ * The numerals were the worst responsive break on the site: four columns at
+ * `grid-cols-4 gap-2` with `text-xl sm:text-5xl md:text-6xl` meant a 320px
+ * phone showed four ~70px tiles holding 20px digits, then the type quadrupled
+ * in one step at 640px. It is now two columns until `xs`, four after, with one
+ * `text-fluid-num` clamp doing the scaling continuously.
+ */
+import { useEffect, useState } from 'react';
+import { Loader2, Plane } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { supabase } from '@/lib/supabase';
 import { useReveal } from '@/hooks/useReveal';
@@ -10,6 +19,8 @@ interface TimeLeft {
   minutes: number;
   seconds: number;
 }
+
+const PHOTO = 'https://images.pexels.com/photos/7631853/pexels-photo-7631853.jpeg?auto=compress&cs=tinysrgb';
 
 function calcTimeLeft(target: string): TimeLeft {
   const diff = new Date(target).getTime() - Date.now();
@@ -61,48 +72,52 @@ export default function DepartureCountdown() {
   ];
 
   return (
-    <section id="countdown" className="relative overflow-hidden bg-sand-900 py-20 text-white sm:py-24">
-      <div className="absolute inset-0">
+    <section id="countdown" className="gl-stack overflow-hidden bg-sand-900 py-16 text-white sm:py-24">
+      <div className="absolute inset-0 -z-10">
         <img
-          src="https://images.pexels.com/photos/7631853/pexels-photo-7631853.jpeg?auto=compress&cs=tinysrgb&w=1920"
+          src={`${PHOTO}&w=1600`}
+          srcSet={`${PHOTO}&w=640 640w, ${PHOTO}&w=1024 1024w, ${PHOTO}&w=1600 1600w`}
+          sizes="100vw"
           alt=""
-          className="h-full w-full object-cover opacity-15"
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover opacity-20"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-sand-950/90 to-sand-950/95" />
+        <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(63,138,91,0.28),transparent_70%)]" />
       </div>
 
-      <div ref={ref} className="reveal relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6">
-        <div className="flex items-center justify-center gap-2">
-          <Plane className="h-5 w-5 text-oasis-400" />
-          <p className="font-semibold text-oasis-400">{t.countdown.badge}</p>
-        </div>
-        <h2 className="mt-3 font-serif text-2xl font-bold text-balance sm:text-3xl md:text-4xl">
-          {t.countdown.title}
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-sand-200 sm:text-base sm:leading-8">
-          {t.countdown.subtitle}
+      <div ref={ref} className="reveal relative mx-auto max-w-4xl px-4 text-center sm:px-6">
+        <p className="gl-chip gl-chip-onimage inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold sm:text-sm">
+          <Plane className="h-4 w-4 shrink-0 text-oasis-300" aria-hidden="true" />
+          {t.countdown.badge}
         </p>
+        <h2 className="mt-4 font-serif text-fluid-title font-bold text-balance">{t.countdown.title}</h2>
+        <p className="mx-auto mt-4 max-w-2xl text-fluid-lead text-sand-200 text-balance">{t.countdown.subtitle}</p>
 
         {loading ? (
-          <div className="mt-12 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-oasis-400" />
+          <div className="mt-12 flex items-center justify-center" role="status" aria-label={t.countdown.badge}>
+            <Loader2 className="h-8 w-8 animate-spin text-oasis-400" aria-hidden="true" />
           </div>
-        ) : !targetDate ? (
+        ) : targetDate === null ? (
           <p className="mt-12 text-lg text-sand-300">{t.countdown.noDate}</p>
         ) : (
-          <div className="mt-12 grid grid-cols-4 gap-2 sm:gap-6">
+          /* `aria-live` is deliberately off: a value that changes every second
+             would make a screen reader talk over everything else on the page. */
+          <ul
+            className="mt-10 grid grid-cols-2 gap-3 xs:grid-cols-4 sm:mt-12 sm:gap-5"
+            role="timer"
+            aria-live="off"
+          >
             {units.map((u) => (
-              <div
-                key={u.label}
-                className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm sm:p-7"
-              >
-                <p className="font-serif text-xl font-bold tabular-nums text-white sm:text-5xl md:text-6xl">
+              <li key={u.label} className="gl-tile gl-lift-sm min-w-0 px-2 py-4 sm:px-4 sm:py-7">
+                <p className="font-serif text-fluid-num font-bold tabular-nums text-white">
                   {String(u.value).padStart(2, '0')}
                 </p>
-                <p className="mt-1.5 text-[10px] text-sand-300 sm:mt-2 sm:text-sm">{u.label}</p>
-              </div>
+                <p className="mt-1.5 text-[11px] text-sand-300 sm:mt-2.5 sm:text-sm">{u.label}</p>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     </section>

@@ -142,7 +142,7 @@ export const en: Translation = {
       dateInfo: 'Pick your departure and return dates carefully. These will be used to prepare your request and confirm availability.',
       noLoginNeeded: 'No login required: just choose dates and enter your contact details.',
       spamError: 'Spam detected. Please refresh the page and try again.',
-      stepOf: 'Step',
+      stepOf: 'Step {n} of {total}',
       tripDuration: 'Trip Duration',
       days: 'Days',
       bookingSummary: 'Booking Summary',

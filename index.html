@@ -3,8 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.png" type="image/png" />
-    <meta name="theme-color" content="#163a26" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf7f0" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2a1d13" />
+    <!-- viewport-fit=cover lets the layout reach under a notch; the safe-area
+         insets are then paid back in CSS via .gl-safe-* so nothing lands under
+         the status bar or the home indicator. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
     <meta name="description" content="وكالة بوسالم لخدمات الحج والعمرة — رحلات روحانية بخبرة وإخلاص. باقات مخصصة للحج والعمرة، تأشيرات، حجوزات فنادق، ومرشدون مختصون." />
     <title>وكالة بوسالم لخدمات الحج والعمرة</title>
     <link rel="canonical" href="/" />

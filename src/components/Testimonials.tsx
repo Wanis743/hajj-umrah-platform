@@ -1,6 +1,7 @@
-import { Star, Quote } from 'lucide-react';
+import { Quote, Star } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useReveal } from '@/hooks/useReveal';
+import SectionHeading from './SectionHeading';
 
 const reviewsByLang = {
   ar: [
@@ -31,39 +32,51 @@ export default function Testimonials() {
   const reviews = reviewsByLang[lang] ?? reviewsByLang.ar;
 
   return (
-    <section id="testimonials" className="bg-sand-100 py-20 transition-colors dark:bg-sand-950 sm:py-24">
-      <div ref={ref} className="reveal mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="mx-auto max-w-3xl text-center">
-          <div className="flex items-center justify-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="h-5 w-5 fill-gold-400 text-gold-400 sm:h-6 sm:w-6" />
-            ))}
-          </div>
-          <p className="mt-4 font-semibold text-oasis-600 dark:text-oasis-400">{t.testimonials.badge}</p>
-          <h2 className="mt-3 font-serif text-2xl font-bold text-sand-900 text-balance dark:text-white sm:text-3xl md:text-4xl">
-            {t.testimonials.title}
-          </h2>
-          <p className="mt-4 text-base text-sand-700 dark:text-sand-300 sm:text-lg">{t.testimonials.subtitle}</p>
+    <section id="testimonials" className="gl-stack overflow-hidden py-16 sm:py-24">
+      <div className="gl-aurora" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <div ref={ref} className="reveal relative mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="mb-5 flex items-center justify-center gap-1" role="img" aria-label="5/5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Star key={i} className="h-5 w-5 fill-gold-400 text-gold-400 sm:h-6 sm:w-6" aria-hidden="true" />
+          ))}
         </div>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {reviews.map((r) => (
+        <SectionHeading
+          badge={t.testimonials.badge}
+          title={t.testimonials.title}
+          subtitle={t.testimonials.subtitle}
+        />
+
+        {/* 1 → 2 → 3. It was `md:grid-cols-3`, which put three ~230px columns
+            on a portrait tablet and wrapped every quotation to nine lines. */}
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          {reviews.map((r, index) => (
             <figure
               key={r.name}
-              className="relative rounded-lg border border-sand-200 bg-white p-6 shadow-sm dark:border-sand-800 dark:bg-sand-900 sm:p-7"
+              className={`gl-card gl-lift-sm reveal-item reveal-d${index + 1} flex flex-col p-6 sm:p-7 ${
+                index === 2 ? 'sm:col-span-2 lg:col-span-1' : ''
+              }`}
             >
-              <Quote className="h-8 w-8 text-oasis-200 dark:text-oasis-800" />
-              <blockquote className="mt-3 text-sm leading-7 text-sand-700 dark:text-sand-300 sm:text-base sm:leading-8">
-                "{r.text}"
+              <Quote className="h-8 w-8 shrink-0 text-oasis-400/70 dark:text-oasis-300/50" aria-hidden="true" />
+              <blockquote className="mt-3 flex-1 text-sm leading-7 text-sand-700 dark:text-sand-300 sm:text-base sm:leading-8">
+                {r.text}
               </blockquote>
-              <figcaption className="mt-5 flex items-center gap-3 border-t border-sand-100 pt-4 dark:border-sand-800">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-oasis-100 font-bold text-oasis-700 dark:bg-oasis-900 dark:text-oasis-300">
+              <figcaption className="gl-divide-t mt-5 flex items-center gap-3 pt-4">
+                <span
+                  className="gl-sunk flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-bold text-oasis-700 dark:text-oasis-300"
+                  aria-hidden="true"
+                >
                   {r.name.charAt(0)}
                 </span>
-                <div>
-                  <p className="font-semibold text-sand-900 dark:text-white">{r.name}</p>
-                  <p className="text-xs text-sand-500 dark:text-sand-400">{r.origin}</p>
-                </div>
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold text-sand-900 dark:text-white">{r.name}</span>
+                  <span className="block truncate text-xs text-sand-500 dark:text-sand-400">{r.origin}</span>
+                </span>
               </figcaption>
             </figure>
           ))}

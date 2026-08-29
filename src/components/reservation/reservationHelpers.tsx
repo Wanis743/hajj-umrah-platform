@@ -2,6 +2,29 @@
 /** Shared small components and utilities for ReservationPage */
 import { type ElementType } from 'react';
 
+/** Everything the wizard collects. Shared so the step panels can be typed. */
+export interface ReservationData {
+  packageId: string;
+  packageName: string;
+  startDateTime: string;
+  endDateTime: string;
+  travelers: number;
+  name: string;
+  phone: string;
+  email: string;
+  notes: string;
+  honeypot: string;
+}
+
+export type ReservationStatus = 'idle' | 'loading' | 'success' | 'error';
+
+/** Which of the three contact fields is filled in but malformed. */
+export interface FieldErrors {
+  readonly name: boolean;
+  readonly phone: boolean;
+  readonly email: boolean;
+}
+
 export function padNumber(value: number): string {
   return String(value).padStart(2, '0');
 }
@@ -55,7 +78,7 @@ export const pkgNames: Record<string, Record<string, string>> = {
 
 export function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-3">
+    <div className="flex items-baseline justify-between gap-3 py-3">
       <span className="shrink-0 text-sm text-sand-500 dark:text-sand-400">{label}</span>
       <span className="min-w-0 break-words text-end text-sm font-semibold text-sand-900 dark:text-white">{value}</span>
     </div>
@@ -64,19 +87,23 @@ export function SummaryRow({ label, value }: { label: string; value: string }) {
 
 export function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-xl bg-sand-50 p-4 dark:bg-sand-950">
-      <p className="text-xs text-sand-500">{label}</p>
+    <div className="gl-sunk min-w-0 p-4">
+      <p className="text-xs text-sand-500 dark:text-sand-400">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold text-sand-900 dark:text-white">{value}</p>
     </div>
   );
 }
 
+/* Wraps rather than truncates: a full date range in Arabic is longer than a
+   240px sidebar column, and `break-all` on the value used to cut it mid-word. */
 export function SideRow({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 text-sand-600 dark:text-sand-400">
-      <Icon className="h-4 w-4 shrink-0 text-oasis-500" />
-      <span className="shrink-0 text-xs text-sand-400">{label}:</span>
-      <span className="min-w-0 break-all text-xs font-medium text-sand-700 dark:text-sand-300" dir="ltr">{value}</span>
+    <div className="flex min-w-0 items-start gap-2">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-oasis-500" aria-hidden="true" />
+      <span className="shrink-0 text-xs text-sand-400 dark:text-sand-500">{label}:</span>
+      <span className="min-w-0 break-words text-xs font-medium text-sand-700 dark:text-sand-300" dir="ltr">
+        {value}
+      </span>
     </div>
   );
 }
