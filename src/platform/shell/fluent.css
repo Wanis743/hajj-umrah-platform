@@ -1,0 +1,2997 @@
+/*
+ * Finance OS — Fluent design system.
+ *
+ * A faithful Windows 11 visual language: Mica window surfaces, acrylic
+ * flyouts, the Fluent control states (rest / hover / pressed / disabled),
+ * Windows caption buttons, the taskbar indicator pill, Fluent focus visuals
+ * and the WinUI motion curves. Everything is plain CSS with custom
+ * properties — no Tailwind directives, no image assets, so it renders
+ * identically offline and switches theme without a reflow.
+ *
+ * Scope: every rule is nested under `.fos` (the shell root) so the OS cannot
+ * leak styles into the surrounding ERP application.
+ *
+ * Layer order (paint back to front). The bands are what the shell root actually
+ * renders, in DOM order, and every z-index below belongs to exactly one of them:
+ *   desktop 0 (wallpaper 0 · icons 10 · marquee 20) · snap preview 900 ·
+ *   windows 950 (the window layer is `isolation: isolate`, so the window
+ *   manager's own z values — including the +100000 always-on-top offset — are
+ *   contained inside it and never climb over the chrome) · taskbar 1000 ·
+ *   taskbar reveal strip 1001 · Start / tray flyouts 1100 · Task View 1120 ·
+ *   snap layouts 1150 · Alt+Tab 1180 · dialogs 1200 · toasts 1300 ·
+ *   boot / lock / power 1400.
+ */
+
+.fos {
+  /* ---------- typography ---------- */
+  --fx-font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Noto Sans Arabic', sans-serif;
+  --fx-font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --fx-font-mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, 'SF Mono', Consolas, monospace;
+  --fx-caption: 12px;
+  --fx-body: 14px;
+  --fx-body-large: 16px;
+  --fx-subtitle: 20px;
+  --fx-title: 28px;
+  --fx-display: 40px;
+
+  /* ---------- geometry ---------- */
+  --fx-radius-window: 8px;
+  --fx-radius-control: 4px;
+  --fx-radius-flyout: 8px;
+  --fx-radius-card: 8px;
+  --fx-radius-pill: 999px;
+  --fx-titlebar: 32px;
+  --fx-taskbar: 48px;
+  --fx-caption-btn: 46px;
+
+  /* ---------- motion ---------- *
+   * Fluent's curves. Nothing in this shell animates *out* — a window, flyout or
+   * dialog leaves the moment its state does — so there is no matching ease-in.
+   */
+  --fx-ease-out: cubic-bezier(0.1, 0.9, 0.2, 1);
+  --fx-ease-standard: cubic-bezier(0.33, 0, 0.67, 1);
+  --fx-fast: 0.12s;
+  --fx-normal: 0.2s;
+  --fx-slow: 0.3s;
+
+  /* ---------- accent (overridden per user preference) ---------- */
+  --fx-accent: #0078d4;
+  --fx-accent-light1: #2a90da;
+  --fx-accent-light2: #4cc2ff;
+  --fx-accent-dark1: #005fb8;
+  --fx-accent-dark2: #004881;
+  --fx-accent-text: #4cc2ff;
+  --fx-on-accent: #ffffff;
+
+  font-family: var(--fx-font);
+  font-size: var(--fx-body);
+  color: var(--fx-text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------- dark theme (default) ---------------- */
+.fos,
+.fos[data-theme='dark'] {
+  --fx-text-primary: rgba(255, 255, 255, 0.9);
+  --fx-text-secondary: rgba(255, 255, 255, 0.63);
+  --fx-text-tertiary: rgba(255, 255, 255, 0.44);
+  --fx-text-disabled: rgba(255, 255, 255, 0.28);
+
+  /* Mica: window backdrop tinted by the wallpaper behind it. */
+  --fx-mica: rgba(32, 32, 32, 0.78);
+  --fx-mica-alt: rgba(26, 26, 26, 0.86);
+  /* Layered surfaces inside a window. */
+  --fx-layer: rgba(58, 58, 58, 0.3);
+  --fx-layer-alt: rgba(255, 255, 255, 0.045);
+  --fx-card: rgba(255, 255, 255, 0.052);
+  --fx-card-secondary: rgba(255, 255, 255, 0.032);
+  /* Acrylic for flyouts, menus and the taskbar. */
+  --fx-acrylic: rgba(44, 44, 44, 0.88);
+  --fx-acrylic-thin: rgba(32, 32, 32, 0.72);
+  --fx-solid: #202020;
+  --fx-solid-alt: #1c1c1c;
+
+  --fx-stroke: rgba(255, 255, 255, 0.0837);
+  --fx-stroke-strong: rgba(255, 255, 255, 0.16);
+  --fx-stroke-card: rgba(255, 255, 255, 0.0578);
+  --fx-divider: rgba(255, 255, 255, 0.0837);
+
+  --fx-control: rgba(255, 255, 255, 0.0605);
+  --fx-control-hover: rgba(255, 255, 255, 0.0837);
+  --fx-control-pressed: rgba(255, 255, 255, 0.0326);
+  --fx-control-disabled: rgba(255, 255, 255, 0.0419);
+  --fx-subtle-hover: rgba(255, 255, 255, 0.0605);
+  --fx-subtle-pressed: rgba(255, 255, 255, 0.0419);
+  --fx-control-stroke: rgba(255, 255, 255, 0.0698);
+  --fx-control-stroke-bottom: rgba(255, 255, 255, 0.14);
+
+  --fx-success: #6ccb5f;
+  --fx-success-bg: rgba(108, 203, 95, 0.12);
+  --fx-warning: #fce100;
+  --fx-warning-bg: rgba(252, 225, 0, 0.12);
+  --fx-danger: #ff99a4;
+  --fx-danger-bg: rgba(255, 153, 164, 0.12);
+  --fx-info: #60cdff;
+  --fx-info-bg: rgba(96, 205, 255, 0.12);
+  --fx-close-hover: #c42b1c;
+
+  --fx-shadow-flyout: 0 8px 16px rgba(0, 0, 0, 0.34);
+  --fx-shadow-window: 0 2px 4px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.44);
+  --fx-shadow-window-focus: 0 4px 8px rgba(0, 0, 0, 0.34), 0 32px 64px rgba(0, 0, 0, 0.5);
+  --fx-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
+  --fx-smoke: rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+}
+
+/* ---------------- light theme ---------------- */
+.fos[data-theme='light'] {
+  --fx-text-primary: rgba(0, 0, 0, 0.8956);
+  --fx-text-secondary: rgba(0, 0, 0, 0.6063);
+  --fx-text-tertiary: rgba(0, 0, 0, 0.4458);
+  --fx-text-disabled: rgba(0, 0, 0, 0.3614);
+
+  --fx-mica: rgba(243, 243, 243, 0.82);
+  --fx-mica-alt: rgba(238, 238, 238, 0.88);
+  --fx-layer: rgba(255, 255, 255, 0.5);
+  --fx-layer-alt: rgba(255, 255, 255, 0.7);
+  --fx-card: rgba(255, 255, 255, 0.7);
+  --fx-card-secondary: rgba(246, 246, 246, 0.5);
+  --fx-acrylic: rgba(249, 249, 249, 0.9);
+  --fx-acrylic-thin: rgba(252, 252, 252, 0.78);
+  --fx-solid: #f3f3f3;
+  --fx-solid-alt: #fafafa;
+
+  --fx-stroke: rgba(0, 0, 0, 0.0578);
+  --fx-stroke-strong: rgba(0, 0, 0, 0.16);
+  --fx-stroke-card: rgba(0, 0, 0, 0.0578);
+  --fx-divider: rgba(0, 0, 0, 0.0803);
+
+  --fx-control: rgba(255, 255, 255, 0.7);
+  --fx-control-hover: rgba(249, 249, 249, 0.5);
+  --fx-control-pressed: rgba(249, 249, 249, 0.3);
+  --fx-control-disabled: rgba(249, 249, 249, 0.3);
+  --fx-subtle-hover: rgba(0, 0, 0, 0.0373);
+  --fx-subtle-pressed: rgba(0, 0, 0, 0.0241);
+  --fx-control-stroke: rgba(0, 0, 0, 0.0578);
+  --fx-control-stroke-bottom: rgba(0, 0, 0, 0.16);
+
+  --fx-accent: #005fb8;
+  --fx-accent-text: #003e92;
+  --fx-success: #0f7b0f;
+  --fx-success-bg: rgba(15, 123, 15, 0.1);
+  --fx-warning: #9d5d00;
+  --fx-warning-bg: rgba(157, 93, 0, 0.1);
+  --fx-danger: #c42b1c;
+  --fx-danger-bg: rgba(196, 43, 28, 0.1);
+  --fx-info: #005fb8;
+  --fx-info-bg: rgba(0, 95, 184, 0.1);
+
+  --fx-shadow-flyout: 0 8px 16px rgba(0, 0, 0, 0.14);
+  --fx-shadow-window: 0 2px 4px rgba(0, 0, 0, 0.13), 0 16px 40px rgba(0, 0, 0, 0.15);
+  --fx-shadow-window-focus: 0 4px 8px rgba(0, 0, 0, 0.14), 0 32px 64px rgba(0, 0, 0, 0.19);
+  --fx-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --fx-smoke: rgba(255, 255, 255, 0.3);
+  color-scheme: light;
+}
+
+/* ---------------- root shell ---------------- */
+.fos {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  isolation: isolate;
+}
+
+.fos *,
+.fos *::before,
+.fos *::after {
+  box-sizing: border-box;
+}
+
+.fos button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+.fos input,
+.fos textarea,
+.fos select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Fluent focus visual: 2px accent ring with a dark inner keyline. */
+.fos :focus-visible {
+  outline: 2px solid var(--fx-text-primary);
+  outline-offset: 1px;
+  border-radius: var(--fx-radius-control);
+}
+
+/* Windows-style thin scrollbars that fade in on hover. */
+.fos ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.fos ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fos ::-webkit-scrollbar-thumb {
+  background: var(--fx-text-disabled);
+  border: 3.5px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+.fos ::-webkit-scrollbar-thumb:hover {
+  background: var(--fx-text-tertiary);
+  background-clip: content-box;
+}
+.fos ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ---------------- material helpers ---------------- *
+ * Only the shared card shape earns a class. The Mica and Acrylic recipes are
+ * applied directly by the surfaces that use them (window, taskbar, flyout,
+ * menu) because each picks its own blur radius; apps compose surfaces from the
+ * SDK's controls and address the palette through the `--fx-*` tokens, which are
+ * the documented boundary.
+ */
+.fx-card {
+  background: var(--fx-card);
+  border: 1px solid var(--fx-stroke-card);
+  border-radius: var(--fx-radius-card);
+}
+
+/* ---------------- window ---------------- */
+.fx-window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--fx-radius-window);
+  border: 1px solid var(--fx-stroke-strong);
+  box-shadow: var(--fx-shadow-window);
+  overflow: hidden;
+  background: var(--fx-mica);
+  backdrop-filter: blur(60px) saturate(125%);
+  -webkit-backdrop-filter: blur(60px) saturate(125%);
+  animation: fx-window-in var(--fx-normal) var(--fx-ease-out);
+}
+.fx-window[data-focused='true'] {
+  box-shadow: var(--fx-shadow-window-focus);
+  border-color: var(--fx-stroke-strong);
+}
+.fx-window[data-focused='false'] {
+  filter: saturate(0.85);
+}
+.fx-window[data-state='maximized'] {
+  border-radius: 0;
+  border-color: transparent;
+}
+.fx-window[data-state='snapped'] {
+  border-radius: var(--fx-radius-window);
+}
+@keyframes fx-window-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/*
+ * There is no close animation: the window manager removes the window the moment
+ * the process releases it, so keeping a ghost on screen would show state the
+ * kernel no longer has.
+ */
+
+/* title bar — Mica Alt, the deeper band Windows 11 puts above window content */
+.fx-titlebar {
+  display: flex;
+  align-items: stretch;
+  height: var(--fx-titlebar);
+  flex: none;
+  padding-inline-start: 12px;
+  gap: 8px;
+  background: var(--fx-mica-alt);
+  border-bottom: 1px solid var(--fx-divider);
+  touch-action: none;
+}
+.fx-titlebar-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+  font-weight: 400;
+}
+.fx-window[data-focused='true'] .fx-titlebar-text {
+  color: var(--fx-text-primary);
+}
+.fx-caption-buttons {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+.fx-caption-btn {
+  width: var(--fx-caption-btn);
+  display: grid;
+  place-items: center;
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-caption-btn:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-caption-btn:active {
+  background: var(--fx-subtle-pressed);
+  color: var(--fx-text-secondary);
+}
+.fx-caption-btn[data-close='true']:hover {
+  background: var(--fx-close-hover);
+  color: #ffffff;
+}
+.fx-caption-btn[data-close='true']:active {
+  background: #b2251a;
+}
+
+/* window body */
+.fx-window-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--fx-layer-alt);
+  border-top: 1px solid var(--fx-divider);
+}
+
+/* resize grips */
+.fx-grip {
+  position: absolute;
+  z-index: 30;
+  touch-action: none;
+}
+
+/* ---------------- taskbar ---------------- */
+.fx-taskbar {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: var(--fx-taskbar);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 8px;
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(30px) saturate(125%);
+  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  border-top: 1px solid var(--fx-stroke);
+}
+.fx-taskbar-center {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+}
+.fos[dir='rtl'] .fx-taskbar-center {
+  transform: translateX(50%);
+}
+.fx-tb-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out), transform var(--fx-fast) var(--fx-ease-out);
+}
+.fx-tb-btn:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-tb-btn:active {
+  background: var(--fx-subtle-pressed);
+  transform: scale(0.94);
+}
+.fx-tb-btn[data-active='true'] {
+  background: var(--fx-subtle-hover);
+}
+/* running / active indicator pill */
+.fx-tb-indicator {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 3px;
+  border-radius: 999px;
+  background: var(--fx-accent-light2);
+  transition: width var(--fx-normal) var(--fx-ease-out), opacity var(--fx-fast);
+}
+.fx-tb-btn[data-running='true'] .fx-tb-indicator {
+  width: 6px;
+  opacity: 0.85;
+}
+.fx-tb-btn[data-focusedwin='true'] .fx-tb-indicator {
+  width: 16px;
+  opacity: 1;
+}
+.fx-tb-badge {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 4px;
+  border-radius: 999px;
+  background: var(--fx-accent);
+  color: var(--fx-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+.fx-tray {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-start: auto;
+}
+.fx-tray-btn {
+  height: 40px;
+  padding-inline: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-primary);
+  font-size: var(--fx-caption);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-tray-btn:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-tray-btn[data-active='true'] {
+  background: var(--fx-subtle-hover);
+}
+.fx-show-desktop {
+  width: 6px;
+  height: 40px;
+  border-inline-start: 1px solid var(--fx-stroke);
+  margin-inline-start: 4px;
+}
+.fx-show-desktop:hover {
+  background: var(--fx-subtle-hover);
+}
+
+/* ---------------- flyouts (Start, Quick Settings, notifications) ---------------- */
+.fx-flyout {
+  position: absolute;
+  z-index: 1100;
+  border-radius: var(--fx-radius-flyout);
+  border: 1px solid var(--fx-stroke);
+  box-shadow: var(--fx-shadow-flyout);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(30px) saturate(125%);
+  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  animation: fx-flyout-in var(--fx-normal) var(--fx-ease-out);
+  overflow: hidden;
+}
+@keyframes fx-flyout-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fx-flyout[data-from='top'] {
+  animation-name: fx-flyout-in-top;
+}
+@keyframes fx-flyout-in-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* context menu */
+.fx-menu {
+  min-width: 200px;
+  padding: 4px;
+  border-radius: var(--fx-radius-flyout);
+  border: 1px solid var(--fx-stroke);
+  box-shadow: var(--fx-shadow-flyout);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(30px) saturate(125%);
+  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  animation: fx-flyout-in var(--fx-fast) var(--fx-ease-out);
+}
+.fx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 32px;
+  padding-inline: 12px;
+  border-radius: var(--fx-radius-control);
+  font-size: var(--fx-body);
+  color: var(--fx-text-primary);
+  text-align: start;
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-menu-item:hover:not(:disabled) {
+  background: var(--fx-subtle-hover);
+}
+.fx-menu-item:active:not(:disabled) {
+  background: var(--fx-subtle-pressed);
+}
+.fx-menu-item:disabled {
+  color: var(--fx-text-disabled);
+}
+.fx-menu-item[data-danger='true'] {
+  color: var(--fx-danger);
+}
+.fx-menu-accel {
+  margin-inline-start: auto;
+  font-size: var(--fx-caption);
+  color: var(--fx-text-tertiary);
+}
+.fx-menu-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--fx-divider);
+}
+.fx-menu-header {
+  padding: 6px 12px 4px;
+  font-size: var(--fx-caption);
+  font-weight: 600;
+  color: var(--fx-text-tertiary);
+}
+
+/* ---------------- controls ---------------- */
+.fx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 12px;
+  border-radius: var(--fx-radius-control);
+  background: var(--fx-control);
+  border: 1px solid var(--fx-control-stroke);
+  border-bottom-color: var(--fx-control-stroke-bottom);
+  color: var(--fx-text-primary);
+  font-size: var(--fx-body);
+  transition: background var(--fx-fast) var(--fx-ease-out), border-color var(--fx-fast);
+}
+.fx-btn:hover:not(:disabled) {
+  background: var(--fx-control-hover);
+}
+.fx-btn:active:not(:disabled) {
+  background: var(--fx-control-pressed);
+  color: var(--fx-text-secondary);
+}
+.fx-btn:disabled {
+  background: var(--fx-control-disabled);
+  color: var(--fx-text-disabled);
+  border-color: transparent;
+}
+.fx-btn[data-variant='accent'] {
+  background: var(--fx-accent);
+  border-color: transparent;
+  border-bottom-color: rgba(0, 0, 0, 0.24);
+  color: var(--fx-on-accent);
+  font-weight: 600;
+}
+.fx-btn[data-variant='accent']:hover:not(:disabled) {
+  background: var(--fx-accent-light1);
+}
+.fx-btn[data-variant='accent']:active:not(:disabled) {
+  background: var(--fx-accent-dark1);
+}
+.fx-btn[data-variant='subtle'] {
+  background: transparent;
+  border-color: transparent;
+}
+.fx-btn[data-variant='subtle']:hover:not(:disabled) {
+  background: var(--fx-subtle-hover);
+}
+.fx-btn[data-variant='danger'] {
+  background: var(--fx-danger-bg);
+  border-color: transparent;
+  color: var(--fx-danger);
+}
+.fx-btn[data-variant='danger']:hover:not(:disabled) {
+  background: var(--fx-danger);
+  color: #ffffff;
+}
+.fx-btn[data-size='sm'] {
+  min-height: 26px;
+  padding: 2px 8px;
+  font-size: var(--fx-caption);
+}
+.fx-btn[data-size='lg'] {
+  min-height: 40px;
+  padding: 8px 20px;
+  font-size: var(--fx-body-large);
+}
+.fx-icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-icon-btn:hover:not(:disabled) {
+  background: var(--fx-subtle-hover);
+}
+.fx-icon-btn:active:not(:disabled) {
+  background: var(--fx-subtle-pressed);
+}
+.fx-icon-btn:disabled {
+  color: var(--fx-text-disabled);
+}
+.fx-icon-btn[data-active='true'] {
+  background: var(--fx-accent);
+  color: var(--fx-on-accent);
+}
+
+.fx-input {
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border-radius: var(--fx-radius-control);
+  background: var(--fx-control);
+  border: 1px solid var(--fx-control-stroke);
+  border-bottom: 1px solid var(--fx-control-stroke-bottom);
+  color: var(--fx-text-primary);
+  font-size: var(--fx-body);
+  transition: background var(--fx-fast), border-color var(--fx-fast);
+  outline: none;
+}
+.fx-input::placeholder {
+  color: var(--fx-text-tertiary);
+}
+.fx-input:hover:not(:disabled) {
+  background: var(--fx-control-hover);
+}
+/* Fluent accent underline on focus */
+.fx-input:focus {
+  background: var(--fx-solid-alt);
+  border-bottom: 2px solid var(--fx-accent);
+  padding-bottom: 4px;
+  outline: none;
+}
+.fx-input:disabled {
+  background: var(--fx-control-disabled);
+  color: var(--fx-text-disabled);
+}
+.fx-input[data-invalid='true'] {
+  border-bottom-color: var(--fx-danger);
+}
+.fx-input-mono {
+  font-family: var(--fx-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-checkbox {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 4px;
+  border: 1px solid var(--fx-text-tertiary);
+  background: var(--fx-control);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: background var(--fx-fast), border-color var(--fx-fast);
+}
+.fx-checkbox[data-checked='true'] {
+  background: var(--fx-accent);
+  border-color: var(--fx-accent);
+  color: var(--fx-on-accent);
+}
+.fx-checkbox:hover {
+  border-color: var(--fx-text-secondary);
+}
+
+.fx-switch {
+  width: 40px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid var(--fx-text-tertiary);
+  background: var(--fx-control);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: background var(--fx-fast), border-color var(--fx-fast);
+}
+.fx-switch-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--fx-text-primary);
+  transition: transform var(--fx-normal) var(--fx-ease-out), background var(--fx-fast);
+}
+.fx-switch[data-checked='true'] {
+  background: var(--fx-accent);
+  border-color: var(--fx-accent);
+}
+.fx-switch[data-checked='true'] .fx-switch-thumb {
+  transform: translateX(20px);
+  background: var(--fx-on-accent);
+}
+.fos[dir='rtl'] .fx-switch[data-checked='true'] .fx-switch-thumb {
+  transform: translateX(-20px);
+}
+
+.fx-slider {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--fx-control-stroke-bottom);
+  outline: none;
+}
+.fx-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--fx-accent);
+  border: 4px solid var(--fx-solid);
+  box-shadow: 0 0 0 1px var(--fx-stroke-strong);
+  cursor: pointer;
+}
+
+/* segmented / pivot tabs */
+.fx-pivot {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--fx-divider);
+}
+.fx-pivot-item {
+  position: relative;
+  padding: 8px 2px 10px;
+  font-size: var(--fx-body-large);
+  color: var(--fx-text-tertiary);
+  transition: color var(--fx-fast);
+}
+.fx-pivot-item:hover {
+  color: var(--fx-text-secondary);
+}
+.fx-pivot-item[data-selected='true'] {
+  color: var(--fx-text-primary);
+  font-weight: 600;
+}
+.fx-pivot-item[data-selected='true']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--fx-accent);
+  animation: fx-pivot-underline var(--fx-normal) var(--fx-ease-out);
+}
+@keyframes fx-pivot-underline {
+  from {
+    transform: scaleX(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* nav view (Settings sidebar) */
+.fx-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 36px;
+  padding-inline: 12px;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-primary);
+  font-size: var(--fx-body);
+  text-align: start;
+  position: relative;
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-nav-item:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-nav-item[data-selected='true'] {
+  background: var(--fx-control);
+}
+.fx-nav-item[data-selected='true']::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--fx-accent);
+}
+
+/* toolbar / command bar */
+.fx-commandbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--fx-divider);
+  background: var(--fx-layer-alt);
+  flex: none;
+  min-height: 44px;
+}
+.fx-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--fx-divider);
+  background: var(--fx-card-secondary);
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+  flex: none;
+  min-height: 28px;
+}
+
+/* data grid */
+.fx-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fx-body);
+  font-variant-numeric: tabular-nums;
+}
+.fx-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: start;
+  font-weight: 600;
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+  padding: 8px 12px;
+  background: var(--fx-solid-alt);
+  border-bottom: 1px solid var(--fx-divider);
+  white-space: nowrap;
+  user-select: none;
+}
+.fx-grid thead th[data-sortable='true']:hover {
+  background: var(--fx-subtle-hover);
+  cursor: default;
+}
+.fx-grid tbody td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--fx-divider);
+  color: var(--fx-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fx-grid tbody tr {
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-grid tbody tr:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-grid tbody tr[data-selected='true'] {
+  background: color-mix(in srgb, var(--fx-accent) 22%, transparent);
+}
+.fx-grid tbody tr[data-selected='true'] td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--fx-accent);
+}
+.fx-grid tfoot td {
+  padding: 8px 12px;
+  font-weight: 600;
+  background: var(--fx-card-secondary);
+  border-top: 1px solid var(--fx-stroke-strong);
+}
+.fx-num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.fos[dir='rtl'] .fx-num {
+  text-align: end;
+}
+
+/* badges */
+.fx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.fx-badge[data-tone='neutral'] {
+  background: var(--fx-control);
+  color: var(--fx-text-secondary);
+}
+.fx-badge[data-tone='success'] {
+  background: var(--fx-success-bg);
+  color: var(--fx-success);
+}
+.fx-badge[data-tone='warning'] {
+  background: var(--fx-warning-bg);
+  color: var(--fx-warning);
+}
+.fx-badge[data-tone='danger'] {
+  background: var(--fx-danger-bg);
+  color: var(--fx-danger);
+}
+.fx-badge[data-tone='info'] {
+  background: var(--fx-info-bg);
+  color: var(--fx-info);
+}
+.fx-badge[data-tone='accent'] {
+  background: color-mix(in srgb, var(--fx-accent) 20%, transparent);
+  color: var(--fx-accent-text);
+}
+
+/* progress */
+.fx-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--fx-control-stroke-bottom);
+  overflow: hidden;
+}
+.fx-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--fx-accent);
+  transition: width var(--fx-normal) var(--fx-ease-out);
+}
+.fx-progress[data-indeterminate='true'] .fx-progress-fill {
+  width: 35%;
+  animation: fx-indeterminate 1.6s var(--fx-ease-standard) infinite;
+}
+@keyframes fx-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+.fx-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid var(--fx-control-stroke-bottom);
+  border-top-color: var(--fx-accent);
+  animation: fx-spin 0.9s linear infinite;
+}
+@keyframes fx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* tooltip */
+.fx-tooltip {
+  position: fixed;
+  z-index: 1250;
+  padding: 5px 8px;
+  border-radius: var(--fx-radius-control);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--fx-stroke);
+  box-shadow: var(--fx-shadow-flyout);
+  font-size: var(--fx-caption);
+  color: var(--fx-text-primary);
+  pointer-events: none;
+  animation: fx-fade var(--fx-fast) var(--fx-ease-out);
+  max-width: 280px;
+}
+@keyframes fx-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* dialogs */
+.fx-dialog-smoke {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  background: var(--fx-smoke);
+  display: grid;
+  place-items: center;
+  animation: fx-fade var(--fx-fast) var(--fx-ease-out);
+}
+.fx-dialog {
+  width: min(460px, calc(100% - 48px));
+  border-radius: var(--fx-radius-window);
+  border: 1px solid var(--fx-stroke-strong);
+  background: var(--fx-solid);
+  box-shadow: var(--fx-shadow-window-focus);
+  overflow: hidden;
+  animation: fx-dialog-in var(--fx-normal) var(--fx-ease-out);
+}
+@keyframes fx-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* A message box is a glyph beside its text; the file picker fills the body. */
+.fx-dialog-body {
+  display: flex;
+  gap: 16px;
+  padding: 24px;
+}
+.fx-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--fx-card-secondary);
+  border-top: 1px solid var(--fx-divider);
+}
+/* A caption in the footer (the UAC queue count) sits opposite the buttons. */
+.fx-dialog-footer > .fx-caption-text:first-child {
+  margin-inline-end: auto;
+}
+.fx-dialog-glyph {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-pill);
+  color: var(--fx-info);
+  background: var(--fx-info-bg);
+}
+.fx-dialog-glyph[data-kind='warning'] {
+  color: var(--fx-warning);
+  background: var(--fx-warning-bg);
+}
+.fx-dialog-glyph[data-kind='error'] {
+  color: var(--fx-danger);
+  background: var(--fx-danger-bg);
+}
+.fx-dialog-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fx-dialog-text > h2 {
+  /* Size comes from `.fx-subtitle-text` — WinUI's ContentDialog title ramp. */
+  margin: 0;
+}
+.fx-dialog-text > p {
+  margin: 0;
+  font-size: var(--fx-body);
+  color: var(--fx-text-secondary);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* toasts */
+.fx-toast-host {
+  position: absolute;
+  inset-inline-end: 12px;
+  bottom: calc(var(--fx-taskbar) + 12px);
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 360px;
+  pointer-events: none;
+}
+.fx-toast {
+  pointer-events: auto;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--fx-radius-flyout);
+  border: 1px solid var(--fx-stroke);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(30px) saturate(125%);
+  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  box-shadow: var(--fx-shadow-flyout);
+  animation: fx-toast-in var(--fx-slow) var(--fx-ease-out);
+}
+@keyframes fx-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fos[dir='rtl'] .fx-toast {
+  animation-name: fx-toast-in-rtl;
+}
+@keyframes fx-toast-in-rtl {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* desktop icons */
+.fx-desk-icon {
+  width: 88px;
+  padding: 6px 4px 8px;
+  border-radius: var(--fx-radius-control);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-desk-icon:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.fx-desk-icon[data-selected='true'] {
+  background: color-mix(in srgb, var(--fx-accent) 40%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--fx-accent) 70%, transparent);
+}
+.fx-desk-label {
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.fx-marquee {
+  position: absolute;
+  z-index: 20;
+  border: 1px solid color-mix(in srgb, var(--fx-accent) 90%, transparent);
+  background: color-mix(in srgb, var(--fx-accent) 22%, transparent);
+  pointer-events: none;
+}
+
+/* snap overlay */
+.fx-snap-overlay {
+  position: absolute;
+  z-index: 900;
+  border-radius: var(--fx-radius-window);
+  background: color-mix(in srgb, var(--fx-accent) 25%, transparent);
+  border: 2px solid color-mix(in srgb, var(--fx-accent) 80%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all var(--fx-normal) var(--fx-ease-out);
+  pointer-events: none;
+}
+.fx-snap-flyout {
+  position: absolute;
+  z-index: 1150;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  border-radius: var(--fx-radius-flyout);
+  border: 1px solid var(--fx-stroke);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: var(--fx-shadow-flyout);
+  animation: fx-flyout-in-top var(--fx-fast) var(--fx-ease-out);
+}
+.fx-snap-tile {
+  width: 96px;
+  height: 62px;
+  padding: 4px;
+  display: grid;
+  gap: 3px;
+  border-radius: 6px;
+  background: var(--fx-control);
+  border: 1px solid var(--fx-control-stroke);
+}
+.fx-snap-tile:hover {
+  background: var(--fx-control-hover);
+  border-color: var(--fx-accent);
+}
+/* Each cell is a real button — clicking one snaps the window to that zone. */
+.fx-snap-cell {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 3px;
+  background: var(--fx-text-disabled);
+  transition: background var(--fx-fast);
+}
+.fx-snap-tile:hover .fx-snap-cell {
+  background: var(--fx-accent);
+}
+.fx-snap-cell:hover {
+  background: var(--fx-accent-light2);
+}
+
+/* start menu */
+.fx-start {
+  position: absolute;
+  z-index: 1100;
+  bottom: calc(var(--fx-taskbar) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 640px;
+  max-width: calc(100% - 24px);
+  max-height: min(726px, calc(100% - var(--fx-taskbar) - 24px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid var(--fx-stroke);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(40px) saturate(130%);
+  -webkit-backdrop-filter: blur(40px) saturate(130%);
+  box-shadow: var(--fx-shadow-flyout);
+  animation: fx-start-in var(--fx-slow) var(--fx-ease-out);
+  overflow: hidden;
+}
+@keyframes fx-start-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+.fx-start-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 88px;
+  border-radius: var(--fx-radius-control);
+  padding: 8px 4px;
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out), transform var(--fx-fast);
+}
+.fx-start-tile:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-start-tile:active {
+  background: var(--fx-subtle-pressed);
+  transform: scale(0.97);
+}
+.fx-start-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 40px;
+  padding-inline: 12px;
+  border-radius: var(--fx-radius-control);
+  text-align: start;
+  color: var(--fx-text-primary);
+  font-size: var(--fx-body);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-start-list-item:hover {
+  background: var(--fx-subtle-hover);
+}
+
+/* app icon tile */
+.fx-app-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  flex: none;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fx-accent) 85%, #ffffff 15%), var(--fx-accent-dark2));
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+.fx-app-icon[data-tone='system'] {
+  background: linear-gradient(160deg, #6b7280, #374151);
+}
+.fx-app-icon[data-tone='accounting'] {
+  background: linear-gradient(160deg, #0f766e, #134e4a);
+}
+.fx-app-icon[data-tone='analysis'] {
+  background: linear-gradient(160deg, #7c3aed, #4c1d95);
+}
+.fx-app-icon[data-tone='planning'] {
+  background: linear-gradient(160deg, #b45309, #78350f);
+}
+.fx-app-icon[data-tone='treasury'] {
+  background: linear-gradient(160deg, #0369a1, #075985);
+}
+.fx-app-icon[data-tone='productivity'] {
+  background: linear-gradient(160deg, #0f6cbd, #0c3b6e);
+}
+
+/* task view */
+.fx-taskview {
+  position: absolute;
+  inset: 0;
+  z-index: 1120;
+  background: var(--fx-acrylic-thin);
+  backdrop-filter: blur(40px) saturate(120%);
+  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  display: flex;
+  flex-direction: column;
+  animation: fx-fade var(--fx-normal) var(--fx-ease-out);
+}
+.fx-tv-cards {
+  flex: 1;
+  min-height: 0;
+  padding: 48px 48px 24px;
+  display: grid;
+  /* Cards grow to fill the row, so two windows are large and twelve are small —
+     the same reflow Windows 11 does instead of paging. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-content: start;
+  gap: 20px;
+}
+.fx-tv-empty {
+  grid-column: 1 / -1;
+  align-self: center;
+  text-align: center;
+  font-size: var(--fx-body);
+}
+.fx-tv-card {
+  position: relative;
+  border-radius: var(--fx-radius-card);
+  border: 1px solid var(--fx-stroke);
+  background: var(--fx-card);
+  overflow: hidden;
+  transition: transform var(--fx-normal) var(--fx-ease-out), border-color var(--fx-fast),
+    box-shadow var(--fx-fast);
+}
+.fx-tv-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--fx-accent);
+  box-shadow: var(--fx-shadow-card);
+}
+.fx-tv-card[data-focused='true'] {
+  border-color: var(--fx-accent);
+  box-shadow: 0 0 0 1px var(--fx-accent);
+}
+.fx-tv-card-main {
+  width: 100%;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: start;
+  color: var(--fx-text-primary);
+}
+/* A wireframe of the real window geometry — no fabricated screenshot. */
+.fx-tv-mini {
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  background: var(--fx-layer-alt);
+  border: 1px solid var(--fx-stroke-card);
+  overflow: hidden;
+}
+.fx-tv-mini-win {
+  position: absolute;
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fx-accent) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fx-accent) 85%, transparent);
+}
+.fx-tv-mini-win[data-dim='true'] {
+  background: var(--fx-control);
+  border-color: var(--fx-stroke-strong);
+}
+.fx-tv-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.fx-tv-card-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.fx-tv-card-close {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 6px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-primary);
+  background: var(--fx-acrylic);
+  opacity: 0;
+  transition: opacity var(--fx-fast) var(--fx-ease-out), background var(--fx-fast);
+}
+.fx-tv-card:hover .fx-tv-card-close,
+.fx-tv-card-close:focus-visible {
+  opacity: 1;
+}
+.fx-tv-card-close:hover {
+  background: var(--fx-close-hover);
+  color: #ffffff;
+}
+
+/* virtual desktop strip */
+.fx-tv-strip {
+  flex: none;
+  padding: 16px 48px 32px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fx-tv-desk {
+  position: relative;
+  border-radius: var(--fx-radius-card);
+  border: 1px solid transparent;
+  transition: border-color var(--fx-fast), background var(--fx-fast);
+}
+.fx-tv-desk:hover {
+  background: var(--fx-subtle-hover);
+  border-color: var(--fx-stroke);
+}
+.fx-tv-desk[data-active='true'] {
+  border-color: var(--fx-accent);
+  background: var(--fx-subtle-hover);
+}
+.fx-tv-desk-main {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--fx-text-primary);
+}
+.fx-tv-desk-thumb {
+  width: 96px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--fx-stroke-card);
+  background: var(--fx-layer);
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-body-large);
+  color: var(--fx-text-secondary);
+}
+.fx-tv-desk[data-active='true'] .fx-tv-desk-thumb {
+  color: var(--fx-text-primary);
+  border-color: var(--fx-accent);
+}
+.fx-tv-desk-name {
+  font-size: var(--fx-caption);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fx-tv-desk-input {
+  width: 110px;
+  height: 24px;
+  padding-inline: 6px;
+  border-radius: var(--fx-radius-control);
+  border: 1px solid var(--fx-accent);
+  background: var(--fx-solid);
+  color: var(--fx-text-primary);
+  font-size: var(--fx-caption);
+  text-align: center;
+}
+.fx-tv-desk-close {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 2px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-secondary);
+  opacity: 0;
+  transition: opacity var(--fx-fast), background var(--fx-fast), color var(--fx-fast);
+}
+.fx-tv-desk:hover .fx-tv-desk-close,
+.fx-tv-desk-close:focus-visible {
+  opacity: 1;
+}
+.fx-tv-desk-close:hover {
+  background: var(--fx-close-hover);
+  color: #ffffff;
+}
+.fx-tv-desk-add {
+  width: 96px;
+  height: 72px;
+  margin-bottom: 2px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-card);
+  border: 1px dashed var(--fx-stroke-strong);
+  background: var(--fx-card-secondary);
+  color: var(--fx-text-secondary);
+  transition: background var(--fx-fast), border-color var(--fx-fast), color var(--fx-fast);
+}
+.fx-tv-desk-add:hover {
+  background: var(--fx-subtle-hover);
+  border-color: var(--fx-accent);
+  color: var(--fx-text-primary);
+}
+
+/* alt-tab switcher */
+.fx-switcher {
+  position: absolute;
+  z-index: 1180;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 48px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--fx-radius-flyout);
+  background: var(--fx-acrylic);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--fx-stroke);
+  box-shadow: var(--fx-shadow-flyout);
+}
+.fx-switcher-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.fx-switcher-tile {
+  width: 96px;
+  padding: 10px 6px;
+  border-radius: var(--fx-radius-control);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--fx-text-primary);
+  border: 2px solid transparent;
+}
+.fx-switcher-tile[data-active='true'] {
+  background: var(--fx-subtle-hover);
+  border-color: var(--fx-accent);
+}
+.fx-switcher-label {
+  font-size: var(--fx-caption);
+  max-width: 100%;
+  color: var(--fx-text-secondary);
+}
+/* The full title of the highlighted window, which the tile label truncates. */
+.fx-switcher-title {
+  margin: 0;
+  max-width: 420px;
+  font-size: var(--fx-body);
+  color: var(--fx-text-primary);
+}
+
+/* ---------------- full-screen surfaces (boot, lock, power) ---------------- */
+.fx-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  animation: fx-fade var(--fx-normal) var(--fx-ease-out);
+}
+.fx-screen-boot,
+.fx-screen-power {
+  background: #000000;
+  color: rgba(255, 255, 255, 0.9);
+}
+.fx-boot-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.fx-boot-logo {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(160deg, var(--fx-accent-light1), var(--fx-accent-dark2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-display);
+  line-height: 1;
+  color: #ffffff;
+}
+.fx-boot-name {
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-subtitle);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+/* The kernel's newest System event, so the line is always true. */
+.fx-boot-step {
+  margin: 0;
+  min-height: 18px;
+  max-width: 460px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.62);
+}
+.fx-power-text {
+  margin: 0;
+  font-size: var(--fx-body-large);
+  text-align: center;
+  max-width: 460px;
+}
+
+.fx-screen-lock {
+  justify-content: space-between;
+  padding: 12vh 0 12vh;
+  color: #ffffff;
+}
+.fx-screen-lock::after {
+  /* Scrim over the wallpaper so the clock stays legible on any accent. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.68));
+  pointer-events: none;
+}
+.fx-screen-lock > *:not(.fx-wallpaper) {
+  position: relative;
+  z-index: 1;
+}
+.fx-lock-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.fx-lock-time {
+  font-family: var(--fx-font-display);
+  font-size: 88px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.fx-lock-date {
+  font-size: var(--fx-subtitle);
+  color: rgba(255, 255, 255, 0.82);
+}
+.fx-lock-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 32px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  text-align: center;
+}
+.fx-lock-card .fx-caption-text {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 260px;
+}
+.fx-lock-avatar {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-pill);
+  background: linear-gradient(160deg, var(--fx-accent-light1), var(--fx-accent-dark2));
+  font-family: var(--fx-font-display);
+  font-size: 34px;
+  font-weight: 600;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+.fx-lock-name {
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-subtitle);
+  font-weight: 600;
+}
+
+/* utility */
+.fx-scroll {
+  overflow: auto;
+  min-height: 0;
+}
+.fx-mono {
+  font-family: var(--fx-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.fx-caption-text {
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+}
+.fx-title-text {
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fx-subtitle-text {
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-subtitle);
+  font-weight: 600;
+}
+
+/* ================================================================== *
+ * Shell layers
+ *
+ * The three stacked planes the root renders, in DOM order. Each one is an
+ * absolutely-positioned sheet over `.fos`, so the window manager's geometry
+ * (which it reports in desktop coordinates) maps 1:1 onto CSS pixels.
+ * ================================================================== */
+
+.fx-desktop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+/* Gradient wallpaper — the base colour and layers arrive as inline styles. */
+.fx-wallpaper {
+  position: absolute;
+  inset: 0;
+}
+/*
+ * Icons flow top-to-bottom then wrap into the next column, the way Explorer
+ * arranges the desktop. The grid starts at the desktop's own origin because the
+ * marquee and the context menu are positioned from its bounding box.
+ */
+.fx-desk-grid {
+  position: absolute;
+  inset: 0;
+  padding: 8px 8px calc(var(--fx-taskbar) + 8px);
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 2px;
+}
+.fx-desk-rename {
+  width: 100%;
+  padding: 2px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--fx-accent);
+  background: var(--fx-solid);
+  color: var(--fx-text-primary);
+  font-size: 12px;
+  text-align: center;
+}
+/* A pale wallpaper needs dark labels; the selection keeps white on accent. */
+.fx-desktop[data-light='true'] .fx-desk-icon {
+  color: #101010;
+}
+.fx-desktop[data-light='true'] .fx-desk-label {
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.85);
+}
+.fx-desktop[data-light='true'] .fx-desk-icon[data-selected='true'] {
+  color: #ffffff;
+}
+.fx-desktop[data-light='true'] .fx-desk-icon[data-selected='true'] .fx-desk-label {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/*
+ * Window plane. `isolation: isolate` gives the window manager its own stacking
+ * context, so its z values — including the +100000 always-on-top offset — are
+ * contained here and can never climb over the taskbar or a modal dialog.
+ * The plane itself is transparent to the pointer so the desktop keeps its
+ * rubber-band selection in the gaps between windows.
+ */
+.fx-windows {
+  position: absolute;
+  inset: 0;
+  z-index: 950;
+  isolation: isolate;
+  pointer-events: none;
+}
+.fx-windows > * {
+  pointer-events: auto;
+}
+
+/* Taskbar auto-hide: the bar slides out, leaving a hot strip along the edge. */
+.fx-taskbar {
+  transition: transform var(--fx-normal) var(--fx-ease-out);
+}
+.fos[data-taskbar='hidden'] .fx-taskbar {
+  transform: translateY(100%);
+}
+.fx-taskbar-reveal {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 4px;
+  z-index: 1001;
+}
+
+/*
+ * "Reduce transparency". Redefining the material tokens is enough — every rule
+ * in this file draws its surface from them — and the blur is switched off so the
+ * compositor stops sampling the layers underneath.
+ */
+.fos[data-transparency='false'] {
+  --fx-mica: var(--fx-solid);
+  --fx-mica-alt: var(--fx-solid-alt);
+  --fx-acrylic: var(--fx-solid);
+  --fx-acrylic-thin: var(--fx-solid);
+  --fx-layer: var(--fx-solid-alt);
+  --fx-card: var(--fx-solid-alt);
+}
+.fos[data-transparency='false'] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* "Animation effects" off — the same contract as `prefers-reduced-motion`. */
+.fos[data-animations='false'] *,
+.fos[data-animations='false'] *::before,
+.fos[data-animations='false'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ---------------- window chrome extras ---------------- */
+
+/* Unsaved work. The window manager owns the flag; this only draws it. */
+.fx-dirty-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--fx-radius-pill);
+  background: var(--fx-accent-light2);
+}
+/* Single-line truncation for any label whose text comes from user data. */
+.fx-title-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Breadcrumb chevron. It points along the reading direction, so it has to turn
+   around in Arabic — which is why this lives in the sheet and not inline. */
+.fx-crumb-sep {
+  flex: none;
+  color: var(--fx-text-tertiary);
+}
+.fos[dir='rtl'] .fx-crumb-sep {
+  transform: scaleX(-1);
+}
+
+/* ================================================================== *
+ * Taskbar: app cluster, progress, hover previews, tray
+ * ================================================================== */
+
+.fx-taskbar-left {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Determinate progress reported by an app, painted behind its icon. */
+.fx-tb-progress {
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: 0;
+  height: 100%;
+  border-radius: var(--fx-radius-control);
+  background: color-mix(in srgb, var(--fx-accent) 28%, transparent);
+  transition: width var(--fx-normal) var(--fx-ease-out);
+  pointer-events: none;
+}
+
+/*
+ * The preview flyout is anchored inside the taskbar (which carries a
+ * backdrop-filter and is therefore its containing block), so its coordinates
+ * are taskbar-local and its own centring transform must survive the entry
+ * animation — hence the dedicated keyframes below.
+ */
+.fx-tb-preview {
+  padding: 8px;
+  max-width: calc(100% - 24px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 8px;
+}
+.fx-tb-preview,
+.fx-search {
+  animation-name: fx-flyout-in-center;
+}
+@keyframes fx-flyout-in-center {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+.fx-tb-preview-card {
+  width: 200px;
+  border-radius: var(--fx-radius-card);
+  border: 1px solid var(--fx-stroke);
+  background: var(--fx-card);
+  overflow: hidden;
+  transition: border-color var(--fx-fast), background var(--fx-fast);
+}
+.fx-tb-preview-card:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-tb-preview-card[data-focused='true'] {
+  border-color: var(--fx-accent);
+}
+.fx-tb-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+}
+.fx-tb-preview-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fx-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fx-tb-preview-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-secondary);
+  transition: background var(--fx-fast), color var(--fx-fast);
+}
+.fx-tb-preview-close:hover {
+  background: var(--fx-close-hover);
+  color: #ffffff;
+}
+.fx-tb-preview-body {
+  width: 100%;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  background: var(--fx-layer-alt);
+  border-top: 1px solid var(--fx-divider);
+}
+/*
+ * A wireframe, not a screenshot: the proportions follow the window's real state
+ * so the card is informative without inventing pixels it cannot rasterise.
+ */
+.fx-tb-preview-wire {
+  width: 72%;
+  height: 68%;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--fx-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--fx-accent) 14%, transparent);
+  transition: width var(--fx-normal) var(--fx-ease-out), height var(--fx-normal) var(--fx-ease-out);
+}
+.fx-tb-preview-wire[data-state='maximized'] {
+  width: 92%;
+  height: 88%;
+}
+.fx-tb-preview-wire[data-state='fullscreen'] {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+.fx-tb-preview-wire[data-state='snapped'] {
+  width: 48%;
+  height: 88%;
+}
+.fx-tb-preview-wire[data-state='minimized'] {
+  width: 46%;
+  height: 40%;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+/* Two stacked lines — time over date — exactly like the Windows tray clock. */
+.fx-tray-clock {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  padding-inline: 10px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+.fx-tray-count {
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 4px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-pill);
+  background: var(--fx-accent);
+  color: var(--fx-on-accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ================================================================== *
+ * Toasts
+ * ================================================================== */
+
+.fx-toast-glyph {
+  flex: none;
+  margin-top: 2px;
+  color: var(--fx-info);
+}
+.fx-toast[data-kind='success'] .fx-toast-glyph {
+  color: var(--fx-success);
+}
+.fx-toast[data-kind='warning'] .fx-toast-glyph {
+  color: var(--fx-warning);
+}
+.fx-toast[data-kind='error'] .fx-toast-glyph {
+  color: var(--fx-danger);
+}
+.fx-toast-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fx-toast-title {
+  font-size: var(--fx-body);
+  font-weight: 600;
+}
+.fx-toast-text > .fx-caption-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fx-toast-close {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-secondary);
+  transition: background var(--fx-fast), color var(--fx-fast);
+}
+.fx-toast-close:hover {
+  background: var(--fx-subtle-hover);
+  color: var(--fx-text-primary);
+}
+
+/* ================================================================== *
+ * Consent (UAC) and the file picker
+ * ================================================================== */
+
+/* The picker needs room for a two-pane browser; a message box does not. */
+.fx-dialog[data-wide='true'] {
+  width: min(760px, calc(100% - 48px));
+  height: min(520px, calc(100% - 96px));
+  display: flex;
+  flex-direction: column;
+}
+
+.fx-uac-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--fx-accent-dark1), var(--fx-accent-dark2));
+  color: #ffffff;
+  font-size: var(--fx-body-large);
+  font-weight: 600;
+}
+.fx-uac-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Label / value pairs; the kernel supplies every fact, none is inferred. */
+.fx-uac-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+.fx-uac-facts > dt {
+  white-space: nowrap;
+}
+.fx-uac-facts > dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fx-uac-queue {
+  margin: 0;
+  padding: 8px 24px 12px;
+  text-align: center;
+  border-top: 1px solid var(--fx-divider);
+}
+
+.fx-picker-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+}
+.fx-picker-path {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: var(--fx-radius-control);
+  border: 1px solid var(--fx-control-stroke);
+  background: var(--fx-control);
+  font-family: var(--fx-font-mono);
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+}
+.fx-picker-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  border-top: 1px solid var(--fx-divider);
+}
+.fx-picker-places {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-inline-end: 1px solid var(--fx-divider);
+  background: var(--fx-card-secondary);
+}
+.fx-picker-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.fx-picker-list > .fx-caption-text {
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+}
+.fx-picker-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--fx-radius-control);
+  text-align: start;
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-picker-row:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-picker-row[data-selected='true'] {
+  background: color-mix(in srgb, var(--fx-accent) 24%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--fx-accent) 60%, transparent);
+}
+.fx-picker-name {
+  font-size: var(--fx-body);
+}
+.fx-picker-name-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--fx-divider);
+}
+.fx-picker-name-row > .fx-input {
+  flex: 1;
+  min-width: 0;
+}
+/* Overwrite warning — shown only when the target really exists. */
+.fx-picker-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fx-warning);
+  white-space: nowrap;
+}
+.fx-dialog[data-wide='true'] .fx-dialog-footer {
+  flex: none;
+  padding: 12px 20px;
+}
+
+/* ================================================================== *
+ * Quick Settings
+ * ================================================================== */
+
+.fx-quick {
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fx-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.fx-quick-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--fx-radius-control);
+  border: 1px solid var(--fx-control-stroke);
+  background: var(--fx-control);
+  color: var(--fx-text-primary);
+  text-align: start;
+  transition: background var(--fx-fast) var(--fx-ease-out), border-color var(--fx-fast);
+}
+.fx-quick-tile:hover {
+  background: var(--fx-control-hover);
+}
+.fx-quick-tile[data-on='true'] {
+  background: var(--fx-accent);
+  border-color: var(--fx-accent-dark1);
+  color: var(--fx-on-accent);
+}
+.fx-quick-tile[data-on='true'] .fx-caption-text {
+  color: color-mix(in srgb, var(--fx-on-accent) 80%, transparent);
+}
+.fx-quick-tile-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.fx-quick-tile-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.fx-quick-tile-text > span:first-child {
+  font-size: var(--fx-caption);
+  font-weight: 600;
+}
+.fx-quick-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fx-quick-row > .fx-caption-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fx-quick-accents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fx-quick-accent {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--fx-radius-pill);
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  transition: transform var(--fx-fast) var(--fx-ease-out);
+}
+.fx-quick-accent:hover {
+  transform: scale(1.12);
+}
+.fx-quick-accent[data-active='true'] {
+  border-color: var(--fx-text-primary);
+  outline: 1px solid var(--fx-text-primary);
+  outline-offset: 1px;
+}
+.fx-quick-langs {
+  display: flex;
+  gap: 6px;
+}
+.fx-quick-volume {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fx-quick-volume-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fx-caption);
+}
+.fx-quick-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--fx-divider);
+}
+
+/* ================================================================== *
+ * Notification centre
+ * ================================================================== */
+
+.fx-notif {
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  max-height: min(560px, calc(100% - var(--fx-taskbar) - 24px));
+  display: flex;
+  flex-direction: column;
+}
+.fx-notif-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+.fx-notif-body {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fx-notif-empty {
+  margin: 0;
+  padding: 28px 12px;
+  text-align: center;
+}
+.fx-notif-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fx-notif-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 4px;
+}
+.fx-notif-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  border-radius: var(--fx-radius-card);
+  border: 1px solid var(--fx-stroke-card);
+  background: var(--fx-card);
+  overflow: hidden;
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-notif-card:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-notif-main {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: start;
+  color: var(--fx-text-primary);
+}
+.fx-notif-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fx-body);
+  font-weight: 600;
+}
+.fx-notif-text {
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Actions declared by the notification; each one dispatches an app command. */
+.fx-notif-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 8px 8px 0;
+}
+.fos[dir='rtl'] .fx-notif-actions {
+  padding: 8px 0 8px 8px;
+}
+.fx-notif-close {
+  position: absolute;
+  top: 4px;
+  inset-inline-end: 4px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-secondary);
+  opacity: 0;
+  transition: opacity var(--fx-fast), background var(--fx-fast), color var(--fx-fast);
+}
+.fx-notif-card:hover .fx-notif-close,
+.fx-notif-close:focus-visible {
+  opacity: 1;
+}
+.fx-notif-close:hover {
+  background: var(--fx-close-hover);
+  color: #ffffff;
+}
+
+/* ================================================================== *
+ * Calendar
+ * ================================================================== */
+
+.fx-cal {
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fx-cal-now {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.fx-cal-now .fx-title-text {
+  font-variant-numeric: tabular-nums;
+}
+.fx-cal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--fx-divider);
+}
+.fx-cal-month {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fx-body);
+  font-weight: 600;
+}
+.fx-cal-nav {
+  display: flex;
+  gap: 2px;
+}
+.fx-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.fx-cal-weekday {
+  height: 24px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fx-text-tertiary);
+}
+.fx-cal-day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-pill);
+  font-size: var(--fx-caption);
+  color: var(--fx-text-primary);
+  font-variant-numeric: tabular-nums;
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-cal-day:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-cal-day[data-outside='true'] {
+  color: var(--fx-text-disabled);
+}
+.fx-cal-day[data-today='true'] {
+  background: var(--fx-accent);
+  color: var(--fx-on-accent);
+  font-weight: 600;
+}
+
+/* ================================================================== *
+ * Widgets board
+ * ================================================================== */
+
+.fx-widgets {
+  width: 400px;
+  max-width: calc(100vw - 24px);
+  max-height: min(620px, calc(100% - var(--fx-taskbar) - 24px));
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fx-widget {
+  border-radius: var(--fx-radius-card);
+  border: 1px solid var(--fx-stroke-card);
+  background: var(--fx-card);
+  overflow: hidden;
+}
+.fx-widget-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--fx-divider);
+}
+.fx-widget-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fx-body);
+  font-weight: 600;
+}
+.fx-widget-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fx-widget-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fx-widget-time {
+  font-family: var(--fx-font-display);
+  font-size: var(--fx-title);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* CPU history from the kernel's metric ring; flat when there is too little. */
+.fx-spark {
+  display: block;
+  width: 100%;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--fx-layer-alt);
+}
+.fx-widget-stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+}
+.fx-widget-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fx-widget-stat > dd {
+  margin: 0;
+  font-size: var(--fx-body-large);
+  font-weight: 600;
+}
+.fx-widget-alert {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--fx-radius-control);
+  border: 1px solid color-mix(in srgb, var(--fx-danger) 40%, transparent);
+  background: var(--fx-danger-bg);
+  color: var(--fx-danger);
+  font-size: var(--fx-caption);
+}
+.fx-widget-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--fx-radius-control);
+  text-align: start;
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-widget-row:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-widget-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ================================================================== *
+ * Start menu
+ * ================================================================== */
+
+.fx-start-search {
+  flex: none;
+  padding: 20px 24px 12px;
+}
+.fx-start-input {
+  width: 100%;
+  height: 36px;
+  padding-inline: 14px;
+  border-radius: var(--fx-radius-pill);
+  border: 1px solid var(--fx-control-stroke);
+  border-bottom-color: var(--fx-control-stroke-bottom);
+  background: var(--fx-control);
+  color: var(--fx-text-primary);
+  font-size: var(--fx-body);
+}
+.fx-start-input::placeholder {
+  color: var(--fx-text-tertiary);
+}
+.fx-start-input:focus {
+  outline: none;
+  border-color: var(--fx-accent);
+  border-bottom-width: 2px;
+}
+.fx-start-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fx-start-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fx-start-section > .fx-subtitle-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fx-body);
+  font-weight: 600;
+}
+.fx-start-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.fx-start-tile-label {
+  font-size: var(--fx-caption);
+  line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.fx-start-rec {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.fx-start-rec-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--fx-radius-control);
+  text-align: start;
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-start-rec-item:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-start-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.fx-start-list-item[data-selected='true'] {
+  background: var(--fx-subtle-hover);
+  outline: 1px solid color-mix(in srgb, var(--fx-accent) 55%, transparent);
+}
+.fx-start-list-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.fx-start-list-text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Alphabet divider in the All apps list. */
+.fx-start-letter {
+  padding: 12px 12px 4px;
+  font-size: var(--fx-caption);
+  font-weight: 600;
+  color: var(--fx-accent-text);
+}
+.fx-start-empty {
+  margin: 0;
+  padding: 32px 12px;
+  text-align: center;
+}
+.fx-start-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--fx-layer-alt);
+  border-top: 1px solid var(--fx-divider);
+}
+.fx-start-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--fx-radius-control);
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+.fx-start-user:hover {
+  background: var(--fx-subtle-hover);
+}
+.fx-start-avatar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fx-radius-pill);
+  background: linear-gradient(160deg, var(--fx-accent-light1), var(--fx-accent-dark2));
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.fx-start-user-name {
+  font-size: var(--fx-body);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ================================================================== *
+ * Search
+ * ================================================================== */
+
+.fx-search {
+  width: 600px;
+  max-width: calc(100vw - 24px);
+  max-height: min(520px, calc(100% - var(--fx-taskbar) - 24px));
+  display: flex;
+  flex-direction: column;
+}
+.fx-search-box {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--fx-divider);
+  color: var(--fx-text-secondary);
+}
+.fx-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fx-text-primary);
+  font-size: var(--fx-body-large);
+}
+.fx-search-input:focus {
+  outline: none;
+}
+.fx-search-input::placeholder {
+  color: var(--fx-text-tertiary);
+}
+.fx-search-results {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fx-search-empty {
+  margin: 0;
+  padding: 32px 12px;
+  text-align: center;
+}
+.fx-search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.fx-search-section > h3 {
+  margin: 0;
+  padding: 4px 10px 6px;
+  font-size: var(--fx-caption);
+  font-weight: 600;
+}
+.fx-search-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--fx-radius-control);
+  text-align: start;
+  color: var(--fx-text-primary);
+  transition: background var(--fx-fast) var(--fx-ease-out);
+}
+/* The keyboard cursor and the pointer share one highlight, so Enter always
+   activates the row the user can see is selected. */
+.fx-search-row[data-active='true'] {
+  background: var(--fx-subtle-hover);
+  outline: 1px solid color-mix(in srgb, var(--fx-accent) 55%, transparent);
+}
+.fx-search-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+.fx-search-enter {
+  flex: none;
+  color: var(--fx-accent-text);
+}
+.fx-kbd {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: var(--fx-radius-control);
+  border: 1px solid var(--fx-control-stroke);
+  border-bottom-color: var(--fx-control-stroke-bottom);
+  background: var(--fx-control);
+  font-family: var(--fx-font-mono);
+  font-size: 11px;
+  color: var(--fx-text-secondary);
+  white-space: nowrap;
+}
+
+/* ================================================================== *
+ * App host
+ * ================================================================== */
+
+.fx-app-root {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fx-app-loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+/*
+ * Crash pane. It shows the real error the boundary caught — the app is gone,
+ * and pretending otherwise would hide a fault the user needs to report.
+ */
+.fx-crash {
+  width: 100%;
+  height: 100%;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+.fx-crash-glyph {
+  color: var(--fx-danger);
+}
+.fx-crash .fx-title-text {
+  margin: 0;
+  font-size: var(--fx-subtitle);
+}
+.fx-crash-detail {
+  margin: 0;
+  max-width: 560px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: var(--fx-radius-control);
+  border: 1px solid var(--fx-stroke);
+  background: var(--fx-card-secondary);
+  font-size: var(--fx-caption);
+  color: var(--fx-text-secondary);
+  text-align: start;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* Respect reduced-motion: keep state changes, drop the choreography. */
+@media (prefers-reduced-motion: reduce) {
+  .fos *,
+  .fos *::before,
+  .fos *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

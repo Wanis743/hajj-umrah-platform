@@ -1,0 +1,42 @@
+/**
+ * Human names for capabilities.
+ *
+ * The manifest asks for `'ledger.post'`; a consent prompt, the Task Manager's
+ * details pane and the Store's permission list all have to show that to a person.
+ * The table lives in the SDK because both the shell and ordinary apps need it,
+ * and because it is pure data — no kernel access, nothing to gate.
+ */
+import { CAPABILITIES, type Capability, type Localized } from '../kernel/abi';
+
+const LABELS: Readonly<Record<Capability, Localized>> = {
+  'fs.read': { ar: 'قراءة الملفات', fr: 'Lire les fichiers', en: 'Read files' },
+  'fs.write': { ar: 'كتابة الملفات', fr: 'Modifier les fichiers', en: 'Write files' },
+  'registry.read': { ar: 'قراءة الإعدادات', fr: 'Lire les réglages', en: 'Read settings' },
+  'registry.write': { ar: 'تعديل إعدادات النظام', fr: 'Modifier les réglages système', en: 'Change system settings' },
+  'ledger.read': { ar: 'قراءة الدفاتر', fr: 'Consulter les comptes', en: 'Read accounting data' },
+  'ledger.post': { ar: 'ترحيل القيود', fr: 'Comptabiliser des écritures', en: 'Post journal entries' },
+  'ledger.close': { ar: 'إغلاق الفترات', fr: 'Clôturer des périodes', en: 'Close accounting periods' },
+  'process.enumerate': { ar: 'عرض العمليات', fr: 'Lister les processus', en: 'List running processes' },
+  'process.terminate': { ar: 'إنهاء العمليات', fr: 'Arrêter des processus', en: 'End processes' },
+  'service.control': { ar: 'التحكم في الخدمات', fr: 'Contrôler les services', en: 'Control services' },
+  'eventlog.read': { ar: 'قراءة سجل الأحداث', fr: 'Lire le journal', en: 'Read the event log' },
+  'eventlog.write': { ar: 'الكتابة في السجل', fr: 'Écrire dans le journal', en: 'Write to the event log' },
+  notify: { ar: 'إرسال الإشعارات', fr: 'Envoyer des notifications', en: 'Send notifications' },
+  clipboard: { ar: 'استخدام الحافظة', fr: 'Utiliser le presse-papiers', en: 'Use the clipboard' },
+  'window.manage': { ar: 'إدارة النوافذ', fr: 'Gérer les fenêtres', en: 'Manage windows' },
+  'shell.launch': { ar: 'تشغيل التطبيقات', fr: 'Lancer des applications', en: 'Launch apps' },
+  'settings.write': { ar: 'حفظ إعدادات التطبيق', fr: 'Enregistrer ses réglages', en: 'Save its own settings' },
+  power: { ar: 'إيقاف النظام', fr: 'Arrêter le système', en: 'Shut down or sign out' },
+  'net.query': { ar: 'الاتصال بالخدمة', fr: 'Interroger le service', en: 'Query the service' },
+};
+
+const isCapability = (value: string): value is Capability =>
+  (CAPABILITIES as readonly string[]).includes(value);
+
+/** Falls back to the raw identifier, so an unknown capability still shows. */
+export function capabilityLabel(capability: string): Localized {
+  if (isCapability(capability)) return LABELS[capability];
+  return { ar: capability, fr: capability, en: capability };
+}
+
+export { LABELS as CAPABILITY_LABELS };
