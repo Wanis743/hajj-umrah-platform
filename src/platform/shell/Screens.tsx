@@ -13,6 +13,7 @@
 import { LockKeyhole, Power } from 'lucide-react';
 import { useKernelView, useKernel, useWallClock } from './bindings';
 import { wallpaperById, type Appearance } from './appearance';
+import { WallpaperLayer } from './Wallpaper';
 import type { AppLocale } from '../sdk';
 import { fmt } from '../sdk';
 
@@ -80,11 +81,7 @@ export function LockScreen({ locale, appearance, onUnlock }: LockScreenProps) {
         if (event.key === 'Enter' || event.key === ' ') onUnlock();
       }}
     >
-      <div
-        className="fx-wallpaper"
-        style={{ background: paper.base, backgroundImage: paper.layers.join(', ') }}
-        aria-hidden="true"
-      />
+      <WallpaperLayer paper={paper} hidden />
       <div className="fx-lock-clock">
         <span className="fx-lock-time">{fmt.time(now, locale.lang)}</span>
         <span className="fx-lock-date">{fmt.date(now, locale.lang)}</span>

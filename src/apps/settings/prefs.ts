@@ -8,13 +8,15 @@
  * flip repaints the desktop without this app telling anybody.
  *
  * The choice lists below name *ids the shell resolves*, not paint. The thumbnail
- * colours are a hint for the picker; the desktop owns the real gradient, and an
- * id the shell does not know falls back to the first wallpaper rather than
- * breaking. Duplicating six hex values is the price of the app/shell boundary,
- * and it is cheaper than letting an app import shell internals.
+ * values are a hint for the picker; the desktop owns the real wallpaper, and an
+ * id the shell does not know falls back to the first one rather than breaking.
+ * Duplicating a handful of colours is the price of the app/shell boundary, and it
+ * is cheaper than letting an app import shell internals. The one thing not
+ * duplicated is the photograph: that lives in the SDK, which both sides may
+ * import, so the picker shows the actual picture rather than a guess at it.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { REG, type Localized, type RegistryEntry, type RegistryValue, useApp } from '@/platform/sdk';
+import { REG, type Localized, type RegistryEntry, type RegistryValue, useApp, wallpaperPhoto } from '@/platform/sdk';
 
 /** The keys the shell reads. Grouped the way the Windows control panel groups them. */
 export const KEYS = {
@@ -65,7 +67,19 @@ export const ACCENTS: readonly { readonly hex: string; readonly label: Localized
   { hex: '#475569', label: { ar: 'رمادي', fr: 'Ardoise', en: 'Slate' } },
 ];
 
+/**
+ * The picker's own list, because an app may not import the shell where the
+ * wallpapers are defined. `swatch` is a CSS `background` shorthand: a thumbnail
+ * of the photograph for the picture wallpaper, and a reduction of the gradient
+ * stack for the others — the thumbnail is 96px wide, so the full mesh would only
+ * read as mud.
+ */
 export const WALLPAPER_CHOICES: readonly { readonly id: string; readonly label: Localized; readonly swatch: string }[] = [
+  {
+    id: 'summit',
+    label: { ar: 'القمّة', fr: 'Sommet', en: 'Summit' },
+    swatch: `#060f13 url(${wallpaperPhoto('summit') ?? ''}) center / cover no-repeat`,
+  },
   { id: 'fluent-bloom', label: { ar: 'تفتّح', fr: 'Éclosion', en: 'Bloom' }, swatch: 'radial-gradient(circle at 50% 45%, #1178c9, #04121f 70%)' },
   { id: 'fluent-flow', label: { ar: 'انسياب', fr: 'Flux', en: 'Flow' }, swatch: 'linear-gradient(120deg, #3a51c8, #0a0b14 60%)' },
   { id: 'ledger-grid', label: { ar: 'شبكة الأستاذ', fr: 'Grille', en: 'Ledger Grid' }, swatch: 'linear-gradient(180deg, #12735c, #071a17 70%)' },

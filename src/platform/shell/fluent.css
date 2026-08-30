@@ -1831,6 +1831,21 @@
   inset: 0;
 }
 /*
+ * A photographic wallpaper is cropped to cover and centred, the way Windows fits
+ * one to a display it was not cut for. Scoped to the photo case: a gradient has
+ * no intrinsic size, so sizing it would be a no-op that still had to be read as
+ * one by whoever comes next.
+ *
+ * `background-size` applies to the scrim layers too, and `cover` on a gradient
+ * resolves to the full box — which is already their default — so the two dims
+ * over the picture keep covering the whole desktop.
+ */
+.fx-wallpaper[data-photo='true'] {
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+/*
  * Icons flow top-to-bottom then wrap into the next column, the way Windows
  * arranges the desktop. The grid starts at the desktop's own origin because the
  * marquee and the context menu are positioned from its bounding box.

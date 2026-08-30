@@ -46,6 +46,7 @@ import { KERNEL_USER_FOLDER } from '../kernel/kernel';
 import type { AppLocale } from '../sdk';
 import { MenuFlyout, type MenuEntry } from '../sdk/ui';
 import { ICON_PIXELS, wallpaperById, type Appearance, type IconSize } from './appearance';
+import { WallpaperLayer } from './Wallpaper';
 import {
   useKernel,
   useKernelAction,
@@ -420,7 +421,7 @@ export function Desktop({ locale, appearance }: DesktopProps) {
 
   return (
     <div className="fx-desktop" data-light={paper.light ? 'true' : 'false'}>
-      <div className="fx-wallpaper" style={{ background: paper.base, backgroundImage: paper.layers.join(', ') }} />
+      <WallpaperLayer paper={paper} />
       <div
         ref={gridRef}
         className="fx-desk-grid"

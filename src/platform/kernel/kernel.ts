@@ -107,7 +107,7 @@ const REGISTRY_DEFAULTS: readonly (readonly [string, string, string | number | b
   [REG.userAppearance, 'Transparency', true],
   [REG.userAppearance, 'Animations', true],
   [REG.userAppearance, 'Language', 'en'],
-  [REG.userDesktop, 'Wallpaper', 'fluent-bloom'],
+  [REG.userDesktop, 'Wallpaper', 'summit'],
   [REG.userDesktop, 'IconSize', 'medium'],
   [REG.userDesktop, 'ShowIcons', true],
   [REG.userTaskbar, 'Alignment', 'center'],

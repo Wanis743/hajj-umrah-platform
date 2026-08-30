@@ -28,7 +28,7 @@ export function PersonalizationPage() {
   const [accent, setAccent] = useRegistryValue<string>(KEYS.appearance, 'Accent', '#0067c0');
   const [transparency, setTransparency] = useRegistryValue<boolean>(KEYS.appearance, 'Transparency', true);
   const [animations, setAnimations] = useRegistryValue<boolean>(KEYS.appearance, 'Animations', true);
-  const [wallpaper, setWallpaper] = useRegistryValue<string>(KEYS.desktop, 'Wallpaper', 'fluent-bloom');
+  const [wallpaper, setWallpaper] = useRegistryValue<string>(KEYS.desktop, 'Wallpaper', 'summit');
   const [iconSize, setIconSize] = useRegistryValue<string>(KEYS.desktop, 'IconSize', 'medium');
   const [showIcons, setShowIcons] = useRegistryValue<boolean>(KEYS.desktop, 'ShowIcons', true);
   const [alignment, setAlignment] = useRegistryValue<string>(KEYS.taskbar, 'Alignment', 'center');
