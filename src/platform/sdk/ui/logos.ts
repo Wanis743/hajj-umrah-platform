@@ -9,13 +9,16 @@
  * behind it.
  *
  * To ship a logo, drop a file into `./logos` named after the manifest's `icon`
- * value: `book-open.svg` claims the Journal, `wallet.svg` the Treasury. Nothing
+ * value: `book-open.png` claims the Journal, `wallet.png` the Treasury. Nothing
  * else has to change. The build discovers whatever is in the folder, so an app
  * with no artwork keeps the glyph and an app with artwork loses the plate,
  * without a table anywhere that could fall out of step with the files.
  *
- * SVG is preferred and wins over PNG of the same name: the shell paints app
- * icons at eight sizes between 16px and 56px, and one vector covers all of them.
+ * SVG wins over PNG of the same name, because the shell paints app icons at eight
+ * sizes between 16px and 56px and one vector covers all of them. The shipped set
+ * is raster — it is the artwork as drawn, and matching the delivered file beats
+ * re-cutting someone's mark as paths. Replacing a raster icon therefore means
+ * deleting any `.svg` of the same name, or the vector keeps winning.
  *
  * This table lives in the SDK next to `glyphs.ts` for the same reason that one
  * does — the shell paints Start tiles and taskbar buttons from it, and an app
