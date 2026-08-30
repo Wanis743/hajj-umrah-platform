@@ -4,7 +4,7 @@
  * A manifest is data and must not import React, so it names its icon as a string
  * (`'folder'`, `'calculator'`). Something has to resolve that name, and both
  * sides of the boundary need to: the shell paints Start tiles and taskbar
- * buttons from it, and an app that lists other apps — Settings, Task Manager —
+ * buttons from it, and an app that lists other apps — Settings' Apps page —
  * has to paint the same mark without importing the shell, which the boundary
  * forbids it. So the table lives in the SDK — the one place apps and shell
  * already share — rather than being duplicated on either side of it.
@@ -27,7 +27,6 @@ import {
   ChartPie,
   CheckCircle2,
   ClipboardList,
-  Cpu,
   Database,
   FileSpreadsheet,
   FileText,
@@ -55,7 +54,6 @@ import {
   SlidersHorizontal,
   Table2,
   Target,
-  Terminal,
   Wallet,
   Wifi,
   XCircle,
@@ -75,7 +73,6 @@ export const APP_GLYPHS: Readonly<Record<string, LucideIcon>> = {
   'chart-pie': ChartPie,
   'check-circle': CheckCircle2,
   'clipboard-list': ClipboardList,
-  cpu: Cpu,
   database: Database,
   files: Files,
   'file-spreadsheet': FileSpreadsheet,
@@ -102,7 +99,6 @@ export const APP_GLYPHS: Readonly<Record<string, LucideIcon>> = {
   sliders: SlidersHorizontal,
   table: Table2,
   target: Target,
-  terminal: Terminal,
   wallet: Wallet,
   wifi: Wifi,
   'x-circle': XCircle,

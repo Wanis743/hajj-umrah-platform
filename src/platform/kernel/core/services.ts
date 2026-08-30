@@ -4,14 +4,14 @@
  * Services are the kernel's background workers and they behave like Windows
  * services, not like `setInterval` callbacks:
  *
- *   - each one runs inside its own `service` process, so Task Manager can see
- *     its CPU, handles and syscall count;
+ *   - each one runs inside its own `service` process, so the kernel accounts its
+ *     CPU, handles and syscall count exactly as it does an app's;
  *   - each one runs as SYSTEM: its capability set is the manifest it declared,
  *     and it never raises an interactive consent prompt;
  *   - `dependsOn` is honoured at start time and again (in reverse) at stop time,
  *     so a dependency is never pulled out from under a dependent;
  *   - start type lives in `HKLM\SYSTEM\CurrentControlSet\Services\<name>`, which
- *     means the Services app, Regedit and the SCM all read the same truth;
+ *     means Regedit, the Widgets service tile and the SCM all read the same truth;
  *   - a tick that throws is a fault: the service is respawned with a growing
  *     backoff and, once the restart policy is exhausted, left `faulted` with the
  *     error retained for the operator.

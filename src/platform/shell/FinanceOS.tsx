@@ -864,12 +864,6 @@ function handleKeyDown(env: Shortcuts, event: KeyboardEvent): void {
     return;
   }
 
-  if (event.ctrlKey && event.shiftKey && event.key === 'Escape') {
-    event.preventDefault();
-    void kernel.launch(APP_IDS.taskManager);
-    return;
-  }
-
   if (event.key === 'Escape') {
     handleEscape(env, event);
     return;
@@ -908,9 +902,6 @@ function handleWinChord(env: Shortcuts, event: KeyboardEvent): boolean {
   switch (event.key.toLowerCase()) {
     case 'i':
       void kernel.launch(APP_IDS.settings);
-      return true;
-    case 'r':
-      void kernel.launch(APP_IDS.terminal);
       return true;
     case 's':
     case 'q':

@@ -22,7 +22,6 @@
  * ever reaching a kernel object.
  */
 import {
-  APP_IDS,
   CAPABILITIES,
   IPC_CHANNELS,
   REG,
@@ -86,7 +85,7 @@ const QUOTA_LOCAL = 64 * 1024 * 1024;
 const QUOTA_SCRATCH = 16 * 1024 * 1024;
 const QUOTA_LEDGER = 32 * 1024 * 1024;
 
-/** How often resource accounting is sampled. Task Manager reads the result. */
+/** How often resource accounting is sampled. The Widgets tile reads the result. */
 const METRICS_INTERVAL_MS = 1_000;
 
 const SYSTEM_PROCESS_NAME: Localized = { ar: 'النظام', fr: 'Système', en: 'System' };
@@ -402,12 +401,14 @@ class KernelImpl implements Kernel {
     const stat = this.vfs.stat(path);
     if (!stat.ok) return stat;
 
-    // No file manager ships in this image, so a folder opens at a prompt in that
-    // folder; files go to whoever claims their content type.
-    const target =
-      stat.value.kind === 'directory'
-        ? APP_IDS.terminal
-        : this.apps.handlerFor(stat.value.contentType, extname(path));
+    // Neither a file manager nor a command shell ships in this image, so nothing
+    // opens a folder; saying so is better than launching something that would
+    // ignore the path. Files go to whoever claims their content type.
+    if (stat.value.kind === 'directory') {
+      return fail('NOT_SUPPORTED', 'No installed application opens a folder', { path });
+    }
+
+    const target = this.apps.handlerFor(stat.value.contentType, extname(path));
     if (target === null) {
       return fail('NOT_SUPPORTED', `No installed application opens ${extname(path) || 'this file'}`, { path });
     }

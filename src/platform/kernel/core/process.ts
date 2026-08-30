@@ -4,7 +4,8 @@
  * A process is what an application *is* to the kernel: a pid, a granted
  * capability set, a handle count, resource counters and zero or more windows.
  * Apps never see their own record directly — they read it back through
- * `process.self`, which is how Task Manager and the app agree on the truth.
+ * `process.self`, which is how the shell's performance surfaces and the app agree
+ * on the truth.
  *
  * Termination is authoritative: the table closes the handles, drops the IPC
  * subscriptions, clears the scheduler accounting and closes the windows. An app
@@ -75,7 +76,7 @@ class Processes implements ProcessSubsystem {
   spawn(request: SpawnRequest): ProcessRecord {
     const id = toPid(next('pid'));
     // Threads are a coarse model of the app's concurrency: a UI thread plus a
-    // worker for services. Task Manager shows it; nothing depends on it.
+    // worker for services. It is reported, but nothing depends on it.
     const threadCount = request.kind === 'service' ? 2 : 1;
     const record: MutableProcess = {
       pid: id,

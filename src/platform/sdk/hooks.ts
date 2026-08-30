@@ -385,7 +385,7 @@ export function useKernelInterval(everyMs: number, callback: () => void): void {
   }, [runtime, everyMs]);
 }
 
-/** Repeatedly issues a syscall — Task Manager, Event Viewer, tray widgets. */
+/** Repeatedly issues a syscall — Event Viewer, Settings' System page, tray widgets. */
 export function usePolledSyscall<K extends SyscallName>(
   name: K,
   request: SyscallRequest<K>,

@@ -427,7 +427,7 @@ function diagnostics(): ServiceDefinition {
           'warning',
           'Memory pressure',
           `The desktop is using ${Math.round(pressure * 100)}% of its memory budget across ${snapshot.processCount} processes.`,
-          APP_IDS.taskManager,
+          APP_IDS.eventViewer,
         );
       } else if (pressure < MEMORY_PRESSURE * 0.9 && pressureReported) {
         // Hysteresis: recovery is only announced once the reading is clearly back.

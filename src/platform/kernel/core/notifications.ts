@@ -3,7 +3,7 @@
  *
  * The kernel owns the notification history; the shell only renders it. That
  * split is what lets a service raise a notification while no window is open,
- * lets the taskbar badge survive a reload, and lets Task Manager account the
+ * lets the taskbar badge survive a reload, and lets the kernel account the
  * notification to the process that sent it.
  *
  * Records are a bounded ring: the newest `RETENTION` survive, everything older

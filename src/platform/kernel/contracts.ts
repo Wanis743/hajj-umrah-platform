@@ -483,7 +483,7 @@ export interface DataBrokerSubsystem {
   query(pid: Pid, query: DatasetQuery): Promise<AbiResult<DatasetPage>>;
   invalidate(datasets: readonly DatasetName[]): number;
   command(pid: Pid, invocation: CommandInvocation): Promise<AbiResult<CommandOutcome>>;
-  /** Cache statistics for the Task Manager / About surfaces. */
+  /** Cache statistics for Settings' storage and About surfaces. */
   stats(): { readonly entries: number; readonly bytes: number; readonly hits: number; readonly misses: number };
   subscribe(listener: () => void): () => void;
 }

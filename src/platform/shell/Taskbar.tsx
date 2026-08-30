@@ -9,7 +9,7 @@
  * persists pins in `HKCU\…\Taskbar`) and *running* apps (from the window
  * manager, grouped by app id and filtered to the active virtual desktop). Every
  * affordance ends in a kernel call — nothing about a window's state is cached
- * here, which is why a window minimised by Task Manager, a snap layout or an
+ * here, which is why a window minimised by a jump list, a snap layout or an
  * app's own `runtime.close()` all repaint the same button.
  *
  * Flyouts owned by the taskbar (hover previews, jump lists) are positioned

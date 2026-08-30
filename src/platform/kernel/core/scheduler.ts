@@ -8,7 +8,7 @@
  * runs on the next tick.
  *
  * Every work item is timed and attributed to a pid. That accounting is what
- * makes Task Manager's CPU column real rather than decorative.
+ * makes the Performance widget's CPU reading real rather than decorative.
  */
 import { type Handle, type Pid, type ProcessPriority } from '../abi';
 import type {

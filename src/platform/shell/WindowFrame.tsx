@@ -4,7 +4,7 @@
  * The frame paints and manipulates a window but does not *own* it: geometry
  * lives in the kernel's window manager, and every gesture ends in a `wm` call.
  * That is what makes the same window respond identically to a drag, a snap
- * layout, Alt+Tab, a viewport resize or a Task Manager kill.
+ * layout, Alt+Tab, a viewport resize or a kernel-side close.
  *
  * Windows 11 behaviours implemented here:
  *   - drag by the title bar, with a maximized or snapped window "tearing off"
@@ -148,7 +148,7 @@ interface Gestures {
  *
  * Every gesture ends in a `wm` call rather than in local state, so the frame owns
  * no geometry: it reads `win.rect` back on the next render like any other observer
- * of the window manager. That is the whole reason a drag and a Task Manager kill
+ * of the window manager. That is the whole reason a drag and a kernel-side close
  * leave the desktop in the same consistent place.
  */
 function useFrameGestures(

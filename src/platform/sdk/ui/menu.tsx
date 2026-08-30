@@ -165,7 +165,7 @@ export interface MenuBarMenu {
   readonly entries: readonly MenuEntry[];
 }
 
-/** Classic application menu strip (Notepad, Sheets, Terminal). */
+/** Classic application menu strip (Notepad, Sheets). */
 export function MenuBar({
   menus,
   onSelect,

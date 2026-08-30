@@ -1,8 +1,8 @@
 /**
  * Human names for capabilities.
  *
- * The manifest asks for `'ledger.post'`; a consent prompt, the Task Manager's
- * details pane and Settings' installed-app list all have to show that to a person.
+ * The manifest asks for `'ledger.post'`; a consent prompt and Settings'
+ * installed-app list both have to show that to a person.
  * The table lives in the SDK because both the shell and ordinary apps need it,
  * and because it is pure data — no kernel access, nothing to gate.
  */

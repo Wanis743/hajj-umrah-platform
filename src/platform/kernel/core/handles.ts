@@ -5,7 +5,7 @@
  * timers are all handles. The table owns their disposal, which is what makes
  * process termination *complete*: killing a pid closes its handles, which
  * unsubscribes its watchers and clears its timers with no cooperation from the
- * app. Task Manager's "Handles" column reads `countFor`.
+ * app. The Performance widget's "Handles" figure reads `countFor`.
  */
 import { handle as toHandle, type Handle, type Pid } from '../abi';
 import type { HandleKind, HandleRecord, HandleTable } from '../contracts';

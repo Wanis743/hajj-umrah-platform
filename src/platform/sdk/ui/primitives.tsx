@@ -515,7 +515,7 @@ export interface MeterProps {
   label?: string;
 }
 
-/** Labelled utilisation meter — budgets, quotas, Task Manager gauges. */
+/** Labelled utilisation meter — budgets, quotas, storage gauges. */
 export function Meter({ value, max, tone = 'accent', label }: MeterProps) {
   const ratio = max > 0 ? value / max : 0;
   const auto: Tone = ratio > 1 ? 'danger' : ratio > 0.9 ? 'warning' : tone;

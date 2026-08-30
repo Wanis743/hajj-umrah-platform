@@ -242,7 +242,7 @@ export interface ProcessInfo {
   readonly threadCount: number;
 }
 
-/** Sampled, real resource accounting — Task Manager reads exactly this. */
+/** Sampled, real resource accounting — the performance surfaces read exactly this. */
 export interface ProcessMetrics {
   readonly pid: Pid;
   /** Share of the last sampling window spent in this process, 0..100. */
@@ -924,7 +924,7 @@ export interface AppManifest {
  *
  * The manifest is what the publisher declared; everything beside it is what this
  * machine and this user have since done with it. It lives in the ABI rather than
- * behind it because Start, Settings and Task Manager all have to show the same
+ * behind it because Start, the taskbar and Settings all have to show the same
  * record, and none of them is allowed to read the registry hive it is kept in.
  */
 export interface AppInventoryRecord {
@@ -946,8 +946,6 @@ export type LaunchArgs = Readonly<Record<string, string>>;
  * ------------------------------------------------------------------ */
 
 export const APP_IDS = {
-  terminal: appId('com.financeos.terminal'),
-  taskManager: appId('com.financeos.taskmanager'),
   settings: appId('com.financeos.settings'),
   eventViewer: appId('com.financeos.eventviewer'),
   registryEditor: appId('com.financeos.regedit'),

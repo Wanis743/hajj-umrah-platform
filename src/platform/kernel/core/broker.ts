@@ -933,8 +933,3 @@ export const DATASET_TABLES: Readonly<Record<string, string>> = Object.fromEntri
     return [name, source.kind === 'table' ? source.table : `derived(${source.dependsOn.join(', ')})`];
   }),
 );
-
-/** Command → RPC map, surfaced by the Terminal's `ledger bindings` command. */
-export const COMMAND_RPCS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(BINDINGS).map(([command, binding]) => [command, binding.rpc]),
-);

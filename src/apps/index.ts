@@ -28,13 +28,9 @@ import { registryEditorManifest } from './regedit/manifest';
 import { settingsManifest } from './settings/manifest';
 import { sheetsManifest } from './sheets/manifest';
 import { statementsManifest } from './statements/manifest';
-import { taskManagerManifest } from './taskmanager/manifest';
-import { terminalManifest } from './terminal/manifest';
 import { treasuryManifest } from './treasury/manifest';
 
 export const APP_PACKAGES: readonly AppPackage[] = [
-  { manifest: terminalManifest, load: () => import('./terminal/App') },
-  { manifest: taskManagerManifest, load: () => import('./taskmanager/App') },
   { manifest: settingsManifest, load: () => import('./settings/App') },
   { manifest: eventViewerManifest, load: () => import('./eventviewer/App') },
   { manifest: registryEditorManifest, load: () => import('./regedit/App') },

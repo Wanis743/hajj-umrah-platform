@@ -584,7 +584,7 @@ export function WidgetsBoard({ locale, onDismiss }: WidgetsBoardProps) {
       <Widget
         glyph={<Cpu size={14} />}
         title={locale.tr('أداء النظام', 'Performances', 'Performance')}
-        onOpen={() => launch(APP_IDS.taskManager)}
+        onOpen={() => launch(APP_IDS.settings, { command: 'page:system' })}
       >
         <Sparkline samples={metrics.history} />
         <dl className="fx-widget-stats">
@@ -606,7 +606,7 @@ export function WidgetsBoard({ locale, onDismiss }: WidgetsBoardProps) {
             {running}/{services.length}
           </span>
         }
-        onOpen={() => launch(APP_IDS.taskManager, { tab: 'services' })}
+        onOpen={() => launch(APP_IDS.eventViewer, { command: 'channel:System' })}
       >
         {faulted.length > 0 ? (
           <p className="fx-widget-alert">

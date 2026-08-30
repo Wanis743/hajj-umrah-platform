@@ -1,8 +1,8 @@
 /**
  * Metrics — real resource accounting, not decoration.
  *
- * Every number Task Manager shows is derived from something the kernel actually
- * measured:
+ * Every number the Performance widget shows is derived from something the kernel
+ * actually measured:
  *
  *   cpuPercent   scheduler time attributed to the pid in the last window,
  *                divided by the window's wall-clock length.
@@ -202,7 +202,7 @@ class Metrics implements MetricsSubsystem {
     return this.signal.subscribe(listener);
   }
 
-  /** Diagnostics surfaced by Task Manager's Performance tab footer. */
+  /** Diagnostics surfaced by Settings' About page. */
   counters(): Readonly<Record<string, number>> {
     return {
       ipcChannels: this.bus.channels().length,

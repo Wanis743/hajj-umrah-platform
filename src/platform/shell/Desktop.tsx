@@ -4,8 +4,8 @@
  * Two kinds of thing live on the desktop, exactly as in Windows: *namespace*
  * items (application shortcuts, which are not files at all) and the real
  * contents of `C:\Users\finance\Desktop`. Both are read live — the app registry
- * and the VFS are the only stores, so a file created by Terminal appears here
- * without the shell being told, and an uninstall removes its shortcut.
+ * and the VFS are the only stores, so a file an app saves here appears without
+ * the shell being told, and an uninstall removes its shortcut.
  *
  * The desktop is also the shell's file manager of last resort: it creates,
  * renames and deletes through the VFS subsystem directly (it is the shell, the
@@ -27,7 +27,6 @@ import {
   RefreshCw,
   SquareArrowOutUpRight,
   Table2,
-  Terminal,
   Trash2,
 } from 'lucide-react';
 import {
@@ -384,9 +383,7 @@ export function Desktop({ locale, appearance }: DesktopProps) {
       files.create(id.slice(4) as 'folder' | 'text' | 'sheet', taken);
     } else if (id === 'icons') kernel.registry.set(REG.userDesktop, 'ShowIcons', !appearance.showDesktopIcons);
     else if (id === 'refresh') refresh();
-    else if (id === 'terminal') {
-      void runAction('Terminal', () => kernel.launch(APP_IDS.terminal, { cwd: DESKTOP_FOLDER }));
-    } else if (id === 'display') settings('system');
+    else if (id === 'display') settings('system');
     else if (id === 'personalise') settings('personalisation');
     else if (menu?.item != null) onItemCommand(menu.item, id);
   };
@@ -651,11 +648,6 @@ function desktopEntries(locale: AppLocale, appearance: Appearance, sort: SortKey
       ],
     },
     { id: 'sep-open', kind: 'separator' },
-    {
-      id: 'terminal',
-      label: locale.tr('فتح في الطرفية', 'Ouvrir dans le terminal', 'Open in Terminal'),
-      icon: Terminal,
-    },
     { id: 'display', label: locale.tr('إعدادات العرض', 'Paramètres d’affichage', 'Display settings'), icon: Monitor },
     { id: 'personalise', label: locale.tr('تخصيص', 'Personnaliser', 'Personalise'), icon: Palette },
   ];
