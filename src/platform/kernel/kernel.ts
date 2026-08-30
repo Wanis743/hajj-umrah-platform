@@ -98,16 +98,35 @@ const VOLUME_LABELS: Readonly<Record<'C' | 'X' | 'L', Localized>> = {
 };
 
 /**
+ * The revision of the shipped default set, bumped whenever a default below
+ * changes. It is what makes a changed default reach a profile that already
+ * exists: the seed pass only writes absent values, so without this a returning
+ * user would keep the *old* image's default forever and never see the new one.
+ */
+const DEFAULTS_REVISION = 2;
+
+/** A default value, and the earlier defaults it retires. */
+type DefaultValue = string | number | boolean;
+type RegistryDefault = readonly [key: string, name: string, value: DefaultValue, supersedes?: readonly DefaultValue[]];
+
+/**
  * First-run defaults, written only when a value is absent — a returning user
  * keeps their preferences and a wiped profile comes back to a sane desktop.
+ *
+ * The fourth element, where present, lists values an *earlier* image shipped as
+ * this default. On a revision bump a stored value still equal to one of them is
+ * a default nobody chose, so it moves forward; anything else is a deliberate
+ * setting and is left exactly as the user left it. That distinction is the whole
+ * point — a new default must not be an excuse to overwrite a preference.
  */
-const REGISTRY_DEFAULTS: readonly (readonly [string, string, string | number | boolean])[] = [
+const REGISTRY_DEFAULTS: readonly RegistryDefault[] = [
   [REG.userAppearance, 'Theme', 'dark'],
   [REG.userAppearance, 'Accent', '#0067c0'],
   [REG.userAppearance, 'Transparency', true],
   [REG.userAppearance, 'Animations', true],
   [REG.userAppearance, 'Language', 'en'],
-  [REG.userDesktop, 'Wallpaper', 'summit'],
+  // Revision 2 replaced the Bloom gradient with the Summit photograph.
+  [REG.userDesktop, 'Wallpaper', 'summit', ['fluent-bloom']],
   [REG.userDesktop, 'IconSize', 'medium'],
   [REG.userDesktop, 'ShowIcons', true],
   [REG.userTaskbar, 'Alignment', 'center'],
@@ -471,10 +490,24 @@ class KernelImpl implements Kernel {
   }
 
   private seedRegistry(): void {
-    for (const [key, name, value] of REGISTRY_DEFAULTS) {
-      if (this.registry.get(key, name) !== undefined) continue;
-      this.registry.set(key, name, value);
+    // A profile written by an older image is behind on defaults; one written by
+    // this image is not, and its values are all the user's own from here on.
+    const behind = this.registry.getNumber(REG.userSession, 'DefaultsRevision', 0) < DEFAULTS_REVISION;
+
+    for (const [key, name, value, supersedes] of REGISTRY_DEFAULTS) {
+      const stored = this.registry.get(key, name);
+      if (stored === undefined) {
+        this.registry.set(key, name, value);
+        continue;
+      }
+      // Only a value still sitting on a default this image retired: a setting the
+      // user actually chose is never touched, on any revision.
+      if (behind && supersedes?.some((retired) => retired === stored) === true) {
+        this.registry.set(key, name, value);
+      }
     }
+    if (behind) this.registry.set(REG.userSession, 'DefaultsRevision', DEFAULTS_REVISION);
+
     // Always refreshed: these describe *this* boot, not a stored preference.
     this.registry.set(REG.userSession, 'LastBootAt', this.clock.iso());
     this.registry.set(REG.machinePolicy, 'StorageDurable', this.storage.durable);
