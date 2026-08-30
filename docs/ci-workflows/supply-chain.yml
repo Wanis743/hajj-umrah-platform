@@ -20,4 +20,12 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm audit --audit-level=high
       - run: npm ls --all --omit=dev --json > /tmp/dependencies.json
-      - run: node scripts/generate-sbom.mjs
+      # Writes release/sbom.cdx.json from the resolved production tree, and fails
+      # if the document describes nothing. The SBOM this replaced was committed
+      # as `{"bomFormat":"CycloneDX","specVersion":"1.4"}` — zero components —
+      # and release/manifest.json cited it as "Gate H - Supply chain: VERIFIED".
+      - run: npm run verify:sbom
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom
+          path: release/sbom.cdx.json

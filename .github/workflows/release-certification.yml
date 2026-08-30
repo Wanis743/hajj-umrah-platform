@@ -8,63 +8,104 @@ on:
 permissions:
   contents: read
 
+# One job, one runner: `scripts/certify.mjs` runs every gate in order, records the
+# real exit code and a log hash for each, and derives the verdict from them.
+#
+# This replaces a step list that ran `behavioral-rbac.mjs`, `verify-storage.mjs`,
+# `verify:e2e`, the concurrency load test and the DR drill without wiring any of
+# the environment those scripts require, so they could only ever fail — while
+# release/manifest.json, written by hand, recorded all eight gates VERIFIED. The
+# runner cannot do that: a gate whose environment is absent is SKIPPED, and
+# SKIPPED never rolls up to VERIFIED.
 jobs:
   certify:
-    name: 10/10 Production Certification
+    name: Certification (derived, not asserted)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
+      # Every variable the gate table looks for. An unset secret is not an error:
+      # the gate that needs it is recorded SKIPPED, with the variable named in
+      # release/manifest.json, so the artifact says what was not tested and why.
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      RBAC_TEST_PASSWORD: ${{ secrets.RBAC_TEST_PASSWORD }}
+      RBAC_ADMIN_EMAIL: ${{ secrets.RBAC_ADMIN_EMAIL }}
+      RBAC_OPERATIONS_MANAGER_EMAIL: ${{ secrets.RBAC_OPERATIONS_MANAGER_EMAIL }}
+      RBAC_FINANCE_EMAIL: ${{ secrets.RBAC_FINANCE_EMAIL }}
+      RBAC_VISA_AGENT_EMAIL: ${{ secrets.RBAC_VISA_AGENT_EMAIL }}
+      RBAC_GUIDE_EMAIL: ${{ secrets.RBAC_GUIDE_EMAIL }}
+      RBAC_CRM_EMAIL: ${{ secrets.RBAC_CRM_EMAIL }}
+      RBAC_AGENT_EMAIL: ${{ secrets.RBAC_AGENT_EMAIL }}
       E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
       E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
       E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      TEST_PACKAGE_ID: ${{ secrets.TEST_PACKAGE_ID }}
+      TEST_TURNSTILE_TOKEN: ${{ secrets.TEST_TURNSTILE_TOKEN }}
+      TEST_CAPACITY_BEFORE: ${{ secrets.TEST_CAPACITY_BEFORE }}
+      RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+      # Environment guards the underlying scripts demand before they will touch a
+      # live system. Set here, not defaulted inside the scripts, so a staging-only
+      # test cannot be aimed at production by forgetting a variable.
+      TEST_ENV: staging
+      E2E_ENV: staging
+      LOAD_TEST_ENV: staging
+      LOAD_TEST_ENABLE: '1'
+      BACKUP_DRILL_ENV: staging-restore
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      
+
       - name: Install dependencies
         run: npm ci
-        
-      - name: Security Audit & Supply Chain
-        run: npm audit --audit-level=high && node scripts/verify-toolchain-config.mjs
 
-      # Static gates, run against this commit rather than a stored artifact.
-      # `verify:static` is the whole set — source bans, zero `any`, migrations,
-      # architecture, branding, UI safety, CSS, the OS boundary, app fold
-      # thresholds, finance utilities, maintainability, Nusuk isolation — and
-      # needs no secrets, so it belongs here rather than only on a developer's
-      # machine, where nothing forces it to have been run.
-      - name: Static Gates (source, any, architecture, OS boundary)
-        run: npm run verify:static
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Typecheck
-        run: npm run typecheck
-        
-      - name: Lint
-        run: npm run lint
-        
-      - name: Build
-        run: npm run build
-        
-      - name: Fresh DB & Schema Verification
-        run: npm run verify:fresh-db
-        
-      - name: RLS & RBAC Behavioral Tests
-        run: node scripts/behavioral-rbac.mjs
-        
-      - name: Financial Integrity Tests
-        run: npm run test:finance-utils
-        
-      - name: Storage Security Tests
-        run: node scripts/verify-storage.mjs
-        
-      - name: Browser E2E & Accessibility
-        run: npm run verify:e2e && npm run verify:e2e:accessibility
-        
-      - name: Reservation Concurrency Load Test
-        run: npm run verify:reservation-concurrency
+      # Runs the full gate table: static gates (source bans, zero `any`,
+      # migrations, architecture, OS boundary, SBOM, evidence), typecheck, lint,
+      # dependency audit, build, bundle budgets, the SQL suites through
+      # run-sql-gate.mjs, behavioral RBAC, storage runtime, browser E2E,
+      # accessibility, reservation concurrency, and the backup/restore drill.
+      - name: Certify
+        run: npm run certify
 
-      - name: Backup & Disaster Recovery Drill
-        run: npm run verify:backup-restore
+      - name: Publish verdict
+        if: always()
+        run: |
+          if [ -f release/manifest.json ]; then
+            node -e '
+              const m = require("./release/manifest.json");
+              const rows = [...m.gates, ...m.absent_gates]
+                .map((g) => `| ${g.name} | ${g.status} | ${g.label} |`)
+                .join("\n");
+              console.log(`## Certification: ${m.certification}\n`);
+              console.log(`commit \`${m.commit_short}\` · build \`${String(m.build_hash).slice(0, 12)}\` · schema \`${String(m.schema_hash).slice(0, 12)}\`\n`);
+              for (const caveat of m.caveats) console.log(`- ${caveat}`);
+              console.log(`\n| gate | status | what it covers |\n| --- | --- | --- |\n${rows}`);
+            ' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Certification: NOT PRODUCED (the runner did not finish)' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # The evidence, as produced. Not committed to the repository: a stored
+      # verdict is stale the moment the next commit lands, which is how a manifest
+      # claiming VERIFIED came to name a commit that is not in this history.
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: certification-${{ github.sha }}
+          path: |
+            release/manifest.json
+            release/build-hash.txt
+            release/schema-hash.txt
+            release/sbom.cdx.json
+            release/evidence/
+          if-no-files-found: warn

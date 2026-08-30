@@ -2,8 +2,13 @@
 -- BOLA/IDOR Security Certification Test Suite
 -- منصة وكالة الحج والعمرة — Single Agency ERP
 -- ============================================================
--- Run in Supabase SQL Editor (as authenticated staff user)
--- All tests should return 0 rows (no cross-agency data leakage)
+-- Run as an authenticated staff user, via:
+--     node scripts/run-sql-gate.mjs supabase/tests/bola_idor_security_test.sql
+-- (`npm run verify:bola`). All tests should return 0 rows — no cross-agency data
+-- leakage — and the summary RAISEs EXCEPTION if any did not, so a leak fails the
+-- process. It used to RAISE WARNING, which psql reports and then exits 0 with:
+-- the suite printed "❌ TEST(S) FAILED" and the release manifest recorded the
+-- gate as VERIFIED.
 -- ============================================================
 
 -- ── SETUP: create test fixtures ────────────────────────────────────────────
@@ -22,11 +27,23 @@ DECLARE
   v_passed        int := 0;
   v_failed        int := 0;
   v_total         int := 0;
+  v_bypasses_rls  boolean;
 BEGIN
 
   RAISE NOTICE '=== BOLA/IDOR Security Test Suite ===';
   RAISE NOTICE 'Testing cross-agency data isolation...';
   RAISE NOTICE '';
+
+  -- ── PREFLIGHT: the session must actually be subject to RLS ──────────────
+  -- Every cross-agency test below reads 0 rows for a role that bypasses row
+  -- security too — because the fake agency has no data, not because a policy
+  -- stopped anything. Run as the service role or a superuser and this suite
+  -- passes fifteen out of fifteen while proving nothing at all.
+  SELECT rolbypassrls OR rolsuper INTO v_bypasses_rls
+  FROM pg_roles WHERE rolname = current_user;
+  IF coalesce(v_bypasses_rls, false) THEN
+    RAISE EXCEPTION 'BOLA suite must run as a role subject to RLS; % bypasses it, so every test would pass vacuously.', current_user;
+  END IF;
 
   -- ── T01: Direct SELECT on pilgrims with fake agency_id ─────────────────
   v_total := v_total + 1;
@@ -229,7 +246,7 @@ BEGIN
   IF v_failed = 0 THEN
     RAISE NOTICE '✅ ALL TESTS PASSED — No BOLA/IDOR vulnerabilities detected.';
   ELSE
-    RAISE WARNING '❌ % TEST(S) FAILED — Review RLS policies immediately!', v_failed;
+    RAISE EXCEPTION '❌ % of % BOLA/IDOR test(s) FAILED — review RLS policies immediately.', v_failed, v_total;
   END IF;
 
 END $$;
