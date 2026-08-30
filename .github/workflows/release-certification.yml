@@ -29,7 +29,16 @@ jobs:
         
       - name: Security Audit & Supply Chain
         run: npm audit --audit-level=high && node scripts/verify-toolchain-config.mjs
-        
+
+      # Static gates, run against this commit rather than a stored artifact.
+      # `verify:static` is the whole set — source bans, zero `any`, migrations,
+      # architecture, branding, UI safety, CSS, the OS boundary, app fold
+      # thresholds, finance utilities, maintainability, Nusuk isolation — and
+      # needs no secrets, so it belongs here rather than only on a developer's
+      # machine, where nothing forces it to have been run.
+      - name: Static Gates (source, any, architecture, OS boundary)
+        run: npm run verify:static
+
       - name: Typecheck
         run: npm run typecheck
         

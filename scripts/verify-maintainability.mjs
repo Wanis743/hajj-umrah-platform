@@ -3,15 +3,24 @@ import path from 'node:path';
 
 const root = process.cwd();
 const src = path.join(root, 'src');
-const protectedDirs = ['services','engine','intelligence','lib','types'];
+// Layers where a direct console call or a raw Supabase mutation is a design
+// break, not a style nit. Every entry must exist: a name that no longer maps to
+// a directory silently checks nothing, which is how `intelligence` sat here.
+const protectedDirs = ['services','engine','lib','types'];
 // Vendored third-party UI (bklit-ui chart library, see `// NOTE(bklit-vendoring)`
-// markers). Kept byte-faithful to upstream so future syncs diff cleanly; the
-// first-party component-size rules do not apply. eslint.config.js has the
-// matching override for the same reason.
+// markers). Kept close to upstream so future syncs diff cleanly; the first-party
+// component-*size* rules do not apply. Type safety is not exempt anywhere —
+// `scripts/verify-any.mjs` scans this directory like any other.
 const vendoredComponentRoots = ['src/components/charts/'];
 const maxComponentBytes = 32000;
 const failures = [];
 const warnings = [];
+
+for (const dir of protectedDirs) {
+  if (!fs.existsSync(path.join(src, dir))) {
+    failures.push(`protectedDirs lists src/${dir}/, which does not exist; the check it guards is dead.`);
+  }
+}
 
 function walk(dir) {
   const out = [];
@@ -36,9 +45,9 @@ for (const file of files) {
   if (rel.startsWith('src/components/') && file.endsWith('.tsx') && Buffer.byteLength(text) > maxComponentBytes) {
     warnings.push(`${rel}: ${Buffer.byteLength(text)} bytes; split further when touching this module.`);
   }
-  if (protectedDirs.some(d => rel.startsWith(`src/${d}/`)) && /\bany\b/.test(text)) {
-    failures.push(`${rel}: explicit any in protected layer.`);
-  }
+  // `any` is not checked here. It used to be, as `/\bany\b/` over five
+  // directories — a text search that flags `sides.any` and covers a fifth of the
+  // tree. `scripts/verify-any.mjs` does it properly, by AST, everywhere.
   if (protectedDirs.some(d => rel.startsWith(`src/${d}/`)) && rel !== 'src/lib/logger.ts' && /\bconsole\.(log|warn|error|info|debug)\s*\(/.test(text)) {
     failures.push(`${rel}: direct console logging in protected layer.`);
   }

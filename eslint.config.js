@@ -23,9 +23,9 @@ export default tseslint.config(
         'error',
         { allowConstantExport: true },
       ],
-      // Incremental typing debt: legacy modules still use `any` around Supabase
-      // rows. Kept as a warning so CI stays green while types are tightened
-      // file-by-file. New code must not introduce `any`.
+      // No `any`, anywhere, including future modifications: there is no
+      // per-directory exemption below and `verify:any` enforces the same rule
+      // from the command line so a config edit cannot quietly reopen the door.
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': ['error', { allow: ['warn', 'error'] }],
@@ -36,15 +36,18 @@ export default tseslint.config(
   },
   {
     // Vendored chart registry sources (`@bklit` / bklit-ui, shadcn registry).
-    // Kept byte-faithful to upstream; they export hooks and palette constants
+    // Two *style* metrics are relaxed here because upstream's shape genuinely
+    // differs from ours: these modules export hooks and palette constants
     // alongside components, which `only-export-components` forbids by design,
-    // their core components exceed our function-length style metric, and
-    // upstream aliases the d3 curve factory to `any` (biome-exempt there).
+    // and their core components exceed our function-length metric.
+    //
+    // Type safety is NOT relaxed. `no-explicit-any` used to be off here because
+    // upstream aliased the d3 curve factory to `any`; the six aliases now import
+    // the real `CurveFactory` from `d3-shape`, so the exemption is gone.
     files: ['src/components/charts/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
       'max-lines-per-function': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
     },
   }
 );

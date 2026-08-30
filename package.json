@@ -24,7 +24,7 @@
     "load:test:reservations": "node scripts/load-test-reservations.mjs",
     "verify:storage": "node scripts/verify-storage.mjs",
     "verify:release": "node scripts/verify-release.mjs",
-    "verify:static": "npm run verify:source && npm run verify:migrations && node scripts/verify-architecture.mjs && node scripts/verify-toolchain-config.mjs && npm run verify:branding && npm run verify:ui-safety && npm run verify:css && npm run verify:os-boundary && npm run verify:app-fold && npm run test:finance-utils && npm run verify:maintainability && node scripts/verify-nusuk-isolation.mjs",
+    "verify:static": "npm run verify:source && npm run verify:any && npm run verify:migrations && node scripts/verify-architecture.mjs && node scripts/verify-toolchain-config.mjs && npm run verify:branding && npm run verify:ui-safety && npm run verify:css && npm run verify:os-boundary && npm run verify:app-fold && npm run test:finance-utils && npm run verify:maintainability && node scripts/verify-nusuk-isolation.mjs",
     "verify:e2e": "node scripts/e2e-full.mjs",
     "verify:accounting": "psql \"$SUPABASE_DB_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/accounting_workflows.sql",
     "verify:reservation-concurrency": "node scripts/verify-reservation-concurrency.mjs",
@@ -47,7 +47,8 @@
     "verify:all": "npm run verify:release-hardening && npm run verify:static && npm run typecheck && npm run lint && npm run build",
     "verify:clean-release": "node scripts/verify-no-dead-artifacts.mjs",
     "verify:maintainability": "node scripts/verify-maintainability.mjs",
-    "test:maintainability": "node scripts/verify-maintainability.mjs && node scripts/verify-source.mjs && node scripts/verify-migrations.mjs && node scripts/verify-architecture.mjs && node scripts/verify-toolchain-config.mjs && node scripts/verify-ui-safety.mjs"
+    "verify:any": "node scripts/verify-any.mjs",
+    "test:maintainability": "node scripts/verify-maintainability.mjs && node scripts/verify-any.mjs && node scripts/verify-source.mjs && node scripts/verify-migrations.mjs && node scripts/verify-architecture.mjs && node scripts/verify-toolchain-config.mjs && node scripts/verify-ui-safety.mjs"
   },
   "dependencies": {
     "@number-flow/react": "0.5.14",
