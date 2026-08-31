@@ -5,6 +5,7 @@ import {
   UsersRound, BadgeCheck, FileText, Plane, PlaneTakeoff, Hotel, BedDouble, Bus, UserCheck, Target,
   Truck, Package, LifeBuoy, AlertTriangle, Siren, Zap, FileBarChart, DatabaseZap, ScrollText, Tent,
   Landmark, Wallet, BookOpenCheck, Gauge, Briefcase, ShieldCheck, Settings2, Compass, ExternalLink, TrendingUp,
+  FileStack,
 } from 'lucide-react';
 
 
@@ -54,6 +55,7 @@ const LazyFinanceOS = lazy(() => import('@/components/admin/FinanceOS'));
 const LazyOperationsOS = lazy(() => import('@/components/admin/OperationsOS').then(m => ({ default: m.OperationsOS })));
 const LazyExportCenter = lazy(() => import('@/components/admin/ExportCenter').then(m => ({ default: m.ExportCenter ?? m.default })));
 const LazyCrmWorkspace = lazy(() => import('@/components/admin/crm').then(m => ({ default: m.CrmWorkspace })));
+const LazyDmsWorkspace = lazy(() => import('@/components/admin/dms').then(m => ({ default: m.DmsWorkspace })));
 
 export interface AdminDashboardViewProps {
   lang: Lang;
@@ -203,6 +205,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
         { id: 'reports', ar: 'التقارير', fr: 'Rapports', en: 'Reports', icon: FileBarChart, descAr: 'منشئ التقارير والتصدير', descFr: 'Générateur de rapports', descEn: 'Report builder & export' },
         { id: 'data_quality', ar: 'جودة البيانات', fr: 'Qualité des données', en: 'Data Quality', icon: DatabaseZap, descAr: 'الفحوصات والتناسق', descFr: 'Contrôles & cohérence', descEn: 'Checks & consistency' },
         { id: 'audit', ar: 'سجل المراجعة', fr: "Journal d'audit", en: 'Audit Log', icon: ScrollText, descAr: 'تتبع كل عملية', descFr: 'Traçabilité', descEn: 'Full traceability' },
+        { id: 'dms', ar: 'إدارة الوثائق', fr: 'Gestion documentaire', en: 'Document Management', icon: FileStack, descAr: 'النسخ والمراجعة والأدلة', descFr: 'Versions, révision, preuves', descEn: 'Versions, review, evidence', keywords: ['dms', 'ocr', 'extraction', 'expiry', 'seal', 'evidence', 'وثائق', 'ختم'] },
         { id: 'import_center', ar: 'مركز الاستيراد', fr: "Centre d'import", en: 'Import Center', icon: DatabaseZap, descAr: 'استيراد CSV/XLSX/JSON بـ13 خطوة', descFr: 'Import CSV/XLSX/JSON en 13 étapes', descEn: 'Import CSV/XLSX/JSON (13-step wizard)' },
         { id: 'export_center', ar: 'مركز التصدير', fr: "Centre d'export", en: 'Export Center', icon: FileBarChart, descAr: 'تصدير البيانات بصيغ متعددة', descFr: 'Export multi-format', descEn: 'Multi-format data export' },
       ],
@@ -453,6 +456,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
                   {activeTab === 'crm' && <LazyCrmWorkspace />} {activeTab === 'ledger' && <FinancialLedgerManager />} {activeTab === 'suppliers' && <SupplierManager suppliers={suppliers} />} {activeTab === 'packages' && <PackageManager packages={packages as never} />}
                   {activeTab === 'tickets' && <IncidentManager incidents={incidents as never} tickets={[]} />} {activeTab === 'incidents' && <IncidentManager incidents={incidents as never} tickets={[]} />} {activeTab === 'sos' && <EmergencySosManager />} {activeTab === 'actions' && <ActionCenter actions={actions as never} />}
                   {activeTab === 'alerts' && <AlertDashboard alerts={alerts as never} />} {activeTab === 'reports' && <LazyReportBuilder />} {activeTab === 'data_quality' && <DataQualityDashboard />} {activeTab === 'audit' && <AuditLog />}
+                  {activeTab === 'dms' && <LazyDmsWorkspace />}
                   {activeTab === 'group_ops' && <Suspense fallback={null}><LazyGroupOps /></Suspense>}
                   {activeTab === 'external_ops' && <Suspense fallback={null}><LazyExternalOperations /></Suspense>}
                   {activeTab === 'import_center' && <Suspense fallback={null}><LazyImportCenter /></Suspense>}

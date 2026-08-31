@@ -40,6 +40,10 @@ const TABLES = {
   reservations: ['reservations'],
   alerts: ['alerts'],
   crm: ['crm_leads','crm_customers','crm_opportunities','crm_quotes','crm_followups','crm_activities'],
+  // One channel for the whole document lifecycle. A review screen watches the
+  // documents table, but a version finalising and an extraction job finishing both
+  // change what that screen should say, so they share the channel.
+  dms: ['dms_documents','dms_document_versions','dms_document_events','dms_extracted_fields','evidence_packages'],
 } as const satisfies Record<string, readonly string[]>;
 export type RealtimeDomain = keyof typeof TABLES;
 

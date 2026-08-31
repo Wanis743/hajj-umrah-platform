@@ -3,6 +3,15 @@ import type {
   CrmConvertLeadResult, CrmCustomerRow, CrmFollowupCompletedResult, CrmQuoteAcceptedResult,
   CrmQuoteDeclinedResult, CrmQuoteSentResult, CrmStageMoveResult,
 } from '@/types/crm';
+import type {
+  DmsAccessAction, DmsAccessRecorded, DmsArchiveResult, DmsConfidentiality,
+  DmsDeleteResult, DmsDiscardResult, DmsDocumentRelation, DmsExtractionRecorded,
+  DmsExtractionStatus, DmsFieldReviewResult, DmsFinalizeResult, DmsLinkEntityType,
+  DmsLinkRelation, DmsLinkResult, DmsMetadataResult, DmsPackageCreated,
+  DmsPackageDeleted, DmsPackageMemberResult, DmsPackageSealed, DmsPackageVerification,
+  DmsPackageVoided, DmsQueueResult, DmsRelationResult, DmsReservation, DmsSweepResult,
+  DmsTagsResult, DmsTransitionResult,
+} from '@/types/dms';
 
 export type CommandCode = 'UNAUTHORIZED'|'INVALID_STATE_TRANSITION'|'NOT_FOUND'|'VALIDATION_FAILED'|'CONFLICT'|'CAPACITY_EXCEEDED'|'FISCAL_PERIOD_CLOSED'|'UNKNOWN';
 export interface CommandResult<T> {
@@ -191,6 +200,196 @@ export const crmLifecycleCommands = {
 
   completeFollowup: (followupId: string, note?: string | null) =>
     call<CrmFollowupCompletedResult>('complete_crm_followup_command', { p_id: followupId, p_note: note ?? null }),
+};
+
+/**
+ * DMS. Every entry is one public command in
+ * 20260831120000_dms_vertical_slice.sql, and there is deliberately no makeCrud
+ * line for dms_documents or evidence_packages: the generic patch helper accepts
+ * any column except id/agency_id/branch_id/created_at/updated_at, which on these
+ * two tables means review_status, approved_by, current_version_id and
+ * seal_checksum. A client that could patch those would make the review machine
+ * and the evidence seal decorative, so the metadata commands below name their
+ * columns one at a time.
+ *
+ * The six review calls all wrap one server-side state machine, so a screen can
+ * only ask for a transition that machine has. There is no `expire` here: EXPIRED
+ * is a fact about the calendar and the sweep is the only way in.
+ */
+export const dmsCommands = {
+  /** Step 1 of 3. Creates (or versions) the document row and hands back the path
+   *  the bytes must go to -- the storage policies refuse an upload to a path with
+   *  no row behind it, so reserving first is enforced by the database. */
+  reserveUpload: (input: {
+    title: string; documentType: string; originalFilename: string;
+    documentId?: string | null; description?: string | null;
+    confidentiality?: DmsConfidentiality; issuedOn?: string | null;
+    expiresOn?: string | null; expiryNoticeDays?: number; tags?: string[];
+    workspaceId?: string;
+  }) => call<DmsReservation>('reserve_dms_upload_command', {
+    p_title: input.title,
+    p_document_type: input.documentType,
+    p_original_filename: input.originalFilename,
+    p_document_id: input.documentId ?? null,
+    p_description: input.description ?? null,
+    p_confidentiality: input.confidentiality ?? 'INTERNAL',
+    p_issued_on: input.issuedOn ?? null,
+    p_expires_on: input.expiresOn ?? null,
+    p_expiry_notice_days: input.expiryNoticeDays ?? 30,
+    p_tags: input.tags ?? [],
+    p_workspace_id: input.workspaceId ?? 'DEFAULT',
+  }),
+
+  /** Step 3 of 3. The checksum is computed over the same bytes that were sent, so
+   *  the server records what it can later prove, not what the client claimed. */
+  finalizeUpload: (
+    versionId: string, sizeBytes: number, mimeType: string, checksumSha256: string,
+    opts: { pageCount?: number | null; queueExtraction?: boolean } = {},
+  ) => call<DmsFinalizeResult>('finalize_dms_upload_command', {
+    p_version_id: versionId,
+    p_size_bytes: sizeBytes,
+    p_mime_type: mimeType,
+    p_checksum_sha256: checksumSha256,
+    p_page_count: opts.pageCount ?? null,
+    p_queue_extraction: opts.queueExtraction ?? true,
+  }),
+
+  /** Called when the PUT fails. Records the reserved path in the orphan queue
+   *  before dropping the row, because no policy can authorize deleting an object
+   *  whose version row is already gone. */
+  discardUpload: (versionId: string, reason?: string | null) =>
+    call<DmsDiscardResult>('discard_dms_upload_command', { p_version_id: versionId, p_reason: reason ?? null }),
+
+  submit: (documentId: string, note?: string | null) =>
+    call<DmsTransitionResult>('submit_dms_document_command', { p_document_id: documentId, p_note: note ?? null }),
+  startReview: (documentId: string, note?: string | null) =>
+    call<DmsTransitionResult>('start_dms_review_command', { p_document_id: documentId, p_note: note ?? null }),
+  approve: (documentId: string, note?: string | null) =>
+    call<DmsTransitionResult>('approve_dms_document_command', { p_document_id: documentId, p_note: note ?? null }),
+  reject: (documentId: string, reason: string) =>
+    call<DmsTransitionResult>('reject_dms_document_command', { p_document_id: documentId, p_reason: reason }),
+  requestChanges: (documentId: string, note: string) =>
+    call<DmsTransitionResult>('request_dms_changes_command', { p_document_id: documentId, p_note: note }),
+  reopen: (documentId: string, note?: string | null) =>
+    call<DmsTransitionResult>('reopen_dms_document_command', { p_document_id: documentId, p_note: note ?? null }),
+
+  archive: (documentId: string, archived = true, reason?: string | null) =>
+    call<DmsArchiveResult>('archive_dms_document_command', {
+      p_document_id: documentId, p_archived: archived, p_reason: reason ?? null,
+    }),
+
+  /** Decides by date, not by who asked -- which is why it takes no document id. */
+  runExpirySweep: () => call<DmsSweepResult>('run_dms_expiry_sweep_command', {}),
+
+  link: (
+    documentId: string, entityType: DmsLinkEntityType, entityId: string,
+    relation: DmsLinkRelation = 'ABOUT', note?: string | null,
+  ) => call<DmsLinkResult>('link_dms_document_command', {
+    p_document_id: documentId, p_entity_type: entityType, p_entity_id: entityId,
+    p_relation: relation, p_note: note ?? null,
+  }),
+
+  unlink: (linkId: string) => call<DmsLinkResult>('unlink_dms_document_command', { p_link_id: linkId }),
+
+  /** A SUPERSEDES edge also marks the target SUPERSEDED, which is the only path to
+   *  that state besides a new version. */
+  relate: (fromDocumentId: string, toDocumentId: string, relation: DmsDocumentRelation, note?: string | null) =>
+    call<DmsRelationResult>('relate_dms_documents_command', {
+      p_from_document_id: fromDocumentId, p_to_document_id: toDocumentId,
+      p_relation: relation, p_note: note ?? null,
+    }),
+
+  unrelate: (relationId: string) =>
+    call<DmsRelationResult>('unrelate_dms_documents_command', { p_relation_id: relationId }),
+
+  queueExtraction: (documentId: string, engine = 'MANUAL') =>
+    call<DmsQueueResult>('queue_dms_extraction_command', { p_document_id: documentId, p_engine: engine }),
+
+  /** The engine's callback. `fields` is the extracted array; a failed status
+   *  records the error and leaves the fields alone. */
+  recordExtractionResult: (
+    jobId: string, status: DmsExtractionStatus,
+    opts: { fields?: unknown[]; confidence?: number | null; error?: string | null } = {},
+  ) => call<DmsExtractionRecorded>('record_dms_extraction_result_command', {
+    p_job_id: jobId, p_status: status, p_fields: opts.fields ?? [],
+    p_confidence: opts.confidence ?? null, p_error: opts.error ?? null,
+  }),
+
+  /** CORRECT carries the human's value; ACCEPT and REJECT do not take one. */
+  reviewExtractedField: (fieldId: string, action: 'ACCEPT' | 'CORRECT' | 'REJECT', value?: string | null) =>
+    call<DmsFieldReviewResult>('review_dms_extracted_field_command', {
+      p_field_id: fieldId, p_action: action, p_value: value ?? null,
+    }),
+
+  createPackage: (name: string, opts: { purpose?: string | null; reference?: string | null; notes?: string | null } = {}) =>
+    call<DmsPackageCreated>('create_dms_evidence_package_command', {
+      p_name: name, p_purpose: opts.purpose ?? null,
+      p_reference: opts.reference ?? null, p_notes: opts.notes ?? null,
+    }),
+
+  setPackageDocument: (packageId: string, documentId: string, include = true, note?: string | null) =>
+    call<DmsPackageMemberResult>('set_dms_package_document_command', {
+      p_package_id: packageId, p_document_id: documentId, p_include: include, p_note: note ?? null,
+    }),
+
+  /** Freezes the member list to the versions current at this instant and stores a
+   *  digest over them. Sealing and verifying share one digest function, so they
+   *  can never disagree. */
+  sealPackage: (packageId: string, note?: string | null) =>
+    call<DmsPackageSealed>('seal_dms_evidence_package_command', { p_package_id: packageId, p_note: note ?? null }),
+
+  /** Recomputes the digest and lists which members moved. Read-only: verifying a
+   *  broken seal reports the break, it does not repair it. */
+  verifyPackage: (packageId: string) =>
+    call<DmsPackageVerification>('verify_dms_evidence_package_command', { p_package_id: packageId }),
+
+  /** Named columns only, and refused outright while the document is UNDER_REVIEW:
+   *  the reviewer must be looking at the same document the submitter sent. */
+  updateMetadata: (id: string, patch: {
+    title?: string | null; description?: string | null; documentType?: string | null;
+    confidentiality?: DmsConfidentiality | null; issuedOn?: string | null;
+    expiresOn?: string | null; expiryNoticeDays?: number | null; clearExpiry?: boolean;
+  }) => call<DmsMetadataResult>('update_dms_document_metadata_command', {
+    p_id: id,
+    p_title: patch.title ?? null,
+    p_description: patch.description ?? null,
+    p_document_type: patch.documentType ?? null,
+    p_confidentiality: patch.confidentiality ?? null,
+    p_issued_on: patch.issuedOn ?? null,
+    p_expires_on: patch.expiresOn ?? null,
+    p_expiry_notice_days: patch.expiryNoticeDays ?? null,
+    p_clear_expiry: patch.clearExpiry ?? false,
+  }),
+
+  /** text[] needs its own command: a jsonb payload cannot carry a Postgres array
+   *  through the generic patch helper. */
+  setTags: (id: string, tags: string[]) =>
+    call<DmsTagsResult>('set_dms_document_tags_command', { p_id: id, p_tags: tags }),
+
+  /** Refused for APPROVED/SUPERSEDED/EXPIRED and for any member of a sealed
+   *  package. Returns how many storage objects it queued for the janitor. */
+  removeDocument: (id: string) => call<DmsDeleteResult>('delete_dms_document_command', { p_id: id }),
+
+  updatePackage: (id: string, patch: {
+    name?: string | null; purpose?: string | null; reference?: string | null; notes?: string | null;
+  }) => call<DmsMetadataResult>('update_dms_evidence_package_command', {
+    p_id: id, p_name: patch.name ?? null, p_purpose: patch.purpose ?? null,
+    p_reference: patch.reference ?? null, p_notes: patch.notes ?? null,
+  }),
+
+  /** OPEN -> VOID only. Voiding a sealed package would erase the one fact the seal
+   *  exists to record. */
+  voidPackage: (id: string, reason: string) =>
+    call<DmsPackageVoided>('void_dms_evidence_package_command', { p_id: id, p_reason: reason }),
+
+  removePackage: (id: string) =>
+    call<DmsPackageDeleted>('delete_dms_evidence_package_command', { p_id: id }),
+
+  /** Writes VIEWED / DOWNLOADED / SIGNED_URL_ISSUED into the document's own event
+   *  ledger. document_access_logs cannot hold these: its document_id references
+   *  public.documents ON DELETE RESTRICT, a different table. */
+  recordAccess: (documentId: string, action: DmsAccessAction = 'VIEWED') =>
+    call<DmsAccessRecorded>('record_dms_document_access_command', { p_document_id: documentId, p_action: action }),
 };
 
 // Reservation / Booking commands

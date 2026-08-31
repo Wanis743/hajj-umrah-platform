@@ -69,6 +69,7 @@ const GATES = [
   { name: 'storage_security', label: 'Storage and audit-log security', command: 'npm run verify:storage-sql', env: ['SUPABASE_DB_URL'] },
   { name: 'finance_workflows', label: 'Finance invariants and accounting workflows', command: 'npm run verify:finance-sql', env: ['SUPABASE_DB_URL'] },
   { name: 'crm', label: 'CRM pipeline (lead → customer → opportunity → quote → booking → payment)', command: 'npm run verify:crm', env: ['SUPABASE_DB_URL'] },
+  { name: 'dms', label: 'DMS lifecycle (upload → version → extract → review → approve → seal → expire)', command: 'npm run verify:dms', env: ['SUPABASE_DB_URL'] },
   // Needs the Supabase CLI and Docker, which no environment variable can prove
   // are present, so it is opt-in: FRESH_DB_ENABLE=1 says "this machine can run a
   // throwaway stack". Skipped rather than attempted anywhere else.
@@ -88,7 +89,6 @@ const GATES = [
  * where CRM passed.
  */
 const ABSENT = [
-  { name: 'dms', label: 'DMS lifecycle (upload → version → extract → review → approve → expire)', reason: 'no document-management subsystem exists to test' },
   { name: 'bi', label: 'BI semantic layer (datasets, metrics, drill-through, lineage)', reason: 'no BI subsystem exists to test' },
 ];
 

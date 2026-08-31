@@ -7,6 +7,7 @@ import type {
   CrmConvertLeadResult, CrmStageMoveResult, CrmQuoteSentResult, CrmQuoteDeclinedResult,
   CrmQuoteAcceptedResult, CrmFollowupCompletedResult,
 } from '@/types/crm';
+import type { DmsDocumentRow } from '@/types/dms';
 /** Central TypeScript contract for Supabase tables.
  * Keep this file generated/updated from the canonical migrations and never pass
  * untyped string table names into the domain layer.
@@ -26,7 +27,10 @@ export type TableName = 'import_batch_rows' | 'financial_models' | 'model_scenar
   | 'staff_profiles' | 'observability_events' | 'settings'
   | 'external_operations' | 'external_operation_evidence' | 'external_references' | 'chart_of_accounts' | 'fiscal_periods' | 'bank_statements' | 'bank_transactions'
   | 'crm_campaigns' | 'crm_customers' | 'crm_opportunities' | 'crm_stage_history'
-  | 'crm_quotes' | 'crm_quote_lines' | 'crm_activities' | 'crm_followups';
+  | 'crm_quotes' | 'crm_quote_lines' | 'crm_activities' | 'crm_followups'
+  | 'dms_documents' | 'dms_document_versions' | 'dms_document_links'
+  | 'dms_document_relations' | 'dms_document_events' | 'dms_extracted_fields'
+  | 'extraction_jobs' | 'evidence_packages' | 'evidence_package_documents';
 
 export type BaseRow = { id: string; [key: string]: unknown };
 
@@ -295,6 +299,19 @@ type RowMap = { import_batch_rows: ImportBatchRowRow; financial_models: Financia
   crm_quote_lines: Indexed<CrmQuoteLineRow>;
   crm_activities: Indexed<CrmActivityRow>;
   crm_followups: Indexed<CrmFollowupRow>;
+  // DMS. Only dms_documents is read as rows by a screen (the library list), so it
+  // carries the full contract from @/types/dms. The rest are reached exclusively
+  // through get_dms_document_360 and the other composed reads, and every one of
+  // them is in CRITICAL_TABLES, so a row shape here would be a shape nothing uses.
+  dms_documents: Indexed<DmsDocumentRow>;
+  dms_document_versions: GenericRow;
+  dms_document_links: GenericRow;
+  dms_document_relations: GenericRow;
+  dms_document_events: GenericRow;
+  dms_extracted_fields: GenericRow;
+  extraction_jobs: GenericRow;
+  evidence_packages: GenericRow;
+  evidence_package_documents: GenericRow;
 };
 
 /** JSON returned by domain command RPCs. Loose types are forbidden in this protected layer. */

@@ -62,6 +62,7 @@ SUPABASE_DB_URL="$DB_URL" node scripts/run-sql-gate.mjs \
   supabase/tests/finance_invariants.sql \
   supabase/tests/accounting_workflows.sql \
   supabase/tests/crm_lifecycle.sql \
+  supabase/tests/dms_lifecycle.sql \
   supabase/tests/final_enterprise_hardening.sql \
   supabase/tests/maintainability_contracts.sql
 

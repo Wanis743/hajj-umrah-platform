@@ -52,6 +52,7 @@ const DEFAULT_COLUMNS: Record<string, string> = {
   flights: 'id,flight_number,carrier,departure_airport,arrival_airport,scheduled_departure,scheduled_arrival,actual_departure,actual_arrival,status,terminal,gate,created_at,updated_at',
   hotels: 'id,name,name_ar,city,star_rating,distance_to_haram_m,total_rooms,available_rooms,rate_sar,status,created_at,updated_at',
   room_allocations: 'id,hotel_id,group_id,pilgrim_id,room_number,room_type,check_in,check_out,status,created_at,updated_at',
+  dms_documents: 'id,agency_id,branch_id,document_number,title,description,document_type,status,review_status,confidentiality,tags,current_version_id,version_count,submitted_at,submitted_by,review_started_at,reviewer_id,reviewed_at,review_notes,approved_at,approved_by,rejection_reason,issued_on,expires_on,expiry_notice_days,expiry_notified_at,retention_until,archived_at,workspace_id,polymorphic_id,polymorphic_type,created_by,updated_by,created_at,updated_at',
 };
 
 const CRITICAL_TABLES = new Set([
@@ -63,7 +64,15 @@ const CRITICAL_TABLES = new Set([
   // derived from its lines, and accepting a quote creates a booking, a payment
   // and a journal entry -- none of which a `.update({stage:'WON'})` would do.
   'crm_leads','crm_customers','crm_opportunities','crm_stage_history',
-  'crm_quotes','crm_quote_lines','crm_activities','crm_followups','crm_campaigns'
+  'crm_quotes','crm_quote_lines','crm_activities','crm_followups','crm_campaigns',
+  // DMS. Reads go to the RLS-protected tables; writes must not. review_status is a
+  // transition through a state machine that also stamps the reviewer and writes an
+  // event, a version's checksum is compared against the bytes at finalise time,
+  // and a sealed evidence package is a digest over its members -- none of which a
+  // `.update({review_status:'APPROVED'})` would do.
+  'dms_documents','dms_document_versions','dms_document_links','dms_document_relations',
+  'dms_document_events','dms_extracted_fields','extraction_jobs',
+  'evidence_packages','evidence_package_documents'
 ]);
 
 const TABLE_TO_DOMAIN: Partial<Record<TableName, RealtimeDomain>> = {
@@ -74,6 +83,8 @@ const TABLE_TO_DOMAIN: Partial<Record<TableName, RealtimeDomain>> = {
   alerts: 'alerts',
   crm_opportunities: 'crm', crm_quotes: 'crm', crm_customers: 'crm',
   crm_followups: 'crm', crm_activities: 'crm', crm_leads: 'crm',
+  dms_documents: 'dms', dms_document_versions: 'dms', dms_document_events: 'dms',
+  dms_extracted_fields: 'dms', evidence_packages: 'dms',
 };
 
 function tableToDomain(table: TableName): RealtimeDomain | null {

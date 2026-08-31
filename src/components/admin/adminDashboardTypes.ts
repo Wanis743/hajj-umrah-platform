@@ -5,6 +5,7 @@ export type ExtendedAdminTab =
   | 'crm' | 'financials' | 'ledger' | 'suppliers' | 'packages'
   | 'tickets' | 'incidents' | 'sos' | 'actions'
   | 'alerts' | 'reports' | 'data_quality' | 'audit' | 'settings'
+  | 'dms'
   | 'group_ops' | 'external_ops' | 'import_center' | 'export_center' | 'finance_os' | 'operations_os' | 'launcher';
 
 export type NavItem = {
