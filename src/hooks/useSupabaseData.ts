@@ -38,7 +38,15 @@ const DEFAULT_COLUMNS: Record<string, string> = {
   invoices: 'id,booking_id,invoice_number,total_dzd,total_sar,status,issued_at,created_at,currency,exchange_rate',
   documents: 'id,pilgrim_id,type,status,number,file_name,issue_date,expiry_date,created_at,mime_type,size_bytes,checksum_sha256',
   audit_logs: 'id,action,resource,resource_id,user_email,details,timestamp,created_at,request_id',
-  crm_leads: 'id,first_name,last_name,phone,email,source,status,priority,score,next_action_at,created_at,updated_at',
+  crm_leads: 'id,first_name,last_name,phone,email,source,status,priority,notes,score,next_action_at,assigned_to,customer_id,campaign_id,lost_reason,qualified_at,converted_at,created_at,updated_at',
+  crm_customers: 'id,code,pilgrim_id,lead_id,campaign_id,full_name,full_name_ar,customer_type,status,phone,email,wilaya,address,source,owner_id,tags,notes,first_won_at,last_activity_at,created_at,updated_at',
+  crm_opportunities: 'id,reference,customer_id,lead_id,package_id,campaign_id,booking_id,title,stage,probability,travelers,expected_value_dzd,expected_close_date,owner_id,won_at,lost_at,lost_reason,notes,created_at,updated_at',
+  crm_quotes: 'id,quote_number,opportunity_id,customer_id,package_id,booking_id,status,currency_code,subtotal,discount_amount,total_amount,travelers,valid_until,terms,notes,sent_at,accepted_at,declined_at,declined_reason,created_at,updated_at',
+  crm_quote_lines: 'id,quote_id,package_id,description,quantity,unit_price,line_total,sort_order,created_at,updated_at',
+  crm_activities: 'id,customer_id,lead_id,opportunity_id,quote_id,activity_type,direction,subject,body,outcome,duration_minutes,occurred_at,created_by,created_at,updated_at',
+  crm_followups: 'id,lead_id,customer_id,opportunity_id,title,due_at,priority,status,assigned_to,completed_at,notes,created_at,updated_at',
+  crm_campaigns: 'id,code,name,channel,status,start_date,end_date,budget_dzd,spend_dzd,target_segment,notes,created_at,updated_at',
+  crm_stage_history: 'id,opportunity_id,from_stage,to_stage,probability,note,changed_by,changed_at,created_at',
   groups: 'id,code,name,name_ar,package_id,departure_date,return_date,leader_name,leader_phone,guide_id,max_capacity,current_capacity,status,readiness_score,readiness_details,created_at,updated_at',
   visas: 'id,pilgrim_id,status,processing_time,expected_processing_time,sla,rejection_reason,missing_documents,application_age,issue_date,expiry_date,created_at,updated_at',
   flights: 'id,flight_number,carrier,departure_airport,arrival_airport,scheduled_departure,scheduled_arrival,actual_departure,actual_arrival,status,terminal,gate,created_at,updated_at',
@@ -49,7 +57,13 @@ const DEFAULT_COLUMNS: Record<string, string> = {
 const CRITICAL_TABLES = new Set([
   'bookings','payments','invoices','reservations','pilgrims','visas','documents','room_allocations','transport_assignments',
   'groups','flights','hotels','holy_site_camps','incidents','sos_events','audit_logs','journal_entries','journal_lines','bank_accounts',
-  'supplier_bills','credit_notes'
+  'supplier_bills','credit_notes',
+  // CRM. Reads go straight to the RLS-protected tables; writes must not. A stage
+  // is a transition with history and an activity behind it, a quote total is
+  // derived from its lines, and accepting a quote creates a booking, a payment
+  // and a journal entry -- none of which a `.update({stage:'WON'})` would do.
+  'crm_leads','crm_customers','crm_opportunities','crm_stage_history',
+  'crm_quotes','crm_quote_lines','crm_activities','crm_followups','crm_campaigns'
 ]);
 
 const TABLE_TO_DOMAIN: Partial<Record<TableName, RealtimeDomain>> = {
@@ -57,7 +71,9 @@ const TABLE_TO_DOMAIN: Partial<Record<TableName, RealtimeDomain>> = {
   bookings: 'bookings', pilgrims: 'pilgrims', groups: 'groups',
   hotels: 'hotels', flights: 'operations', visas: 'visas',
   incidents: 'incidents', sos_events: 'sos_events', reservations: 'reservations',
-  alerts: 'alerts'
+  alerts: 'alerts',
+  crm_opportunities: 'crm', crm_quotes: 'crm', crm_customers: 'crm',
+  crm_followups: 'crm', crm_activities: 'crm', crm_leads: 'crm',
 };
 
 function tableToDomain(table: TableName): RealtimeDomain | null {

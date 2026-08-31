@@ -21,21 +21,26 @@ export type ChannelStatus =
 
 export type StatusChangeCallback = (domain: RealtimeDomain, status: ChannelStatus) => void;
 
+// A domain is one channel over one or more tables. It was one table each until
+// the CRM arrived, where a single screen reads leads, opportunities, quotes and
+// follow-ups: mapping all four to a domain that listened only to opportunities
+// would have made the other three refresh on the wrong event.
 const TABLES = {
-  finance: 'payments',
-  bookings: 'bookings',
-  pilgrims: 'pilgrims',
-  groups: 'groups',
-  hotels: 'hotels',
-  operations: 'flights',
-  visas: 'visas',
-  invoices: 'invoices',
-  accounting: 'journal_entries',
-  incidents: 'incidents',
-  sos_events: 'sos_events',
-  reservations: 'reservations',
-  alerts: 'alerts',
-} as const;
+  finance: ['payments'],
+  bookings: ['bookings'],
+  pilgrims: ['pilgrims'],
+  groups: ['groups'],
+  hotels: ['hotels'],
+  operations: ['flights'],
+  visas: ['visas'],
+  invoices: ['invoices'],
+  accounting: ['journal_entries'],
+  incidents: ['incidents'],
+  sos_events: ['sos_events'],
+  reservations: ['reservations'],
+  alerts: ['alerts'],
+  crm: ['crm_leads','crm_customers','crm_opportunities','crm_quotes','crm_followups','crm_activities'],
+} as const satisfies Record<string, readonly string[]>;
 export type RealtimeDomain = keyof typeof TABLES;
 
 const RECONNECT_DELAY_MS = 3_000;   // initial backoff
@@ -92,22 +97,27 @@ class RealtimeManager {
   }
 
   private connect(domain: RealtimeDomain) {
-    const table = TABLES[domain];
-    if (!table) return;
+    const tables: readonly string[] = TABLES[domain];
+    if (!tables.length) return;
 
     this.setStatus(domain, 'CONNECTING');
 
-    const channel = supabase
-      .channel(`domain-${domain}-${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
-        // Debounce rapid bursts (250ms)
-        const old = this.debounce.get(domain);
-        if (old) clearTimeout(old);
-        this.debounce.set(domain, setTimeout(() => {
-          this.lastEventAt.set(domain, Date.now());
-          for (const listener of this.listeners.get(domain) ?? []) listener();
-        }, 250));
-      })
+    const notify = () => {
+      // Debounce rapid bursts (250ms). Shared across every table on the domain,
+      // so a lead insert that also writes an activity fires one refresh.
+      const old = this.debounce.get(domain);
+      if (old) clearTimeout(old);
+      this.debounce.set(domain, setTimeout(() => {
+        this.lastEventAt.set(domain, Date.now());
+        for (const listener of this.listeners.get(domain) ?? []) listener();
+      }, 250));
+    };
+
+    let channel = supabase.channel(`domain-${domain}-${Date.now()}`);
+    for (const table of tables) {
+      channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, notify);
+    }
+    channel = channel
       .subscribe((status) => {
         switch (status) {
           case 'SUBSCRIBED':

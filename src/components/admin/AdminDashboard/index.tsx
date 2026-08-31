@@ -20,7 +20,6 @@ import { HotelManager } from '@/components/admin/HotelManager';
 import { TransportManager } from '@/components/admin/TransportManager';
 import { HajjOperations } from '@/components/admin/HajjOperations';
 import MutawwifManager from '@/components/admin/MutawwifManager';
-import { CrmManager } from '@/components/admin/CrmManager';
 import { SupplierManager } from '@/components/admin/SupplierManager';
 import PackageManager from '@/components/admin/PackageManager';
 import { IncidentManager } from '@/components/admin/IncidentManager';
@@ -54,6 +53,7 @@ const LazyImportCenter = lazy(() => import('@/components/admin/ImportCenter').th
 const LazyFinanceOS = lazy(() => import('@/components/admin/FinanceOS'));
 const LazyOperationsOS = lazy(() => import('@/components/admin/OperationsOS').then(m => ({ default: m.OperationsOS })));
 const LazyExportCenter = lazy(() => import('@/components/admin/ExportCenter').then(m => ({ default: m.ExportCenter ?? m.default })));
+const LazyCrmWorkspace = lazy(() => import('@/components/admin/crm').then(m => ({ default: m.CrmWorkspace })));
 
 export interface AdminDashboardViewProps {
   lang: Lang;
@@ -450,7 +450,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
                   {activeTab === 'pilgrims' && <PilgrimManager pilgrims={pilgrims as never} onOpenNewReservationModal={() => setIsNewModalOpen(true)} />}
                   {activeTab === 'bookings' && <LazyBookingManager />} {activeTab === 'groups' && <GroupManager />} {activeTab === 'visas' && <VisaProcessor />} {activeTab === 'documents' && <DocumentCenter documents={documents as never} />}
                   {activeTab === 'flights' && <FlightManager flights={flights as never} />} {activeTab === 'flight_logistics' && <FlightLogisticsManager />} {activeTab === 'hotels' && <HotelManager hotels={hotels} />} {activeTab === 'housing' && <HotelHousingManager />} {activeTab === 'transport' && <TransportManager vehicles={buses as never} />} {activeTab === 'hajj_ops' && <HajjOperations camps={camps as never} />} {activeTab === 'holy_sites' && <HolySitesManager />} {activeTab === 'guides' && <MutawwifManager guides={guides as never} />}
-                  {activeTab === 'crm' && <CrmManager />} {activeTab === 'ledger' && <FinancialLedgerManager />} {activeTab === 'suppliers' && <SupplierManager suppliers={suppliers} />} {activeTab === 'packages' && <PackageManager packages={packages as never} />}
+                  {activeTab === 'crm' && <LazyCrmWorkspace />} {activeTab === 'ledger' && <FinancialLedgerManager />} {activeTab === 'suppliers' && <SupplierManager suppliers={suppliers} />} {activeTab === 'packages' && <PackageManager packages={packages as never} />}
                   {activeTab === 'tickets' && <IncidentManager incidents={incidents as never} tickets={[]} />} {activeTab === 'incidents' && <IncidentManager incidents={incidents as never} tickets={[]} />} {activeTab === 'sos' && <EmergencySosManager />} {activeTab === 'actions' && <ActionCenter actions={actions as never} />}
                   {activeTab === 'alerts' && <AlertDashboard alerts={alerts as never} />} {activeTab === 'reports' && <LazyReportBuilder />} {activeTab === 'data_quality' && <DataQualityDashboard />} {activeTab === 'audit' && <AuditLog />}
                   {activeTab === 'group_ops' && <Suspense fallback={null}><LazyGroupOps /></Suspense>}

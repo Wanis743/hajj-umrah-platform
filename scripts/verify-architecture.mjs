@@ -4,7 +4,11 @@ const roots=['src']; const files=[];
 function walk(d){ for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name); if(e.isDirectory()) walk(p); else if(/\.(ts|tsx)$/.test(e.name)) files.push(p);} }
 walk('src');
 const failures=[];
-const critical=['bookings','payments','invoices','reservations','pilgrims','visas','documents','room_allocations','transport_assignments','groups','flights','hotels','holy_site_camps','incidents','sos_events','audit_logs','journal_entries','journal_lines','bank_accounts','supplier_bills','credit_notes'];
+const critical=['bookings','payments','invoices','reservations','pilgrims','visas','documents','room_allocations','transport_assignments','groups','flights','hotels','holy_site_camps','incidents','sos_events','audit_logs','journal_entries','journal_lines','bank_accounts','supplier_bills','credit_notes',
+  // CRM. Every write has server-side consequences a direct table mutation skips:
+  // stage history, the derived quote total, and the booking + payment + journal
+  // entry that quote acceptance posts.
+  'crm_leads','crm_customers','crm_opportunities','crm_stage_history','crm_quotes','crm_quote_lines','crm_activities','crm_followups','crm_campaigns'];
 // Scoped, documented exemptions. PaymentModal's invoice payment path:
 //   insert into payments is ledger-posted by the payment_ledger_trg DB trigger
 //   (journal Cash/AR created server-side) and RLS policies enforce staff scope;

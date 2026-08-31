@@ -1,56 +1,17 @@
 
--- Add group_id to journal_entries to trace ledger events to operational units
-ALTER TABLE journal_entries ADD COLUMN group_id UUID REFERENCES groups(id) ON DELETE SET NULL;
+-- Add group_id to journal_entries to trace ledger events to operational units.
+-- IF NOT EXISTS added because the bare ADD COLUMN made this file unreplayable.
+ALTER TABLE public.journal_entries ADD COLUMN IF NOT EXISTS group_id UUID REFERENCES public.groups(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_journal_entries_group ON public.journal_entries(group_id);
 
--- Create an RPC to aggregate real-time revenue and cost per group
-CREATE OR REPLACE FUNCTION get_group_profitability(p_group_id UUID)
-RETURNS TABLE (
-    total_revenue_dzd NUMERIC,
-    total_revenue_sar NUMERIC,
-    total_cost_dzd NUMERIC,
-    total_cost_sar NUMERIC,
-    margin_dzd NUMERIC,
-    margin_sar NUMERIC,
-    margin_percentage NUMERIC
-) AS $$
-DECLARE
-    v_rev_dzd NUMERIC := 0;
-    v_rev_sar NUMERIC := 0;
-    v_cost_dzd NUMERIC := 0;
-    v_cost_sar NUMERIC := 0;
-    v_margin_pct NUMERIC := 0;
-BEGIN
-    -- Aggregate Revenue (Credits to Income accounts tagged with group_id)
-    SELECT 
-        COALESCE(SUM(jl.credit_dzd) - SUM(jl.debit_dzd), 0),
-        COALESCE(SUM(jl.credit_sar) - SUM(jl.debit_sar), 0)
-    INTO v_rev_dzd, v_rev_sar
-    FROM journal_lines jl
-    JOIN journal_entries je ON jl.entry_id = je.id
-    JOIN accounts a ON jl.account_id = a.id
-    WHERE je.group_id = p_group_id AND a.type = 'INCOME';
-
-    -- Aggregate Cost (Debits to Expense accounts tagged with group_id)
-    SELECT 
-        COALESCE(SUM(jl.debit_dzd) - SUM(jl.credit_dzd), 0),
-        COALESCE(SUM(jl.debit_sar) - SUM(jl.credit_sar), 0)
-    INTO v_cost_dzd, v_cost_sar
-    FROM journal_lines jl
-    JOIN journal_entries je ON jl.entry_id = je.id
-    JOIN accounts a ON jl.account_id = a.id
-    WHERE je.group_id = p_group_id AND a.type = 'EXPENSE';
-
-    IF v_rev_dzd > 0 THEN
-        v_margin_pct := ((v_rev_dzd - v_cost_dzd) / v_rev_dzd) * 100;
-    END IF;
-
-    RETURN QUERY SELECT 
-        v_rev_dzd,
-        v_rev_sar,
-        v_cost_dzd,
-        v_cost_sar,
-        (v_rev_dzd - v_cost_dzd),
-        (v_rev_sar - v_cost_sar),
-        v_margin_pct;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- The get_group_profitability defined here never worked: it was SECURITY DEFINER
+-- with no SET search_path, it had no agency/branch filter (any authenticated
+-- caller could read any group's economics), and its body referenced columns and
+-- a table that do not exist in this schema -- jl.credit_dzd, jl.debit_dzd,
+-- jl.credit_sar, jl.debit_sar, jl.entry_id and a table `accounts`, where the real
+-- names are journal_lines.debit / .credit / .journal_entry_id and
+-- public.chart_of_accounts.account_type. plpgsql bodies are not name-resolved at
+-- CREATE time, so Postgres accepted it and it failed only when called.
+-- Dropped here and defined correctly in 20260830120000_crm_vertical_slice.sql,
+-- so databases that already applied this migration get the repair too.
+DROP FUNCTION IF EXISTS public.get_group_profitability(UUID);

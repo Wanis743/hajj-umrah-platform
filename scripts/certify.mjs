@@ -24,7 +24,7 @@
  *
  * A gate whose environment is absent is SKIPPED, and SKIPPED is not VERIFIED —
  * that single rule is what the old manifest violated. Gates the platform cannot
- * yet have (CRM, DMS, BI) are recorded as ABSENT with the reason, so the file
+ * yet have (DMS, BI) are recorded as ABSENT with the reason, so the file
  * states what is missing instead of omitting it.
  *
  * Usage:  node scripts/certify.mjs            run everything available
@@ -68,6 +68,7 @@ const GATES = [
   { name: 'bola_idor', label: 'BOLA/IDOR cross-agency isolation', command: 'npm run verify:bola', env: ['SUPABASE_DB_URL'] },
   { name: 'storage_security', label: 'Storage and audit-log security', command: 'npm run verify:storage-sql', env: ['SUPABASE_DB_URL'] },
   { name: 'finance_workflows', label: 'Finance invariants and accounting workflows', command: 'npm run verify:finance-sql', env: ['SUPABASE_DB_URL'] },
+  { name: 'crm', label: 'CRM pipeline (lead → customer → opportunity → quote → booking → payment)', command: 'npm run verify:crm', env: ['SUPABASE_DB_URL'] },
   // Needs the Supabase CLI and Docker, which no environment variable can prove
   // are present, so it is opt-in: FRESH_DB_ENABLE=1 says "this machine can run a
   // throwaway stack". Skipped rather than attempted anywhere else.
@@ -87,7 +88,6 @@ const GATES = [
  * where CRM passed.
  */
 const ABSENT = [
-  { name: 'crm', label: 'CRM pipeline (lead → customer → opportunity → quote → booking → payment)', reason: 'no CRM subsystem exists to test' },
   { name: 'dms', label: 'DMS lifecycle (upload → version → extract → review → approve → expire)', reason: 'no document-management subsystem exists to test' },
   { name: 'bi', label: 'BI semantic layer (datasets, metrics, drill-through, lineage)', reason: 'no BI subsystem exists to test' },
 ];

@@ -226,7 +226,16 @@ alter table public.packages add constraint packages_nonnegative_price_sar check 
 alter table public.packages add constraint packages_nonnegative_capacity check (seats_available >= 0);
 alter table public.bookings add constraint bookings_nonnegative_totals check (total_dzd >= 0 and total_sar >= 0 and paid_dzd >= 0 and paid_sar >= 0);
 alter table public.payments add constraint payments_nonnegative_amounts check (amount_dzd >= 0 and amount_sar >= 0);
-alter table public.payment_reversals add constraint payment_reversals_nonnegative_amounts check (amount_dzd >= 0 and amount_sar >= 0);
+-- public.payment_reversals is never created by any migration in this repo, so
+-- this ALTER stopped a fresh replay of the ledger. The constraint is kept behind
+-- a guard so it applies the day the table is built; see also
+-- public.reverse_payment_transaction, which inserts into the same missing table.
+do $reversal_guard$ begin
+  if to_regclass('public.payment_reversals') is not null then
+    alter table public.payment_reversals drop constraint if exists payment_reversals_nonnegative_amounts;
+    alter table public.payment_reversals add constraint payment_reversals_nonnegative_amounts check (amount_dzd >= 0 and amount_sar >= 0);
+  end if;
+end $reversal_guard$;
 
 -- -----------------------------------------------------------------------------
 -- Atomic financial workflow: every confirmed payment posts its journal before commit.

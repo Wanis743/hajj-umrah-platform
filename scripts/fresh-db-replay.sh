@@ -46,6 +46,13 @@ DB_URL=$(supabase status -o env | awk -F= '/DB_URL=/{print substr($0,index($0,"=
 # agencies as a staff user, and the local stack's psql superuser bypasses row
 # security, so the suite's own preflight refuses to run and fail vacuously. It
 # belongs to `npm run verify:bola` against a real database with a staff session.
+#
+# crm_lifecycle.sql is in the list, and safely: its Part 1 answers the RLS, grant
+# and policy questions from the catalog, where a superuser session cannot make the
+# answer wrong, and its Part 2 asserts triggers, constraints and command guards --
+# never row visibility. It also creates its own staff profile and JWT claim inside
+# `begin ... rollback`, so the authorization guards are satisfied by RBAC rows
+# rather than by the superuser, and nothing it writes survives the suite.
 SUPABASE_DB_URL="$DB_URL" node scripts/run-sql-gate.mjs \
   supabase/tests/security_rls.sql \
   supabase/tests/security_full_matrix.sql \
@@ -54,6 +61,7 @@ SUPABASE_DB_URL="$DB_URL" node scripts/run-sql-gate.mjs \
   supabase/tests/security_storage_runtime.sql \
   supabase/tests/finance_invariants.sql \
   supabase/tests/accounting_workflows.sql \
+  supabase/tests/crm_lifecycle.sql \
   supabase/tests/final_enterprise_hardening.sql \
   supabase/tests/maintainability_contracts.sql
 

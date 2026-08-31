@@ -1,4 +1,8 @@
 import { supabase } from '@/lib/supabase';
+import type {
+  CrmConvertLeadResult, CrmCustomerRow, CrmFollowupCompletedResult, CrmQuoteAcceptedResult,
+  CrmQuoteDeclinedResult, CrmQuoteSentResult, CrmStageMoveResult,
+} from '@/types/crm';
 
 export type CommandCode = 'UNAUTHORIZED'|'INVALID_STATE_TRANSITION'|'NOT_FOUND'|'VALIDATION_FAILED'|'CONFLICT'|'CAPACITY_EXCEEDED'|'FISCAL_PERIOD_CLOSED'|'UNKNOWN';
 export interface CommandResult<T> {
@@ -25,14 +29,31 @@ const USER_SAFE_MESSAGES: Record<string, string> = {
   'FISCAL_PERIOD_CLOSED': 'الفترة المالية مغلقة — تواصل مع مدير النظام',
   '23505': 'هذا السجل موجود مسبقاً (تعارض في البيانات)',
   '42501': 'غير مصرح لك بهذه العملية',
+  // Every `raise exception ... using errcode = '22023'` in the CRM lifecycle is a
+  // business rule the user can act on (an illegal stage move, a discount above
+  // the subtotal, a quote that is no longer a draft). Without this entry they all
+  // surfaced as 'Unknown Error' and the message the database wrote was thrown away.
+  '22023': 'العملية مرفوضة: لا تتوافق مع قواعد العمل — راجع التفاصيل',
+  // Bare `raise exception 'text'` with no errcode. Postgres reports P0001.
+  'P0001': 'العملية مرفوضة — راجع التفاصيل',
+  '23514': 'القيمة المدخلة مخالفة لقيود البيانات',
+  '23503': 'لا يمكن إتمام العملية: سجل مرتبط غير موجود أو مستخدم',
   'UNKNOWN': 'حدث خطأ غير متوقع، يرجى المحاولة مجدداً أو التواصل مع الدعم',
 };
 
 const cid=()=>crypto.randomUUID();
-const mapError=(e:{message:string;code?:string}|null)=>e?{
+// SQLSTATEs whose message text is written by our own `raise exception` and is
+// meant for the person reading the screen ("A lost opportunity requires a
+// reason"). For anything else the raw message can carry schema detail, so the
+// canned Arabic string is what the user sees.
+const AUTHORED_MESSAGE_CODES = new Set(['22023','P0001']);
+const mapError=(e:{message:string;code?:string;details?:string|null;hint?:string|null}|null)=>e?{
   code:e.code??'UNKNOWN',
   message:e.message,
-  user_safe_message: (USER_SAFE_MESSAGES[e.code??'UNKNOWN'] ?? 'Unknown Error'),
+  user_safe_message: AUTHORED_MESSAGE_CODES.has(e.code??'')
+    ? (e.message?.trim() || USER_SAFE_MESSAGES[e.code??'UNKNOWN'] || 'Unknown Error')
+    : (USER_SAFE_MESSAGES[e.code??'UNKNOWN'] ?? 'Unknown Error'),
+  details: e.details ?? e.hint ?? undefined,
   retryable:['40001','57014','PGRST003'].includes(e.code??'')
 }:null;
 async function call<T>(fn:string,args:Record<string,unknown>):Promise<CommandResult<T>>{
@@ -97,6 +118,80 @@ export const packageCommands=makeCrud('create_package_command','update_package_c
 export const flightCommands=makeCrud('create_flight_command','update_flight_command','delete_flight_command');
 export const holySiteCampCommands=makeCrud('create_camp_command','update_camp_command','delete_camp_command');
 export const crmCommands=makeCrud('create_crm_lead_command','update_crm_lead_command','delete_crm_lead_command');
+export const crmCustomerCommands=makeCrud('create_crm_customer_command','update_crm_customer_command','delete_crm_customer_command');
+export const crmOpportunityCommands=makeCrud('create_crm_opportunity_command','update_crm_opportunity_command','delete_crm_opportunity_command');
+export const crmQuoteCommands=makeCrud('create_crm_quote_command','update_crm_quote_command','delete_crm_quote_command');
+export const crmQuoteLineCommands=makeCrud('create_crm_quote_line_command','update_crm_quote_line_command','delete_crm_quote_line_command');
+export const crmActivityCommands=makeCrud('create_crm_activity_command','update_crm_activity_command','delete_crm_activity_command');
+export const crmFollowupCommands=makeCrud('create_crm_followup_command','update_crm_followup_command','delete_crm_followup_command');
+export const crmCampaignCommands=makeCrud('create_crm_campaign_command','update_crm_campaign_command','delete_crm_campaign_command');
+
+/**
+ * CRM lifecycle. These five calls are the only way the pipeline advances, and
+ * each one is a single database transaction:
+ *   convertLead  -> customer + opportunity + activity
+ *   moveStage    -> stage + history + activity (+ cascade on LOST)
+ *   sendQuote    -> SENT + valid_until + opportunity to PROPOSAL + activity
+ *   acceptQuote  -> pilgrim + booking + payment + balanced journal entry
+ * Nothing here patches a status column by hand; a stage is a transition, not a
+ * field, so an illegal move is refused by the server rather than saved.
+ */
+export const crmLifecycleCommands = {
+  convertLead: (
+    leadId: string,
+    opts: {
+      packageId?: string | null; travelers?: number; expectedValueDzd?: number | null;
+      expectedCloseDate?: string | null; title?: string | null;
+    } = {},
+  ) => call<CrmConvertLeadResult>('convert_crm_lead_command', {
+    p_lead_id: leadId,
+    p_package_id: opts.packageId ?? null,
+    p_travelers: opts.travelers ?? 1,
+    p_expected_value_dzd: opts.expectedValueDzd ?? null,
+    p_expected_close_date: opts.expectedCloseDate ?? null,
+    p_title: opts.title ?? null,
+  }),
+
+  moveStage: (opportunityId: string, toStage: string, note?: string | null, lostReason?: string | null) =>
+    call<CrmStageMoveResult>('transition_crm_opportunity_stage', {
+      p_opportunity_id: opportunityId,
+      p_to_stage: toStage,
+      p_note: note ?? null,
+      p_lost_reason: lostReason ?? null,
+    }),
+
+  sendQuote: (quoteId: string, validDays = 14) =>
+    call<CrmQuoteSentResult>('send_crm_quote_command', { p_quote_id: quoteId, p_valid_days: validDays }),
+
+  declineQuote: (quoteId: string, reason: string) =>
+    call<CrmQuoteDeclinedResult>('decline_crm_quote_command', { p_quote_id: quoteId, p_reason: reason }),
+
+  /** Closes the sale. Creates the pilgrim if the customer has none, the booking,
+   *  the payment when an amount is given, and the journal entry behind it. */
+  acceptQuote: (
+    quoteId: string,
+    opts: {
+      paymentAmountDzd?: number; paymentAmountSar?: number; paymentMethod?: string;
+      groupId?: string | null; passportNumber?: string | null; notes?: string | null;
+    } = {},
+  ) => call<CrmQuoteAcceptedResult>('accept_crm_quote_command', {
+    p_quote_id: quoteId,
+    p_payment_amount_dzd: opts.paymentAmountDzd ?? 0,
+    p_payment_amount_sar: opts.paymentAmountSar ?? 0,
+    p_payment_method: opts.paymentMethod ?? 'Cash',
+    p_group_id: opts.groupId ?? null,
+    p_passport_number: opts.passportNumber ?? null,
+    p_notes: opts.notes ?? null,
+  }),
+
+  /** tags is text[]; it has its own command because a jsonb payload cannot carry
+   *  a Postgres array through the generic patch helper. */
+  setCustomerTags: (customerId: string, tags: string[]) =>
+    call<CrmCustomerRow>('set_crm_customer_tags_command', { p_id: customerId, p_tags: tags }),
+
+  completeFollowup: (followupId: string, note?: string | null) =>
+    call<CrmFollowupCompletedResult>('complete_crm_followup_command', { p_id: followupId, p_note: note ?? null }),
+};
 
 // Reservation / Booking commands
 /** Typed result for reservation confirmation */

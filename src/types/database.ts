@@ -1,5 +1,12 @@
 export type JsonValue = string | number | boolean | null | undefined | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
+import type {
+  CrmActivityRow, CrmCampaignRoi, CrmCampaignRow, CrmCustomer360, CrmCustomerProfitability,
+  CrmCustomerRow, CrmDashboard, CrmFollowupRow, CrmForecastMonth, CrmFunnel, CrmLeadRow,
+  CrmOpportunityRow, CrmPipelineStage, CrmQuoteLineRow, CrmQuoteRow, CrmStageHistoryRow,
+  CrmConvertLeadResult, CrmStageMoveResult, CrmQuoteSentResult, CrmQuoteDeclinedResult,
+  CrmQuoteAcceptedResult, CrmFollowupCompletedResult,
+} from '@/types/crm';
 /** Central TypeScript contract for Supabase tables.
  * Keep this file generated/updated from the canonical migrations and never pass
  * untyped string table names into the domain layer.
@@ -17,7 +24,9 @@ export type TableName = 'import_batch_rows' | 'financial_models' | 'model_scenar
   | 'holy_site_camps' | 'suppliers' | 'supplier_bills' | 'journal_entries'
   | 'journal_lines' | 'actions' | 'alerts' | 'contracts' | 'mutawwif_guides'
   | 'staff_profiles' | 'observability_events' | 'settings'
-  | 'external_operations' | 'external_operation_evidence' | 'external_references' | 'chart_of_accounts' | 'fiscal_periods' | 'bank_statements' | 'bank_transactions';
+  | 'external_operations' | 'external_operation_evidence' | 'external_references' | 'chart_of_accounts' | 'fiscal_periods' | 'bank_statements' | 'bank_transactions'
+  | 'crm_campaigns' | 'crm_customers' | 'crm_opportunities' | 'crm_stage_history'
+  | 'crm_quotes' | 'crm_quote_lines' | 'crm_activities' | 'crm_followups';
 
 export type BaseRow = { id: string; [key: string]: unknown };
 
@@ -248,10 +257,20 @@ export interface BiReportRow {
   updated_at: string;
 }
 
+/** supabase-js requires every Row/Insert/Update in the schema contract to satisfy
+ *  Record<string, unknown>, and a TypeScript interface only satisfies that when it
+ *  carries an index signature. Every row interface declared above extends BaseRow
+ *  for exactly that reason. The CRM row types live in @/types/crm, where an index
+ *  signature would defeat their purpose -- a misspelled column must not resolve to
+ *  `unknown` -- so they are widened here and only here. Without this the whole
+ *  Database type silently fails the client's GenericSchema constraint and every
+ *  table in the app degrades to `never`. */
+type Indexed<T> = T & BaseRow;
+
 type RowMap = { import_batch_rows: ImportBatchRowRow; financial_models: FinancialModelRow; model_scenarios: ModelScenarioRow; model_assumptions: ModelAssumptionRow; model_projections: ModelProjectionRow; fiscal_budgets: FiscalBudgetRow; budget_lines: BudgetLineRow;
   pilgrims: PilgrimRow; bookings: BookingRow; payments: PaymentRow; invoices: InvoiceRow;
   documents: DocumentRow; groups: GroupRow; visas: VisaRow;
-  reservations: GenericRow; audit_logs: GenericRow; crm_leads: GenericRow;
+  reservations: GenericRow; audit_logs: GenericRow; crm_leads: Indexed<CrmLeadRow>;
   flights: FlightRow; hotels: HotelRow; room_allocations: GenericRow;
   incidents: GenericRow; sos_events: GenericRow; transport_vehicles: TransportVehicleRow;
   transport_assignments: TransportAssignmentRow; payment_reversals: GenericRow; packages: GenericRow; guides: GenericRow;
@@ -268,6 +287,14 @@ type RowMap = { import_batch_rows: ImportBatchRowRow; financial_models: Financia
   fiscal_periods: FiscalPeriodRow;
   bank_statements: BankStatementRow;
   bank_transactions: BankTransactionRow;
+  crm_campaigns: Indexed<CrmCampaignRow>;
+  crm_customers: Indexed<CrmCustomerRow>;
+  crm_opportunities: Indexed<CrmOpportunityRow>;
+  crm_stage_history: Indexed<CrmStageHistoryRow>;
+  crm_quotes: Indexed<CrmQuoteRow>;
+  crm_quote_lines: Indexed<CrmQuoteLineRow>;
+  crm_activities: Indexed<CrmActivityRow>;
+  crm_followups: Indexed<CrmFollowupRow>;
 };
 
 /** JSON returned by domain command RPCs. Loose types are forbidden in this protected layer. */
@@ -307,13 +334,83 @@ export interface KnownFunctions {
     Returns: {
       total_revenue_dzd: number; total_revenue_sar: number;
       total_cost_dzd: number; total_cost_sar: number;
-      margin_dzd: number; margin_sar: number; margin_percentage: number;
+      /** null when there is no POSTED revenue to divide by. Undefined, not zero. */
+      margin_dzd: number; margin_sar: number; margin_percentage: number | null;
     }[];
   };
   auto_reconcile_bank_statement: { Args: { p_statement_id: string }; Returns: unknown };
   reconcile_bank_statement: { Args: { p_reconciliation_id: string }; Returns: unknown };
   close_fiscal_period: { Args: { p_period_id: string }; Returns: unknown };
   log_bi_audit: { Args: Record<string, unknown>; Returns: unknown };
+
+  /* CRM -- 20260830120000_crm_vertical_slice.sql. Lifecycle first: these are the
+   * only five calls that move a lead through to money. */
+  convert_crm_lead_command: {
+    Args: {
+      p_lead_id: string; p_package_id?: string | null; p_travelers?: number;
+      p_expected_value_dzd?: number | null; p_expected_close_date?: string | null;
+      p_title?: string | null;
+    };
+    Returns: CrmConvertLeadResult;
+  };
+  transition_crm_opportunity_stage: {
+    Args: { p_opportunity_id: string; p_to_stage: string; p_note?: string | null; p_lost_reason?: string | null };
+    Returns: CrmStageMoveResult;
+  };
+  send_crm_quote_command: {
+    Args: { p_quote_id: string; p_valid_days?: number };
+    Returns: CrmQuoteSentResult;
+  };
+  decline_crm_quote_command: {
+    Args: { p_quote_id: string; p_reason: string };
+    Returns: CrmQuoteDeclinedResult;
+  };
+  accept_crm_quote_command: {
+    Args: {
+      p_quote_id: string; p_payment_amount_dzd?: number; p_payment_amount_sar?: number;
+      p_payment_method?: string; p_group_id?: string | null; p_passport_number?: string | null;
+      p_notes?: string | null;
+    };
+    Returns: CrmQuoteAcceptedResult;
+  };
+  set_crm_customer_tags_command: { Args: { p_id: string; p_tags: string[] }; Returns: CrmCustomerRow };
+  complete_crm_followup_command: { Args: { p_id: string; p_note?: string | null }; Returns: CrmFollowupCompletedResult };
+
+  create_crm_customer_command: { Args: { p_payload: RpcJson }; Returns: CrmCustomerRow };
+  update_crm_customer_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmCustomerRow };
+  delete_crm_customer_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_opportunity_command: { Args: { p_payload: RpcJson }; Returns: CrmOpportunityRow };
+  update_crm_opportunity_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmOpportunityRow };
+  delete_crm_opportunity_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_quote_command: { Args: { p_payload: RpcJson }; Returns: CrmQuoteRow };
+  update_crm_quote_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmQuoteRow };
+  delete_crm_quote_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_quote_line_command: { Args: { p_payload: RpcJson }; Returns: CrmQuoteLineRow };
+  update_crm_quote_line_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmQuoteLineRow };
+  delete_crm_quote_line_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_activity_command: { Args: { p_payload: RpcJson }; Returns: CrmActivityRow };
+  update_crm_activity_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmActivityRow };
+  delete_crm_activity_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_followup_command: { Args: { p_payload: RpcJson }; Returns: CrmFollowupRow };
+  update_crm_followup_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmFollowupRow };
+  delete_crm_followup_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_campaign_command: { Args: { p_payload: RpcJson }; Returns: CrmCampaignRow };
+  update_crm_campaign_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmCampaignRow };
+  delete_crm_campaign_command: { Args: { p_id: string }; Returns: CommandAck };
+  create_crm_lead_command: { Args: { p_payload: RpcJson }; Returns: CrmLeadRow };
+  update_crm_lead_command: { Args: { p_id: string; p_payload: RpcJson }; Returns: CrmLeadRow };
+  delete_crm_lead_command: { Args: { p_id: string }; Returns: CommandAck };
+
+  get_crm_pipeline_summary: { Args: { p_from?: string | null; p_to?: string | null }; Returns: CrmPipelineStage[] };
+  get_crm_forecast: { Args: { p_months?: number }; Returns: CrmForecastMonth[] };
+  get_crm_funnel: { Args: { p_from?: string | null; p_to?: string | null }; Returns: CrmFunnel };
+  get_crm_customer_360: { Args: { p_customer_id: string }; Returns: CrmCustomer360 };
+  get_crm_customer_profitability: {
+    Args: { p_from?: string | null; p_to?: string | null; p_limit?: number };
+    Returns: CrmCustomerProfitability;
+  };
+  get_crm_campaign_roi: { Args: { p_from?: string | null; p_to?: string | null }; Returns: CrmCampaignRoi };
+  get_crm_dashboard: { Args: { p_days?: number }; Returns: CrmDashboard };
 }
 
 export interface Database {

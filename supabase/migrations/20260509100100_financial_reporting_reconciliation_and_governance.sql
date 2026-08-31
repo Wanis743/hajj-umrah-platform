@@ -57,7 +57,7 @@ begin
   perform public.require_admin_aal2();
   if public.staff_role()<>'ADMIN' and not public.has_permission('fiscal_periods','update') then raise exception 'Not authorized' using errcode='42501'; end if;
   select * into f from public.fiscal_periods where id=p_period_id for update;
-  if not found or f.agency_id<>public.current_staff_agency_id() then raise exception 'Fiscal period not found' using errcode='42501'; end if;
+  if not found or f.agency_id is distinct from public.current_staff_agency_id() then raise exception 'Fiscal period not found' using errcode='42501'; end if;
   update public.fiscal_periods set status='CLOSED',closed_at=now(),closed_by=auth.uid() where id=f.id and status='OPEN';
   return jsonb_build_object('id',f.id,'status','CLOSED');
 end $$;

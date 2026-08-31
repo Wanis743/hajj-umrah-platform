@@ -199,7 +199,7 @@ export function useAdminDashboardData(
         fetchAllRows('bookings',          'id,reference,pilgrim_id,package_id,group_id,status,travelers,total_dzd,total_sar,paid_dzd,paid_sar,start_date,end_date,created_at,confirmed_at,version', 'created_at', false),
         fetchAllRows('groups',            'id,code,name,name_ar,package_id,departure_date,return_date,leader_name,leader_phone,guide_id,max_capacity,current_capacity,status,readiness_score,readiness_details,created_at', 'departure_date', true),
         fetchAllRows('visas',             'id,pilgrim_id,status,processing_time,expected_processing_time,sla,rejection_reason,missing_documents,application_age,issue_date,expiry_date,created_at,updated_at', 'created_at', false),
-        fetchAllRows('crm_leads',         'id,first_name,last_name,phone,email,source,status,priority,score,next_action_at,created_at,updated_at', 'created_at', false),
+        fetchAllRows('crm_leads',         'id,first_name,last_name,phone,email,source,status,priority,notes,score,next_action_at,assigned_to,customer_id,campaign_id,lost_reason,qualified_at,converted_at,created_at,updated_at', 'created_at', false),
         fetchAllRows('alerts',            'id,resource,resource_id,title,message,severity,status,created_at', 'created_at', false),
         fetchAllRows('actions',           'id,title,description,status,priority,due_at,assignee_id,created_at,updated_at', 'created_at', false),
         fetchAllRows('room_allocations',  'id,hotel_id,group_id,pilgrim_id,room_number,room_type,check_in,check_out,status,created_at,updated_at', 'created_at', false),
