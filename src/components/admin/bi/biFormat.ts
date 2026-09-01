@@ -357,32 +357,48 @@ export function useBiChartLabels(): Record<BiChartType, string> {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Which renderer draws a chart type. `PENDING` is the honest member: seven types are
- * saveable -- the constraint accepts all thirty-three -- and not yet drawn, and a
- * tile whose type is PENDING says so by name instead of quietly falling back to a
- * table, which would look like a rendering choice rather than a missing renderer.
+ * Which renderer draws a chart type.
  *
- * All seven need a shape the query compiler does not produce: quartiles (BOX_PLOT),
- * parent/child edges (DECOMPOSITION_TREE, DRIVER_TREE, DEPENDENCY_GRAPH), from/to
- * pairs (SANKEY), start/end pairs (GANTT), or a fitted interval (FORECAST_BAND).
- * They are the visualization work item, not a gap in this one.
+ * A family is a shape, not a look: everything in one reads the compiler's result the same
+ * way, which is why HISTOGRAM sits with BAR and SENSITIVITY_MATRIX with HEATMAP. It is
+ * also why the visualization work added six families rather than one "advanced" bucket --
+ * a quartile, a fitted interval, a rollup, a ribbon, a dependency and a span are six
+ * different readings of the same rows:
+ *
+ *   BOX       quartiles per series, taken across the categories (BOX_PLOT)
+ *   FORECAST  least squares over the first series, with a prediction interval
+ *             (FORECAST_BAND)
+ *   TREE      dimensions as nested levels, the measure rolled up along them
+ *             (DECOMPOSITION_TREE, DRIVER_TREE)
+ *   FLOW      consecutive dimension pairs read as a quantity moving (SANKEY)
+ *   GRAPH     the same pairs read as a dependency, one node per value
+ *             (DEPENDENCY_GRAPH)
+ *   SCHEDULE  temporal dimensions read as spans (GANTT)
+ *
+ * `PENDING` stays, with no members. It is the branch that means "saveable but not drawn":
+ * the check constraint accepts all thirty-three types, and a tile whose renderer is
+ * missing has to say so by name instead of falling back to a table, which would look like
+ * a rendering choice rather than an absence. An empty list is the honest way to record
+ * that nothing is in that state today -- the same reason certify.mjs keeps `const
+ * ABSENT = []` rather than deleting the machinery that reports it.
  */
 export type ChartFamily =
   | 'TABLE' | 'KPI' | 'GAUGE' | 'LINE' | 'BAR' | 'PIE'
-  | 'SCATTER' | 'HEATMAP' | 'TREEMAP' | 'FUNNEL' | 'RADAR' | 'PENDING';
+  | 'SCATTER' | 'HEATMAP' | 'TREEMAP' | 'FUNNEL' | 'RADAR'
+  | 'BOX' | 'FORECAST' | 'TREE' | 'FLOW' | 'GRAPH' | 'SCHEDULE' | 'PENDING';
 
 export const CHART_FAMILY: Record<BiChartType, ChartFamily> = {
   TABLE: 'TABLE', PIVOT: 'TABLE',
   KPI: 'KPI', GAUGE: 'GAUGE',
-  LINE: 'LINE', AREA: 'LINE', COMBO: 'LINE', FORECAST_BAND: 'PENDING',
+  LINE: 'LINE', AREA: 'LINE', COMBO: 'LINE', FORECAST_BAND: 'FORECAST',
   BAR: 'BAR', COLUMN: 'BAR', STACKED_BAR: 'BAR', STACKED_COLUMN: 'BAR',
   WATERFALL: 'BAR', BRIDGE: 'BAR', BULLET: 'BAR', HISTOGRAM: 'BAR', PARETO: 'BAR',
   PIE: 'PIE', DONUT: 'PIE',
   SCATTER: 'SCATTER', BUBBLE: 'SCATTER',
   HEATMAP: 'HEATMAP', CORRELATION_MATRIX: 'HEATMAP', SENSITIVITY_MATRIX: 'HEATMAP',
   TREEMAP: 'TREEMAP', FUNNEL: 'FUNNEL', RADAR: 'RADAR',
-  BOX_PLOT: 'PENDING', DECOMPOSITION_TREE: 'PENDING', SANKEY: 'PENDING',
-  GANTT: 'PENDING', DEPENDENCY_GRAPH: 'PENDING', DRIVER_TREE: 'PENDING',
+  BOX_PLOT: 'BOX', DECOMPOSITION_TREE: 'TREE', DRIVER_TREE: 'TREE',
+  SANKEY: 'FLOW', DEPENDENCY_GRAPH: 'GRAPH', GANTT: 'SCHEDULE',
 };
 
 export const isChartDrawn = (type: BiChartType): boolean => CHART_FAMILY[type] !== 'PENDING';
@@ -405,6 +421,24 @@ export const CHART_SHAPE: Record<ChartFamily, { dims: number; measures: number }
   TREEMAP: { dims: 1, measures: 1 },
   FUNNEL: { dims: 1, measures: 1 },
   RADAR: { dims: 1, measures: 1 },
+  /** One box per series, so the same one dimension and one measure a bar needs. The
+   *  quartiles come from the categories inside each series, which means the shape a box
+   *  plot needs is a shape the compiler already returns. */
+  BOX: { dims: 1, measures: 1 },
+  FORECAST: { dims: 1, measures: 1 },
+  /** Levels come from the dimensions, so one is enough to draw a tree that is a total and
+   *  its parts. A second and third deepen it rather than being required for it. */
+  TREE: { dims: 1, measures: 1 },
+  /** Two dimensions, because an edge needs a from and a to. One dimension is a list of
+   *  nodes with nothing between them, which is not a flow. */
+  FLOW: { dims: 2, measures: 1 },
+  GRAPH: { dims: 2, measures: 1 },
+  /** A schedule's real requirement is not a column count, it is that a dimension can
+   *  carry a moment -- one date column gives spans grouped per label, two give a start
+   *  and an end per row, and neither needs a measure to be a schedule. `chartIssues`
+   *  raises NEEDS_TEMPORAL for the part that matters, because "add a column" and "one of
+   *  them has to be a date" are two different sentences to say to the reader. */
+  SCHEDULE: { dims: 1, measures: 0 },
   PENDING: { dims: 0, measures: 0 },
 };
 

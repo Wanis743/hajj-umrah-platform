@@ -85,7 +85,7 @@ function Pie({ type, model, box, hidden, onHover, onSelect }: RadialProps) {
             <path
               d={arcPath(cx, cy, r, inner, s.a0, s.a1)}
               fill={s.color}
-              className="stroke-[var(--bg-elevated)]"
+              className="stroke-[var(--surface)]"
               strokeWidth={1}
             />
           </Mark>

@@ -78,7 +78,7 @@ export function useBiRunQuery(request: BiQueryRequest | null): BiRunState {
  * Each readiness issue as one sentence.
  *
  * Every sentence says what to do, not what is wrong: "add a dimension" rather than
- * "invalid request". Five of the eight mirror a raise in `bi_compile_query`, and those
+ * "invalid request". Five of the nine mirror a raise in `bi_compile_query`, and those
  * are worded as the compiler's own refusal so a reader who does hit it later recognizes
  * the same fact rather than reading two accounts of it.
  */
@@ -103,6 +103,13 @@ export function useBuilderIssueText(): (issue: BuilderIssue) => string {
         return t(`هذا الرسم يحتاج ${fmtInt(issue.need)} مقياسًا وفيه ${fmtInt(issue.have)}`,
           `Ce graphique demande ${fmtInt(issue.need)} mesure(s), il en a ${fmtInt(issue.have)}`,
           `This chart needs ${fmtInt(issue.need)} measure(s) and has ${fmtInt(issue.have)}`);
+      // Phrased as a date rather than as a count, because no number of extra columns
+      // satisfies it: a Gantt lays its bars along real time, so the fix is a grain or a
+      // date field and the sentence names both ways of getting one.
+      case 'NEEDS_TEMPORAL':
+        return t('هذا الرسم يحتاج بعدًا زمنيًا: اختر حبيبة زمنية أو بعدًا من نوع تاريخ',
+          'Ce graphique demande une dimension temporelle : choisissez une granularité ou une dimension de type date',
+          'This chart needs a time dimension: add a grain or a date field');
       case 'NOT_DRAWN':
         return t(`${chartNames[issue.chartType]} لا يُرسم في هذه النسخة — يُحفظ ويُشغّل`,
           `${chartNames[issue.chartType]} n’est pas tracé dans cette version — il s’enregistre et s’exécute`,

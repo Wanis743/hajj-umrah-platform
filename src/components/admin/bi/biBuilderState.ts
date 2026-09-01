@@ -27,8 +27,8 @@
  */
 import { BI_OPERATOR_ARITY, BI_PERIOD_KEY } from '@/types/bi';
 import type {
-  BiChartType, BiDataType, BiFilter, BiFilterOperator, BiMetric, BiQueryRequest,
-  BiResultColumn, BiScalar, BiTimeGrain,
+  BiChartType, BiDataType, BiDimension, BiFilter, BiFilterOperator, BiMetric,
+  BiQueryRequest, BiResultColumn, BiScalar, BiTimeGrain,
 } from '@/types/bi';
 import { CHART_FAMILY, CHART_SHAPE } from './biFormat';
 
@@ -455,6 +455,7 @@ export type BuilderIssue =
   | { kind: 'EMPTY' }
   | { kind: 'NEEDS_DIMENSION'; need: number; have: number }
   | { kind: 'NEEDS_MEASURE'; need: number; have: number }
+  | { kind: 'NEEDS_TEMPORAL' }
   | { kind: 'NOT_DRAWN'; chartType: BiChartType }
   | { kind: 'FILTER_INCOMPLETE'; index: number; field: string; op: BiFilterOperator }
   | { kind: 'DEPRECATED_METRIC'; key: string }
@@ -463,10 +464,10 @@ export type BuilderIssue =
 /**
  * Which issues stop the run.
  *
- * The two shape issues do not: a chart short of a dimension still produced a valid
- * result, and `BiChart` names what is missing under the frame it could not draw. A
- * request the compiler will refuse is a different matter -- running it spends a ledger
- * row on a failure the screen already knew about.
+ * The three shape issues do not: a chart short of a dimension, of a measure, or of a
+ * date still produced a valid result, and `BiChart` names what is missing under the
+ * frame it could not draw. A request the compiler will refuse is a different matter --
+ * running it spends a ledger row on a failure the screen already knew about.
  */
 export const blocksRun = (issue: BuilderIssue): boolean =>
   issue.kind === 'NO_DATASET' || issue.kind === 'EMPTY'
@@ -488,14 +489,37 @@ function filterIssues(state: BuilderState): BuilderIssue[] {
 }
 
 /**
+ * Whether the request would give a Gantt something to lay its bars along.
+ *
+ * The mirror of `isTemporal` in ./biChartData, and deliberately temporal in the same two
+ * ways: a time grain, which makes the compiler emit a date-typed period column, or a
+ * selected dimension that is a date in its own right. Testing the grain alone would be
+ * the shorter check and the wrong one -- it would print "needs a date" over a schedule
+ * grouped on a `departure_date` dimension that the renderer is perfectly happy with, and
+ * a readiness note that fires when the chart does draw teaches the reader to stop
+ * reading them.
+ */
+const hasTemporal = (
+  state: BuilderState, dimensions: readonly BiDimension[],
+): boolean => state.timeGrain !== null
+  || state.dimensions.some((key) => {
+    const type = dimensions.find((dimension) => dimension.key === key)?.data_type;
+    return type === 'date' || type === 'timestamp';
+  });
+
+/**
  * Everything wrong with the current request, in the order a reader should fix it.
  *
- * `metrics` is the dataset's metric list, needed for one check the state cannot make
- * alone: `bi_compile_query` refuses a DEPRECATED metric outright, and a saved analysis
- * loaded into the builder can carry one that was published when it was saved.
+ * Two of the dataset's own lists are needed for checks the state cannot make alone.
+ * `metrics`, because `bi_compile_query` refuses a DEPRECATED metric outright and a saved
+ * analysis loaded into the builder can carry one that was published when it was saved.
+ * `dimensions`, because a Gantt needs one of the selected fields to be a date, and a
+ * dimension key is only a string until the dataset says what type it is.
  */
 export function readiness(
-  state: BuilderState, metrics: readonly BiMetric[],
+  state: BuilderState,
+  metrics: readonly BiMetric[],
+  dimensions: readonly BiDimension[],
 ): readonly BuilderIssue[] {
   if (!state.datasetId) return [{ kind: 'NO_DATASET' }];
 
@@ -523,6 +547,12 @@ export function readiness(
   if (dims < shape.dims) issues.push({ kind: 'NEEDS_DIMENSION', need: shape.dims, have: dims });
   if (measures < shape.measures) {
     issues.push({ kind: 'NEEDS_MEASURE', need: shape.measures, have: measures });
+  }
+  // A count of columns cannot express "one of them has to be a date", so the schedule
+  // family asks separately -- the same extra question `chartIssues` asks of the result,
+  // put to the request instead so a Gantt says what it needs before it is run.
+  if (family === 'SCHEDULE' && !hasTemporal(state, dimensions)) {
+    issues.push({ kind: 'NEEDS_TEMPORAL' });
   }
   return issues;
 }

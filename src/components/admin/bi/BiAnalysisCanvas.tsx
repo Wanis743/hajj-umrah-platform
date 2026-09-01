@@ -121,7 +121,8 @@ export function BiAnalysisCanvas({ datasetId, state, dispatch }: {
       <BuilderRail detail={data} state={state} dispatch={dispatch} onShelf={onShelf}
         deprecatedNote={deprecatedNote} />
       <ResultPane detail={data} state={state} dispatch={dispatch} request={request} run={run}
-        issues={readiness(state, data.metrics)} issueText={issueText} datasetId={datasetId} />
+        issues={readiness(state, data.metrics, data.dimensions)} issueText={issueText}
+        datasetId={datasetId} />
     </div>
   );
 }

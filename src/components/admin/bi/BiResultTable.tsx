@@ -180,7 +180,7 @@ export function BiResultTable({
     <div className="space-y-2">
       <div className="max-h-[30rem] overflow-auto rounded-lg border border-[var(--border)]">
         <table className="table w-full min-w-max">
-          <thead className="sticky top-0 z-10 bg-[var(--bg-elevated)]">
+          <thead className="sticky top-0 z-10 bg-[var(--bg-subtle)]">
             <tr>
               {chrome.map((c) => (
                 <HeaderCell
@@ -479,7 +479,7 @@ function IdList({ ids, truncated, settled }: {
           <code
             key={id}
             title={id}
-            className="rounded border border-[var(--border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+            className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
           >
             {id.slice(0, 8)}
           </code>

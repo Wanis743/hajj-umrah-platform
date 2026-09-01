@@ -246,7 +246,7 @@ function ChipGroup({ label, columns }: { label: string; columns: readonly BiSour
               key={column.column_name}
               dir="ltr"
               title={`${column.display_name} · ${column.data_type}`}
-              className="rounded border border-[var(--border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
+              className="rounded border border-[var(--border)] bg-[var(--bg-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]"
             >
               {column.column_name}
             </code>

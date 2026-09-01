@@ -12,7 +12,10 @@
 import type {
   BiChartType, BiQuerySuccess, BiResultColumn, BiResultRow, BiScalar,
 } from '@/types/bi';
-import { CHART_FAMILY, formatCell, formatMetricValue, numericCell, type MetricDisplay } from './biFormat';
+import {
+  CHART_FAMILY, CHART_SHAPE, formatCell, formatMetricValue, numericCell,
+  type ChartFamily, type MetricDisplay,
+} from './biFormat';
 
 /** The dashboard's existing accents, in the same order, so a BI tile and an ops chart
  *  on the same screen do not disagree about what the third series looks like. */
@@ -427,6 +430,19 @@ export const isHorizontal = (type: BiChartType): boolean =>
   type === 'BAR' || type === 'STACKED_BAR' || type === 'FUNNEL' || type === 'BULLET';
 
 /**
+ * Whether a dimension can carry a moment: a time grain, or a plain date or timestamp
+ * column.
+ *
+ * Lives here rather than with the schedule geometry because a metric cannot be a date --
+ * `BiMetricFormat` has no DATE member -- so "is there a date in this result" is a question
+ * about the grouping columns, and both the builder and the chart frame have to ask it.
+ */
+export const isTemporal = (column: BiResultColumn): boolean =>
+  column.kind === 'DIMENSION'
+  && (column.grain !== undefined
+    || column.data_type === 'date' || column.data_type === 'timestamp');
+
+/**
  * Every reason a chart will not draw what its author expected, as data.
  *
  * Returned as codes rather than sentences because this file has no translator, and
@@ -439,7 +455,15 @@ export type ChartIssue =
   | { kind: 'EMPTY' }
   | { kind: 'NEEDS_DIMENSION'; need: number; have: number }
   | { kind: 'NEEDS_MEASURE'; need: number; have: number }
+  | { kind: 'NEEDS_TEMPORAL' }
   | { kind: 'NOT_ADDITIVE'; label: string };
+
+/** Families whose picture is made by adding values together: a stack, a rollup up a tree,
+ *  or a ribbon that merges one pair repeated across a third dimension. Each states a sum
+ *  on the reader's behalf, so each has to say when the metric declared it cannot be
+ *  summed. Stacking is a chart-type property rather than a family one, so it stays a
+ *  separate test below. */
+const SUMS_VALUES: ReadonlySet<ChartFamily> = new Set<ChartFamily>(['TREE', 'FLOW', 'GRAPH']);
 
 export function chartIssues(
   type: BiChartType, model: PlotModel, rowCount: number,
@@ -449,23 +473,24 @@ export function chartIssues(
   const issues: ChartIssue[] = [];
   if (rowCount === 0) issues.push({ kind: 'EMPTY' });
 
+  // One table of minimums, read rather than restated. The hand-written cascade this
+  // replaces said exactly this for eleven families and would have had to say it again
+  // for six more -- which is the point at which the copy and the table start to differ.
+  const want = CHART_SHAPE[family];
   const dims = model.dimensions.length;
   const measures = model.measures.length;
-  if (family === 'HEATMAP' && dims < 2) {
-    issues.push({ kind: 'NEEDS_DIMENSION', need: 2, have: dims });
-  } else if (dims < 1 && family !== 'KPI' && family !== 'GAUGE' && family !== 'TABLE') {
-    issues.push({ kind: 'NEEDS_DIMENSION', need: 1, have: dims });
+  if (dims < want.dims) {
+    issues.push({ kind: 'NEEDS_DIMENSION', need: want.dims, have: dims });
   }
-  if (family === 'SCATTER' && measures < 2) {
-    issues.push({ kind: 'NEEDS_MEASURE', need: 2, have: measures });
-  } else if (family === 'GAUGE' && measures < 2) {
-    // The value and the target. Stated here rather than in the renderer, so a gauge
-    // with one metric says what it is missing instead of drawing a full dial.
-    issues.push({ kind: 'NEEDS_MEASURE', need: 2, have: measures });
-  } else if (measures < 1 && family !== 'TABLE') {
-    issues.push({ kind: 'NEEDS_MEASURE', need: 1, have: measures });
+  if (measures < want.measures) {
+    issues.push({ kind: 'NEEDS_MEASURE', need: want.measures, have: measures });
   }
-  if (isStacked(type)) {
+  // A count of columns cannot express "one of them has to be a date", and no number of
+  // extra measures could satisfy it, so a schedule asks for the thing it actually needs.
+  if (family === 'SCHEDULE' && !model.dimensions.some(isTemporal)) {
+    issues.push({ kind: 'NEEDS_TEMPORAL' });
+  }
+  if (isStacked(type) || SUMS_VALUES.has(family)) {
     const bad = model.series.find((s) => !s.additive);
     if (bad) issues.push({ kind: 'NOT_ADDITIVE', label: bad.label });
   }
@@ -476,6 +501,12 @@ export function chartIssues(
  *  under a stack still draws -- with the warning next to it -- because the author is
  *  the person who can fix it and hiding the picture does not help them see why. */
 export const blocksDrawing = (issue: ChartIssue): boolean => issue.kind !== 'NOT_ADDITIVE';
+
+/** The wide left gutter. A horizontal bar needs it for its category labels, a schedule
+ *  for its row labels, a box plot for its series names: same gutter, same reason -- the
+ *  labels sit on the left, so the plot cannot start there. */
+export const wantsWideGutter = (type: BiChartType): boolean =>
+  isHorizontal(type) || CHART_FAMILY[type] === 'SCHEDULE' || CHART_FAMILY[type] === 'BOX';
 
 /* -------------------------------------------------------------------------- */
 /* What the renderers share                                                   */

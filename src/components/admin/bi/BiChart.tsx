@@ -2,8 +2,8 @@
  * The one chart component the rest of the workspace uses: give it a chart type and a
  * compiled result, get an interactive chart or an explicit reason there isn't one.
  *
- * Everything that is shared by all twenty-six drawn types lives here rather than in the
- * three renderer files -- the measured width, the hover state, which series the reader
+ * Everything that is shared by all thirty-three drawn types lives here rather than in the
+ * seven renderer files -- the measured width, the hover state, which series the reader
  * switched off, and the translation of a clicked mark back into the dimension value the
  * server grouped on. The renderers below it only draw.
  *
@@ -21,13 +21,17 @@ import type { BiChartType, BiFilter, BiQuerySuccess, BiScalar } from '@/types/bi
 import { CHART_FAMILY, formatCell, useBiChartLabels, useBiI18n, type ChartFamily } from './biFormat';
 import { InlineNote } from './atoms';
 import {
-  blocksDrawing, buildPlotModel, chartIssues, frameBox, isHorizontal,
+  blocksDrawing, buildPlotModel, chartIssues, frameBox, wantsWideGutter,
   type BiChartSelection, type ChartIssue,
 } from './biChartData';
 import { ChartLegend, ChartTooltip, type HoverInfo } from './BiChartFrame';
 import { BiChartCartesian } from './BiChartCartesian';
 import { BiChartRadial, type RadialProps } from './BiChartRadial';
 import { BiChartMatrix } from './BiChartMatrix';
+import { BiChartDistribution } from './BiChartDistribution';
+import { BiChartSchedule } from './BiChartSchedule';
+import { BiChartTree } from './BiChartTree';
+import { BiChartFlow } from './BiChartFlow';
 import { BiResultTable } from './BiResultTable';
 
 export interface BiChartProps {
@@ -44,6 +48,20 @@ export interface BiChartProps {
   /** The filter state this result was produced under, forwarded to a drill-through. */
   filters?: readonly BiFilter[];
 }
+
+/**
+ * Families where switching a series off changes the picture, so a legend earns its height.
+ *
+ * A gauge and a bullet are out: there the second series is the target, and hiding it would
+ * promote the target to the value -- a dial reading 100% because the reader clicked a
+ * legend is worse than no legend at all. A box plot and a forecast band are in, because
+ * both draw one shape per series and both read `hidden` before they measure the axis, so
+ * switching off the outlying series actually rescales the chart instead of leaving a gap
+ * where it was.
+ */
+const LEGEND_FAMILIES: ReadonlySet<ChartFamily> = new Set<ChartFamily>([
+  'LINE', 'BAR', 'RADAR', 'BOX', 'FORECAST',
+]);
 
 export function BiChart({
   type, result, height = 260, onSelect, datasetId = null, filters = [],
@@ -75,9 +93,11 @@ export function BiChart({
     () => chartIssues(type, model, rowCount), [type, model, rowCount],
   );
   const blocked = issues.some(blocksDrawing);
-  // A heatmap needs the same left gutter a horizontal bar chart does: its rows are
-  // labelled down the side, and 56px is not enough for a branch name.
-  const box = frameBox(width, height, isHorizontal(type) || family === 'HEATMAP');
+  // Four shapes label their rows down the left-hand side rather than along the bottom --
+  // a horizontal bar, a schedule, a box plot, a heatmap -- and 56px of gutter does not
+  // hold a branch name. `wantsWideGutter` knows the first three; the heatmap is asked for
+  // by family here because its rows are a second dimension rather than a category axis.
+  const box = frameBox(width, height, wantsWideGutter(type) || family === 'HEATMAP');
 
   const toggle = useCallback((label: string) => {
     setHidden((prev) => {
@@ -107,11 +127,7 @@ export function BiChart({
     return (value: BiScalar, label: string) => onSelect({ column, value, label });
   }, [onSelect, model]);
 
-  // Only where switching a series off changes the picture. On a gauge or a bullet the
-  // second series is the target, and hiding it would promote the target to the value --
-  // a dial reading 100% because the reader clicked a legend is worse than no legend.
-  const legendOn = (family === 'LINE' || family === 'BAR' || family === 'RADAR')
-    && type !== 'BULLET';
+  const legendOn = LEGEND_FAMILIES.has(family) && type !== 'BULLET';
   const shared = { type, model, box, hidden, onHover: setHover, onSelect: pick };
   const notes = issues.map((issue) => (
     <IssueLine key={`${issue.kind}-${'label' in issue ? issue.label : ''}`} issue={issue} />
@@ -147,7 +163,10 @@ export function BiChart({
           aria-label={`${chartLabels[type]} — ${rowCount} ${t('صف', 'lignes', 'rows')}`}
           className="block max-w-full"
         >
-          <ChartBody family={family} shared={shared} result={result} onPick={pickPoint} />
+          <ChartBody
+            family={family} shared={shared} result={result}
+            onPick={pickPoint} onDrill={onSelect}
+          />
         </svg>
       )}
       {notes}
@@ -160,31 +179,62 @@ export function BiChart({
 }
 
 /**
- * Which of the three renderers draws this family.
+ * Which of the seven renderers draws this family.
  *
  * Separate from `BiChart` so that file holds the wiring and this one holds the dispatch:
  * the family decision is a single fact, and spelling it as nested ternaries inside the
  * component put every branch's condition into the parent's complexity budget without
  * making either half easier to read.
  *
- * The matrix family is the one that takes the rows as well as the plot model, because a
+ * Two families need more than the plot model. The matrix one takes the rows, because a
  * scatter point is a row rather than a category and folding the pair into a category axis
- * would lose the pairing that is the whole chart.
+ * would lose the pairing that is the whole chart. The four newest ones -- schedule, tree,
+ * flow, graph -- take the whole result and read it themselves, because each nests or spans
+ * in a way a flat list of categories cannot hold.
  */
-function ChartBody({ family, shared, result, onPick }: {
+function ChartBody({ family, shared, result, onPick, onDrill }: {
   family: ChartFamily;
   shared: RadialProps;
   result: BiQuerySuccess;
   onPick?: (value: BiScalar, label: string) => void;
+  /** The column-aware drill. Every renderer above this line filters on the first
+   *  dimension, which is the only one a category axis has. The four below it each name
+   *  their own: a schedule's is the first non-temporal dimension, a tree node's changes
+   *  with its depth, and a flow node's is the `from` column on one side of the diagram
+   *  and the `to` column on the other. So they are handed the selection callback itself
+   *  rather than an index that would name the wrong field. */
+  onDrill?: (selection: BiChartSelection) => void;
 }) {
+  const { type, model, box, onHover, onSelect } = shared;
   if (family === 'HEATMAP' || family === 'TREEMAP' || family === 'SCATTER') {
-    const { type, model, box, onHover, onSelect } = shared;
     return (
       <BiChartMatrix
         type={type} model={model} result={result} box={box}
         onHover={onHover} onSelect={onSelect} onPick={onPick}
       />
     );
+  }
+  if (family === 'SCHEDULE') {
+    return (
+      <BiChartSchedule result={result} box={box} onHover={onHover} onDrill={onDrill} />
+    );
+  }
+  if (family === 'TREE') {
+    return (
+      <BiChartTree
+        type={type} result={result} box={box} onHover={onHover} onDrill={onDrill}
+      />
+    );
+  }
+  if (family === 'FLOW' || family === 'GRAPH') {
+    return (
+      <BiChartFlow
+        type={type} result={result} box={box} onHover={onHover} onDrill={onDrill}
+      />
+    );
+  }
+  if (family === 'BOX' || family === 'FORECAST') {
+    return <BiChartDistribution {...shared} />;
   }
   if (family === 'KPI' || family === 'GAUGE' || family === 'PIE'
     || family === 'FUNNEL' || family === 'RADAR') {
@@ -236,6 +286,18 @@ function IssueLine({ issue }: { issue: ChartIssue }) {
         {t(`يحتاج هذا الرسم إلى ${issue.need} قياس على الأقل، والنتيجة تحتوي ${issue.have}`,
           `Ce graphique demande ${issue.need} mesure(s), le résultat en a ${issue.have}`,
           `This chart needs ${issue.need} measure(s); the result has ${issue.have}`)}
+      </InlineNote>
+    );
+  }
+  // Named as a date rather than as a count, because this is the one requirement no extra
+  // column can satisfy: a Gantt places its bars along real time, and a schedule of text
+  // categories has nothing to place them on.
+  if (issue.kind === 'NEEDS_TEMPORAL') {
+    return (
+      <InlineNote>
+        {t('يحتاج هذا الرسم إلى بعد زمني (تاريخ أو حبيبة زمنية)، ولا يوجد في النتيجة',
+          'Ce graphique demande une dimension temporelle (date ou granularité) ; le résultat n’en a aucune',
+          'This chart needs a time dimension (a date or a grain); the result has none')}
       </InlineNote>
     );
   }

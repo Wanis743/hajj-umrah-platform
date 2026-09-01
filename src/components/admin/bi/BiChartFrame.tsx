@@ -181,7 +181,7 @@ export function ChartTooltip({ hover, width }: { hover: HoverInfo; width: number
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 min-w-[7rem] -translate-x-1/2 -translate-y-full rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-1.5 shadow-lg"
+      className="pointer-events-none absolute z-10 min-w-[7rem] -translate-x-1/2 -translate-y-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-1.5 shadow-lg"
       style={{ left, top: Math.max(hover.y - 8, 8) }}
     >
       <p className="mb-0.5 text-[11px] font-semibold text-[var(--text-primary)]">{hover.title}</p>
