@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import type {
+  BiDashboardInput, BiDashboardTileInput, BiDatasetInput, BiDimensionInput,
+  BiMetricInput, BiReportInput, BiSetStatusArgs, BiSetStatusResult,
+  BiSourceSyncResult, BiTileLayoutChange, BiVisualizationInput,
+} from '@/types/bi';
+import type {
   CrmConvertLeadResult, CrmCustomerRow, CrmFollowupCompletedResult, CrmQuoteAcceptedResult,
   CrmQuoteDeclinedResult, CrmQuoteSentResult, CrmStageMoveResult,
 } from '@/types/crm';
@@ -516,6 +521,120 @@ export class CompatibilityCommands {
     }
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * BI Studio.
+ *
+ * Definition writes go through PostgREST rather than through a command, and that
+ * is the design rather than a shortcut: every BI expression is validated by a
+ * BEFORE trigger in 20260901120000_bi_studio_vertical_slice.sql. A command-level
+ * check would be bypassed by the first `PATCH /bi_metrics?id=eq.…` anyone sent by
+ * hand, so the check lives where no write path can miss it -- and once it does,
+ * the table write is the safe one.
+ *
+ * They live in this file because scripts/verify-maintainability.mjs forbids
+ * `supabase.from(...).insert|update|delete(` anywhere else under src/services.
+ * ------------------------------------------------------------------------- */
+
+const BI_TABLES = {
+  dataset: 'bi_datasets',
+  dimension: 'bi_dimensions',
+  metric: 'bi_metrics',
+  report: 'bi_reports',
+  visualization: 'bi_visualizations',
+  dashboard: 'bi_dashboards',
+  tile: 'bi_dashboard_tiles',
+} as const;
+
+type BiTable = typeof BI_TABLES[keyof typeof BI_TABLES];
+
+/** A table write in the CommandResult shape the rest of this module returns, so a
+ *  screen has one error idiom whether it called an RPC or wrote a row. 22023 and
+ *  P0001 from a validation trigger are authored sentences and mapError already
+ *  passes those through verbatim. */
+async function biInsert<T>(table: BiTable, payload: Record<string, unknown>): Promise<CommandResult<T>> {
+  const correlationId = cid();
+  const { data, error } = await supabase.from(table as never).insert(payload as never).select('id').single();
+  return { success: !error, data: (data as T | null) ?? null, error: mapError(error), correlationId };
+}
+
+async function biUpdate<T>(table: BiTable, id: string, patch: Record<string, unknown>): Promise<CommandResult<T>> {
+  const correlationId = cid();
+  const { data, error } = await supabase.from(table as never).update(patch as never)
+    .eq('id', id).select('id').single();
+  return { success: !error, data: (data as T | null) ?? null, error: mapError(error), correlationId };
+}
+
+async function biDelete(table: BiTable, id: string): Promise<CommandResult<null>> {
+  const correlationId = cid();
+  const { error } = await supabase.from(table as never).delete().eq('id', id);
+  return { success: !error, data: null, error: mapError(error), correlationId };
+}
+
+/** Definition CRUD. Each `update` takes a partial of the same input shape, because
+ *  the columns a caller may set are the same ones it may change -- with one rule the
+ *  database enforces rather than this file: a PUBLISHED metric's structural columns
+ *  are frozen by trg_bi_freeze_published_metric, so an edit that would change what a
+ *  published number means is refused until it is returned to DRAFT. */
+const biCrud = <TInput,>(table: BiTable) => ({
+  create: (input: TInput) => biInsert<{ id: string }>(table, input as Record<string, unknown>),
+  update: (id: string, patch: Partial<TInput>) =>
+    biUpdate<{ id: string }>(table, id, patch as Record<string, unknown>),
+  remove: (id: string) => biDelete(table, id),
+});
+
+export const biCommands = {
+  /**
+   * The one status machine, for all four governed kinds. Publishing a dataset or a
+   * metric is ADMIN-only by omission -- no role holds `publish` on either -- because
+   * publishing settles what a word means for everyone who reads a dashboard
+   * afterwards. Deprecating a definition a published dashboard still draws is
+   * refused with 22023 rather than performed and reported.
+   */
+  setStatus: (args: BiSetStatusArgs) =>
+    call<BiSetStatusResult>('set_bi_status_command', {
+      p_kind: args.kind, p_id: args.id, p_status: args.status, p_note: args.note ?? null,
+    }),
+
+  /** Re-measures the source allowlist against information_schema. ADMIN only, and
+   *  the only write path to bi_sources that exists. */
+  syncSources: () => call<BiSourceSyncResult>('sync_bi_sources_command', {}),
+
+  dataset: biCrud<BiDatasetInput>(BI_TABLES.dataset),
+  dimension: biCrud<BiDimensionInput>(BI_TABLES.dimension),
+  metric: biCrud<BiMetricInput>(BI_TABLES.metric),
+  report: biCrud<BiReportInput>(BI_TABLES.report),
+  visualization: biCrud<BiVisualizationInput>(BI_TABLES.visualization),
+  dashboard: biCrud<BiDashboardInput>(BI_TABLES.dashboard),
+  tile: {
+    ...biCrud<BiDashboardTileInput>(BI_TABLES.tile),
+
+    /**
+     * A drag re-lays out several tiles at once. Applied one row at a time, which is
+     * safe here and would not be in a grid with a uniqueness rule on position:
+     * bi_dashboard_tiles constrains each row on its own (`grid_x + grid_w <= 12`)
+     * and is unique on (dashboard_id, visualization_id), so no intermediate state
+     * of a multi-row move can violate anything.
+     *
+     * It stops at the first failure and reports it rather than continuing, because
+     * a half-applied layout the user can see is easier to correct than one that
+     * kept going past the row that was refused.
+     */
+    relayout: async (changes: readonly BiTileLayoutChange[]): Promise<CommandResult<{ moved: number }>> => {
+      let moved = 0;
+      for (const change of changes) {
+        const { id, ...position } = change;
+        const result = await biUpdate<{ id: string }>(BI_TABLES.tile, id, position);
+        if (!result.success) {
+          return { success: false, data: { moved }, error: result.error, correlationId: result.correlationId };
+        }
+        moved += 1;
+      }
+      return { success: true, data: { moved }, error: null, correlationId: cid() };
+    },
+  },
+};
+
 
 
 

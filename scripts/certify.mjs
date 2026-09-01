@@ -24,8 +24,8 @@
  *
  * A gate whose environment is absent is SKIPPED, and SKIPPED is not VERIFIED —
  * that single rule is what the old manifest violated. Gates the platform cannot
- * yet have (DMS, BI) are recorded as ABSENT with the reason, so the file
- * states what is missing instead of omitting it.
+ * yet have are recorded as ABSENT with the reason, so the file states what is
+ * missing instead of omitting it. That list is empty as of the BI studio slice.
  *
  * Usage:  node scripts/certify.mjs            run everything available
  *         node scripts/certify.mjs --list     show the gates and their status
@@ -70,6 +70,7 @@ const GATES = [
   { name: 'finance_workflows', label: 'Finance invariants and accounting workflows', command: 'npm run verify:finance-sql', env: ['SUPABASE_DB_URL'] },
   { name: 'crm', label: 'CRM pipeline (lead → customer → opportunity → quote → booking → payment)', command: 'npm run verify:crm', env: ['SUPABASE_DB_URL'] },
   { name: 'dms', label: 'DMS lifecycle (upload → version → extract → review → approve → seal → expire)', command: 'npm run verify:dms', env: ['SUPABASE_DB_URL'] },
+  { name: 'bi', label: 'BI studio (semantic layer, metric registry, drill-through, lineage, dashboards)', command: 'npm run verify:bi', env: ['SUPABASE_DB_URL'] },
   // Needs the Supabase CLI and Docker, which no environment variable can prove
   // are present, so it is opt-in: FRESH_DB_ENABLE=1 says "this machine can run a
   // throwaway stack". Skipped rather than attempted anywhere else.
@@ -87,10 +88,13 @@ const GATES = [
  * Gates that were asked for and have nothing to run yet. Naming them here is the
  * point: a certification that silently omits CRM is indistinguishable from one
  * where CRM passed.
+ *
+ * The list is empty, and it stays in the file rather than being deleted with its
+ * last entry. Emptiness is a claim -- every demanded gate now has something to run
+ * -- and the next subsystem that is demanded before it is built belongs here on the
+ * day it is demanded, not in a commit that also has to reintroduce the machinery.
  */
-const ABSENT = [
-  { name: 'bi', label: 'BI semantic layer (datasets, metrics, drill-through, lineage)', reason: 'no BI subsystem exists to test' },
-];
+const ABSENT = [];
 
 /**
  * A content hash over a directory tree: every file's path and bytes, in sorted

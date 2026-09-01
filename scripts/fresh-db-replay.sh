@@ -53,6 +53,15 @@ DB_URL=$(supabase status -o env | awk -F= '/DB_URL=/{print substr($0,index($0,"=
 # never row visibility. It also creates its own staff profile and JWT claim inside
 # `begin ... rollback`, so the authorization guards are satisfied by RBAC rows
 # rather than by the superuser, and nothing it writes survives the suite.
+#
+# dms_lifecycle.sql and bi_studio_lifecycle.sql belong here on that same argument,
+# and each states it in its own header rather than inheriting it. Both read the
+# catalog in Part 1, drive their commands inside one `begin ... rollback` in Part 2
+# with auth.users rows and JWT claims they create themselves, and assert refusals
+# by SQLSTATE. A superuser connection cannot soften those refusals, because the
+# guards that raise them ask has_permission() about seeded RBAC rows rather than
+# about the connection -- which is also how the BI suite can prove that no role at
+# all holds bi_datasets.publish. Neither suite asserts that a row is invisible.
 SUPABASE_DB_URL="$DB_URL" node scripts/run-sql-gate.mjs \
   supabase/tests/security_rls.sql \
   supabase/tests/security_full_matrix.sql \
@@ -63,6 +72,7 @@ SUPABASE_DB_URL="$DB_URL" node scripts/run-sql-gate.mjs \
   supabase/tests/accounting_workflows.sql \
   supabase/tests/crm_lifecycle.sql \
   supabase/tests/dms_lifecycle.sql \
+  supabase/tests/bi_studio_lifecycle.sql \
   supabase/tests/final_enterprise_hardening.sql \
   supabase/tests/maintainability_contracts.sql
 
