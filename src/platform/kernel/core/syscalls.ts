@@ -26,18 +26,18 @@
  */
 import {
   COMMAND_CAPABILITY,
-  LEDGER_COMMANDS,
+  DATA_COMMANDS,
   SYSCALL_CAPABILITY,
   fail,
   succeed,
   type AbiResult,
   type AppId,
   type Capability,
+  type DataCommandName,
   type EventRecord,
   type Handle,
   type IpcMessage,
   type LaunchArgs,
-  type LedgerCommandName,
   type Localized,
   type Pid,
   type SyscallName,
@@ -500,7 +500,7 @@ class Dispatcher implements DispatcherHandle {
         const invocation = as<'data.command'>(request);
         const record = this.deps.processes.get(caller);
         if (record === null) return fail('NOT_FOUND', 'The calling process has exited');
-        if (!isLedgerCommand(invocation.command)) {
+        if (!isDataCommand(invocation.command)) {
           return fail('INVALID_ARGUMENT', `Unknown command: ${String(invocation.command)}`);
         }
         // Prompt for the command's own privilege here, so the broker only ever
@@ -825,8 +825,17 @@ function exemptFromElevation(name: SyscallName, request: unknown): boolean {
   return typeof key === 'string' && key.toUpperCase().startsWith('HKCU');
 }
 
-function isLedgerCommand(value: string): value is LedgerCommandName {
-  return (LEDGER_COMMANDS as readonly string[]).includes(value);
+/**
+ * Both families, one gate.
+ *
+ * Written against `DATA_COMMANDS` rather than the ledger's eleven so that adding a
+ * command in `abi.ts` makes it callable here without a second edit. The check is
+ * still a check: an unknown string is refused before `COMMAND_CAPABILITY` is
+ * indexed with it, which is what keeps a bad payload from choosing its own
+ * capability.
+ */
+function isDataCommand(value: string): value is DataCommandName {
+  return (DATA_COMMANDS as readonly string[]).includes(value);
 }
 
 /** Drops the kernel-private fields so apps only ever see the public shape. */

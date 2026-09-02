@@ -10,6 +10,15 @@
  * server-side RPC that enforces its own authorization; the broker adds the
  * capability check, the elevation check, idempotency, cache invalidation and the
  * audit record. There is deliberately no generic "update this table" path.
+ *
+ * A dataset resolves one of three ways. A `table` source is a column projection.
+ * A `derived` source is an aggregate the broker computes from other datasets. An
+ * `rpc` source calls a named SECURITY DEFINER function with a fixed argument
+ * list -- which is how the modelling documents arrive, since a model is a nested
+ * document assembled by the database and not a row in any one table. The third
+ * kind widens nothing: the function name is written here, the argument names are
+ * written here, and a `where` key the source does not declare is dropped rather
+ * than forwarded.
  */
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import {
@@ -21,12 +30,12 @@ import {
   type Capability,
   type CommandInvocation,
   type CommandOutcome,
+  type DataCommandName,
   type DatasetFilterValue,
   type DatasetName,
   type DatasetPage,
   type DatasetQuery,
   type DatasetRow,
-  type LedgerCommandName,
   type Pid,
 } from '../abi';
 import type { IsoTimestamp } from '../types';
@@ -70,7 +79,33 @@ interface DerivedSource {
   readonly compute: (load: DeriveLoader) => Promise<AbiResult<readonly DatasetRow[]>>;
 }
 
-type DatasetSource = TableSource | DerivedSource;
+/**
+ * A dataset that is a function call.
+ *
+ * Some reads are documents, not projections: `get_modeling_spec` returns one model
+ * with its periods, rows, assumptions, scenarios and every override nested inside
+ * it, assembled and scope-checked in SQL. There is no column list to write and no
+ * table to name, so the source declares the function and how a query becomes its
+ * arguments instead.
+ *
+ * `args` is the whole security boundary and it is the same shape a command binding
+ * uses: a function from the app's query to the exact named arguments, free to
+ * refuse. An app can therefore pass a model id and a row limit, and nothing else --
+ * not a column, not a predicate, not a second function.
+ *
+ * `rows` exists because a function may answer with a list or with a single object.
+ * A document becomes a one-row page rather than a special case in `DatasetPage`,
+ * so `useDataset` needs no new shape to read one: `rows[0]` is the model.
+ */
+interface RpcSource {
+  readonly kind: 'rpc';
+  readonly rpc: string;
+  readonly capability: Capability;
+  readonly args: (query: DatasetQuery, limit: number) => AbiResult<Record<string, unknown>>;
+  readonly rows: (value: unknown) => readonly DatasetRow[];
+}
+
+type DatasetSource = TableSource | DerivedSource | RpcSource;
 
 /** Pulls a dependency for a derived dataset through the same cache path. */
 type DeriveLoader = (dataset: DatasetName, query?: Omit<DatasetQuery, 'dataset'>) => Promise<AbiResult<DatasetPage>>;
@@ -305,6 +340,56 @@ const SOURCES: { readonly [K in DatasetName]: DatasetSource } = {
       ]);
     },
   },
+
+  /**
+   * Every model this caller may see, one row each, with the counts and the newest
+   * certificate's grade already folded in by SQL. The list screen therefore costs
+   * one round trip and cannot disagree with the document screen about how many
+   * scenarios a model has.
+   */
+  modelingModels: {
+    kind: 'rpc',
+    rpc: 'get_modeling_overview',
+    capability: 'ledger.read',
+    args: () => succeed({}),
+    rows: asRows,
+  },
+
+  /**
+   * One model, whole: periods, rows, assumptions, scenarios and overrides in a
+   * single nested document, which is what the engine needs to compile anything at
+   * all. A partial model is not a smaller model, it is a wrong one -- omit an
+   * override and every scenario number moves -- so this is deliberately not
+   * paginated and deliberately not assembled from parts on this side.
+   */
+  modelingSpec: {
+    kind: 'rpc',
+    rpc: 'get_modeling_spec',
+    capability: 'ledger.read',
+    args: (query) => {
+      const id = requireWhereString(query, 'modelId');
+      if (!id.ok) return id;
+      return succeed({ p_model_id: id.value });
+    },
+    rows: asDocumentRows,
+  },
+
+  /**
+   * The certificate history of one model, newest first. Read separately from the
+   * spec because a certificate is evidence *about* a version rather than part of
+   * it: editing a draft must not appear to revoke what was measured yesterday.
+   */
+  modelingCertificates: {
+    kind: 'rpc',
+    rpc: 'get_modeling_certificates',
+    capability: 'ledger.read',
+    args: (query, limit) => {
+      const id = requireWhereString(query, 'modelId');
+      if (!id.ok) return id;
+      return succeed({ p_model_id: id.value, p_limit: limit });
+    },
+    rows: asRows,
+  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -320,7 +405,18 @@ interface CommandBinding {
   readonly invalidates: readonly DatasetName[];
 }
 
-const BINDINGS: { readonly [K in LedgerCommandName]: CommandBinding } = {
+/**
+ * Every command the ABI carries, bound to the function that performs it.
+ *
+ * The mapped type is over `DataCommandName`, so the ledger's eleven and the
+ * modelling fourteen are bound in one table and neither can be declared in
+ * `abi.ts` without being bound here. Argument names are the one thing in this file
+ * the compiler cannot check: PostgREST matches by name, so a typo becomes
+ * `PGRST202` in front of a user rather than a red squiggle. They were transcribed
+ * from the migration's signatures and are worth re-reading against it, not from
+ * memory, whenever a command is added.
+ */
+const BINDINGS: { readonly [K in DataCommandName]: CommandBinding } = {
   'journal.create': {
     rpc: 'post_journal_entry',
     args: (payload) => {
@@ -479,6 +575,320 @@ const BINDINGS: { readonly [K in LedgerCommandName]: CommandBinding } = {
       return succeed({ p_task_id: task.value, p_status: status.toLowerCase() });
     },
     invalidates: ['closeTasks', 'auditTrail'],
+  },
+
+  /* ---------------- modelling ---------------- */
+
+  'model.create': {
+    rpc: 'create_modeling_model_command',
+    args: (payload) => {
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      const name = requireString(payload.name, 'name');
+      if (!name.ok) return name;
+      const periods = stringList(payload.periods, 'periods');
+      if (!periods.ok) return periods;
+      if (periods.value.length === 0) {
+        return fail('INVALID_ARGUMENT', 'A model needs at least one period');
+      }
+      return succeed({
+        p_key: key.value,
+        p_name: name.value,
+        p_periods: periods.value,
+        p_name_ar: asString(payload.nameAr),
+        p_description: asString(payload.description),
+      });
+    },
+    invalidates: ['modelingModels', 'auditTrail'],
+  },
+  'model.update': {
+    rpc: 'update_modeling_model_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const name = requireString(payload.name, 'name');
+      if (!name.ok) return name;
+      const periods = stringList(payload.periods, 'periods');
+      if (!periods.ok) return periods;
+      if (periods.value.length === 0) {
+        return fail('INVALID_ARGUMENT', 'A model needs at least one period');
+      }
+      return succeed({
+        p_model_id: model.value,
+        p_name: name.value,
+        p_periods: periods.value,
+        p_name_ar: asString(payload.nameAr),
+        p_description: asString(payload.description),
+      });
+    },
+    // Periods live in the header, so changing them changes every row's length.
+    invalidates: ['modelingModels', 'modelingSpec', 'auditTrail'],
+  },
+  'model.publish': {
+    rpc: 'publish_modeling_model_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      // The client's measurement of what it is publishing. The database stores it
+      // and `certifies()` is what can later refute it; the broker does not compute
+      // hashes, because a kernel that recomputed one would be asserting agreement
+      // with an engine it does not contain.
+      const hash = requireString(payload.fullHash, 'fullHash');
+      if (!hash.ok) return hash;
+      return succeed({ p_model_id: model.value, p_full_hash: hash.value });
+    },
+    // A new published hash moves `describesCurrent` on every stored certificate.
+    invalidates: ['modelingModels', 'modelingSpec', 'modelingCertificates', 'auditTrail'],
+  },
+  'model.revise': {
+    rpc: 'revise_modeling_model_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      return succeed({ p_model_id: model.value });
+    },
+    invalidates: ['modelingModels', 'modelingSpec', 'modelingCertificates', 'auditTrail'],
+  },
+  'model.archive': {
+    rpc: 'archive_modeling_model_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      // Absent means archive; `archived: false` is how a model comes back. One
+      // command rather than two because the inverse is not a different act.
+      return succeed({ p_model_id: model.value, p_archived: asBoolean(payload.archived) ?? true });
+    },
+    invalidates: ['modelingModels', 'modelingSpec', 'auditTrail'],
+  },
+  'model.assumption.upsert': {
+    rpc: 'upsert_modeling_assumption_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      const label = requireString(payload.label, 'label');
+      if (!label.ok) return label;
+      const unit = requireString(payload.unit, 'unit');
+      if (!unit.ok) return unit;
+      const value = requireNumber(payload.value, 'value');
+      if (!value.ok) return value;
+      return succeed({
+        p_model_id: model.value,
+        p_key: key.value,
+        p_label: label.value,
+        // Upper-cased here and validated by the table's CHECK, exactly as
+        // `account.create` treats an account type: the closed set of units belongs
+        // to the engine and the database, not to a translation layer.
+        p_unit: unit.value.toUpperCase(),
+        p_value: value.value,
+        // Null is meaningful: it says this assumption has no declared range, which
+        // is what `RANGES_DECLARED` measures. Coercing it to 0 would have invented
+        // a range of zero and quietly improved a grade.
+        p_low: asNumber(payload.low),
+        p_high: asNumber(payload.high),
+        p_label_ar: asString(payload.labelAr),
+        p_note: asString(payload.note) ?? '',
+        p_sort: asNumber(payload.sortOrder) ?? 0,
+      });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.assumption.delete': {
+    rpc: 'delete_modeling_assumption_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      return succeed({ p_model_id: model.value, p_key: key.value });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.row.upsert': {
+    rpc: 'upsert_modeling_row_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      const label = requireString(payload.label, 'label');
+      if (!label.ok) return label;
+      const unit = requireString(payload.unit, 'unit');
+      if (!unit.ok) return unit;
+      const formula = asString(payload.formula);
+      let given: readonly number[] = [];
+      if (Array.isArray(payload.given)) {
+        const parsed = numberList(payload.given, 'given');
+        if (!parsed.ok) return parsed;
+        given = parsed.value;
+      }
+      // The table refuses a row holding both and the command raises on a row
+      // holding neither. Refusing both cases here means the caller reads the
+      // sentence in the vocabulary it sent, rather than a 23514 about a constraint
+      // name it has never heard of.
+      if ((formula !== null) === (given.length > 0)) {
+        return fail('INVALID_ARGUMENT', 'A row needs either a formula or a list of given values, not both');
+      }
+      return succeed({
+        p_model_id: model.value,
+        p_key: key.value,
+        p_label: label.value,
+        p_unit: unit.value.toUpperCase(),
+        p_formula: formula,
+        p_given: given.length > 0 ? given : null,
+        p_label_ar: asString(payload.labelAr),
+        p_note: asString(payload.note) ?? '',
+        p_sort: asNumber(payload.sortOrder) ?? 0,
+      });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.row.delete': {
+    rpc: 'delete_modeling_row_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      return succeed({ p_model_id: model.value, p_key: key.value });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.scenario.upsert': {
+    rpc: 'upsert_modeling_scenario_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      const name = requireString(payload.name, 'name');
+      if (!name.ok) return name;
+      return succeed({
+        p_model_id: model.value,
+        p_key: key.value,
+        p_name: name.value,
+        // Absent means a root scenario. Inheritance cycles are the database's to
+        // refuse -- it can see the whole chain, and this can see one link.
+        p_base_key: asString(payload.baseKey),
+        p_name_ar: asString(payload.nameAr),
+        p_note: asString(payload.note) ?? '',
+        p_sort: asNumber(payload.sortOrder) ?? 0,
+      });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.scenario.delete': {
+    rpc: 'delete_modeling_scenario_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const key = requireString(payload.key, 'key');
+      if (!key.ok) return key;
+      return succeed({ p_model_id: model.value, p_key: key.value });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.override.set': {
+    rpc: 'set_modeling_override_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const scenario = requireString(payload.scenarioKey, 'scenarioKey');
+      if (!scenario.ok) return scenario;
+      const assumption = requireString(payload.assumptionKey, 'assumptionKey');
+      if (!assumption.ok) return assumption;
+      const value = requireNumber(payload.value, 'value');
+      if (!value.ok) return value;
+      return succeed({
+        p_model_id: model.value,
+        p_scenario_key: scenario.value,
+        p_assumption_key: assumption.value,
+        p_value: value.value,
+        p_note: asString(payload.note) ?? '',
+      });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  'model.override.clear': {
+    rpc: 'clear_modeling_override_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const scenario = requireString(payload.scenarioKey, 'scenarioKey');
+      if (!scenario.ok) return scenario;
+      const assumption = requireString(payload.assumptionKey, 'assumptionKey');
+      if (!assumption.ok) return assumption;
+      return succeed({
+        p_model_id: model.value,
+        p_scenario_key: scenario.value,
+        p_assumption_key: assumption.value,
+      });
+    },
+    invalidates: ['modelingSpec', 'modelingModels', 'auditTrail'],
+  },
+  /**
+   * Store a measurement the engine took.
+   *
+   * Every one of these numbers was computed in the browser, which sounds like the
+   * wrong place for evidence to come from until you ask the alternative: a grade
+   * derived server-side would be a second implementation of `certify`, and two
+   * implementations of a certification are one more than a reader can trust. So the
+   * client says what it measured and against which hash, and the database answers
+   * whether that hash is still the published one. Neither side can award a grade
+   * the other did not see: this cannot forge `describesCurrent`, and the database
+   * cannot improve `grade`.
+   */
+  'model.certificate.record': {
+    rpc: 'record_modeling_certificate_command',
+    args: (payload) => {
+      const model = requireString(payload.modelId, 'modelId');
+      if (!model.ok) return model;
+      const scenario = requireString(payload.scenarioKey, 'scenarioKey');
+      if (!scenario.ok) return scenario;
+      const targetKey = requireString(payload.targetKey, 'targetKey');
+      if (!targetKey.ok) return targetKey;
+      const targetKind = requireString(payload.targetKind, 'targetKind');
+      if (!targetKind.ok) return targetKind;
+      const grade = requireString(payload.grade, 'grade');
+      if (!grade.ok) return grade;
+      const resultsHash = requireString(payload.resultsHash, 'resultsHash');
+      if (!resultsHash.ok) return resultsHash;
+      const fullHash = requireString(payload.fullHash, 'fullHash');
+      if (!fullHash.ok) return fullHash;
+      const period = requireNumber(payload.targetPeriod, 'targetPeriod');
+      if (!period.ok) return period;
+      // A certificate with no checks is not a lenient certificate, it is an empty
+      // claim wearing the word. The engine emits nine; one is enough to prove the
+      // caller ran something.
+      if (!Array.isArray(payload.checks) || payload.checks.length === 0) {
+        return fail('INVALID_ARGUMENT', 'checks must be the list of checks the engine ran');
+      }
+      const limitations = stringList(payload.limitations, 'limitations');
+      if (!limitations.ok) return limitations;
+      return succeed({
+        p_model_id: model.value,
+        p_scenario_key: scenario.value,
+        p_target_key: targetKey.value,
+        p_target_kind: targetKind.value.toUpperCase(),
+        p_target_period: Math.max(0, Math.round(period.value)),
+        p_grade: grade.value.toUpperCase(),
+        p_results_hash: resultsHash.value,
+        p_full_hash: fullHash.value,
+        // Tallies, not judgements: the database recomputes nothing from them and
+        // the checks travel alongside, so a disagreement is visible rather than
+        // authoritative.
+        p_passed: Math.max(0, Math.round(asNumber(payload.passed) ?? 0)),
+        p_warned: Math.max(0, Math.round(asNumber(payload.warned) ?? 0)),
+        p_failed: Math.max(0, Math.round(asNumber(payload.failed) ?? 0)),
+        p_unmeasured: Math.max(0, Math.round(asNumber(payload.unmeasured) ?? 0)),
+        p_checks: payload.checks,
+        p_limitations: limitations.value,
+      });
+    },
+    // No `auditTrail`: `modeling_certificates` carries no audit trigger, because a
+    // certificate is already an append-only record of who measured what, when.
+    invalidates: ['modelingCertificates', 'modelingModels'],
   },
 };
 
@@ -702,7 +1112,9 @@ class Broker implements DataBrokerSubsystem {
     const rows =
       source.kind === 'table'
         ? await this.fetchTable(source, query, limit)
-        : await this.fetchDerived(pid, source, query, limit);
+        : source.kind === 'rpc'
+          ? await this.fetchRpc(source, query, limit)
+          : await this.fetchDerived(pid, source, query, limit);
     if (!rows.ok) return fail<DatasetPage>(rows.error.code, rows.error.message, rows.error.details);
 
     const bytes = estimateBytes(rows.value);
@@ -762,6 +1174,42 @@ class Broker implements DataBrokerSubsystem {
       return succeed(Array.isArray(data) ? data.map((row) => asRow(row) ?? {}) : []);
     } catch (error) {
       return fail('IO_ERROR', error instanceof Error ? error.message : String(error), { table: source.table });
+    }
+  }
+
+  /**
+   * A read that is a function call.
+   *
+   * `source.args` is the only thing standing between the app's query and the
+   * database, and it is a whitelist by construction: it returns the named
+   * arguments it chose, so a `where` key nobody declared cannot arrive at the
+   * function. Note what is missing compared with `fetchTable` -- no `order`, no
+   * `range`, no filter loop. Ordering and row limits are the function's business,
+   * because it is the function that knows what a page of its answer means.
+   */
+  private async fetchRpc(
+    source: RpcSource,
+    query: DatasetQuery,
+    limit: number,
+  ): Promise<AbiResult<readonly DatasetRow[]>> {
+    if (!isSupabaseConfigured) {
+      return fail('IO_ERROR', 'The finance backend is not configured');
+    }
+    const args = source.args(query, limit);
+    if (!args.ok) return fail<readonly DatasetRow[]>(args.error.code, args.error.message, args.error.details);
+
+    try {
+      const { data, error } = await supabase.rpc(source.rpc, args.value);
+      if (error !== null) {
+        const code = error.code === 'PGRST202' ? 'NOT_SUPPORTED' : 'IO_ERROR';
+        return fail(code, humanizeRpcError(error.message, source.rpc), {
+          rpc: source.rpc,
+          dbCode: error.code ?? '',
+        });
+      }
+      return succeed(source.rows(data));
+    } catch (error) {
+      return fail('IO_ERROR', error instanceof Error ? error.message : String(error), { rpc: source.rpc });
     }
   }
 
@@ -885,6 +1333,49 @@ function asRow(value: unknown): DatasetRow | null {
   return value as DatasetRow;
 }
 
+/**
+ * A function's array result, as a page.
+ *
+ * Non-object members are dropped rather than coerced: a `null` in the middle of a
+ * jsonb array would otherwise reach an app as a row with no columns, and every
+ * caller would have to defend against it. Dropping is safe here because the page
+ * already reports `complete`, so a short page is a shape the caller handles.
+ */
+function asRows(value: unknown): readonly DatasetRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: DatasetRow[] = [];
+  for (const entry of value as readonly unknown[]) {
+    const row = asRow(entry);
+    if (row !== null) rows.push(row);
+  }
+  return rows;
+}
+
+/**
+ * A function's single-object result, as a one-row page.
+ *
+ * This is the whole reason `RpcSource.rows` exists. `get_modeling_spec` answers
+ * with one document; wrapping it here means `DatasetPage` needs no second shape
+ * and `useDataset` needs no new hook -- a screen reads `rows[0]` and an absent
+ * model is an empty page, which is exactly how a missing row already reads.
+ */
+function asDocumentRows(value: unknown): readonly DatasetRow[] {
+  const row = asRow(value);
+  return row === null ? [] : [row];
+}
+
+/**
+ * A required string drawn from a query's `where`.
+ *
+ * An `rpc` source cannot forward a predicate, so the few arguments it does accept
+ * arrive as `where` keys and are pulled out by name. `DatasetFilterValue` admits
+ * arrays, which is why this narrows rather than casts: `where: { modelId: [] }`
+ * is a refusal, not an argument.
+ */
+function requireWhereString(query: DatasetQuery, key: string): AbiResult<string> {
+  return requireString(query.where?.[key], key);
+}
+
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
 }
@@ -905,6 +1396,45 @@ function asBoolean(value: unknown): boolean | null {
 function requireString(value: unknown, field: string): AbiResult<string> {
   const parsed = asString(value);
   return parsed === null ? fail('INVALID_ARGUMENT', `${field} is required`) : succeed(parsed);
+}
+
+/**
+ * A list of strings, absent meaning empty.
+ *
+ * Written for the two `text[]` arguments the modelling commands take -- a model's
+ * periods and a certificate's limitations. A non-string member is refused rather
+ * than coerced, because `String(undefined)` would have travelled as the period
+ * label `"undefined"` and appeared on a chart axis.
+ */
+function stringList(value: unknown, field: string): AbiResult<readonly string[]> {
+  if (value === undefined || value === null) return succeed([]);
+  if (!Array.isArray(value)) return fail('INVALID_ARGUMENT', `${field} must be a list`);
+  const items: string[] = [];
+  for (const entry of value as readonly unknown[]) {
+    const text = asString(entry);
+    if (text === null) return fail('INVALID_ARGUMENT', `${field} contains an entry that is not text`);
+    items.push(text);
+  }
+  return succeed(items);
+}
+
+/** A list of finite numbers. One bad member refuses the whole list: a row of given
+ *  values with a hole in it is a wrong row, not a shorter one. */
+function numberList(value: readonly unknown[], field: string): AbiResult<readonly number[]> {
+  const items: number[] = [];
+  for (const entry of value) {
+    const parsed = asNumber(entry);
+    if (parsed === null) return fail('INVALID_ARGUMENT', `${field} contains a value that is not a number`);
+    items.push(parsed);
+  }
+  return succeed(items);
+}
+
+/** A required finite number. `0` and negatives are legitimate assumption values,
+ *  so this cannot be written as a falsiness check. */
+function requireNumber(value: unknown, field: string): AbiResult<number> {
+  const parsed = asNumber(value);
+  return parsed === null ? fail('INVALID_ARGUMENT', `${field} must be a number`) : succeed(parsed);
 }
 
 function round2(value: number): number {
@@ -930,6 +1460,10 @@ export function createBroker(
 export const DATASET_TABLES: Readonly<Record<string, string>> = Object.fromEntries(
   DATASETS.map((name) => {
     const source = SOURCES[name];
-    return [name, source.kind === 'table' ? source.table : `derived(${source.dependsOn.join(', ')})`];
+    if (source.kind === 'table') return [name, source.table];
+    // Named so the diagnostics page reads as an explanation of where a number
+    // came from rather than a list of table names it could not find.
+    if (source.kind === 'rpc') return [name, `function(${source.rpc})`];
+    return [name, `derived(${source.dependsOn.join(', ')})`];
   }),
 );

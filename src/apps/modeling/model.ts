@@ -58,7 +58,31 @@ export const POSTING_LIMIT = 500;
 /** How much history is fetched, independent of how much of it a driver reads. */
 export const HISTORY_MONTHS = 18;
 
-export type ModelingView = 'forecast' | 'timeline' | 'compare';
+/**
+ * The four views, of which the fourth is a different kind of thing.
+ *
+ * `forecast`, `timeline` and `compare` are three angles on one derived object: a
+ * projection computed here, in this window, out of the posted book, holding
+ * nothing. Close the window and the hypothesis is gone, which is the correct
+ * lifetime for a hypothesis.
+ *
+ * `workbench` edits a *document*. It has rows and assumptions somebody wrote,
+ * versions somebody published, and a certificate somebody else will quote. It
+ * does not read the ledger at all and the other three do not read a model, so
+ * the two halves share a window and almost nothing else — which is why nothing
+ * below this line has a `workbench` branch, and why `useModelingModel` is not
+ * asked to load anything for it.
+ */
+export type ModelingView = 'forecast' | 'timeline' | 'compare' | 'workbench';
+
+/**
+ * The three that project the book.
+ *
+ * Chrome that only the projection has — its status bar, its nouns, its per-view exports —
+ * takes this rather than the full union, so a total `Record` over it stays total without
+ * inventing a `workbench` arm nothing will ever read.
+ */
+export type ProjectionView = Exclude<ModelingView, 'workbench'>;
 
 export interface ModelingSelection {
   readonly budgetId: string | null;
@@ -104,14 +128,29 @@ export function useModelingModel(
   scenario: Scenario,
   showQuiet: boolean,
 ): ModelingModel {
-  const accountQuery = useMappedDataset('accounts', toAccount, { limit: ACCOUNT_LIMIT });
-  const budgetQuery = useMappedDataset('budgets', toBudget, { limit: BUDGET_LIMIT });
+  /**
+   * Whether the book is being read at all.
+   *
+   * The workbench edits a document and touches no ledger, and the jump list can
+   * open the window straight into it — so without this the app would fetch five
+   * hundred entries, five hundred postings and the whole chart of accounts to
+   * render a screen that shows none of them.
+   *
+   * Disabling a query keeps the rows it already had (`useDataset` sets `loading`
+   * false and leaves `rows` alone), so the trip to the workbench and back costs
+   * one re-issued query that the broker's cache usually answers, not a spinner.
+   */
+  const book = view !== 'workbench';
+
+  const accountQuery = useMappedDataset('accounts', toAccount, { limit: ACCOUNT_LIMIT, enabled: book });
+  const budgetQuery = useMappedDataset('budgets', toBudget, { limit: BUDGET_LIMIT, enabled: book });
 
   // Raw, not mapped: this is the query whose `fetchedAt` the status bar reports, and only
   // `useDataset` carries one.
   const entryPage = useDataset('journalEntries', {
     limit: ENTRY_LIMIT,
     orderBy: { column: 'entry_date', ascending: false },
+    enabled: book,
   });
 
   const entries = useMemo(() => {
@@ -127,7 +166,7 @@ export function useModelingModel(
   const linePage = useMappedDataset('journalLines', toLine, {
     where: { journal_entry_id: ids },
     limit: POSTING_LIMIT,
-    enabled: ids.length > 0,
+    enabled: book && ids.length > 0,
   });
 
   /**
@@ -170,7 +209,7 @@ export function useModelingModel(
   const lineQuery = useMappedDataset('budgetLines', toBudgetLine, {
     where: { budget_id: budget?.id ?? '' },
     limit: LINE_LIMIT,
-    enabled: budget !== null,
+    enabled: book && budget !== null,
   });
   const plan = useMemo(() => {
     if (budget === null) return null;
@@ -209,14 +248,12 @@ export function useModelingModel(
     lineQuery.refetch();
   };
 
-  // `view` does not change what is fetched — every view reads the same projection — but it
-  // does decide whether an empty grid is worth a spinner, so the model reports the load of
-  // the queries that view depends on.
+  // Which queries a view waits on. The three projection views read the same object, so they
+  // differ only in whether the budget matters; the workbench reads none of it and must not
+  // report a spinner for a fetch it did not ask for and will not display.
   const loading =
-    accountQuery.loading ||
-    entryPage.loading ||
-    linePage.loading ||
-    (view === 'compare' && lineQuery.loading);
+    book &&
+    (accountQuery.loading || entryPage.loading || linePage.loading || (view === 'compare' && lineQuery.loading));
 
   return {
     accounts: accountQuery.rows,

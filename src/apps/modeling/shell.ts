@@ -14,7 +14,16 @@
  * is a number somebody has to type. Nothing here writes to the book, so nothing here asks
  * for confirmation — `release` is destructive of an assumption and of nothing else.
  */
-import { type KeyboardEvent, type MouseEvent, type Ref, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type MutableRefObject,
+  type Ref,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { fmt, useLocale } from '@/platform/sdk';
 import { hotkey, type ModelingBusy, useAccountFocus, useModelingActions } from './actions';
 import {
@@ -40,12 +49,27 @@ import {
 /** Nothing chosen: no plan to compare against, and nothing in the right-hand pane. */
 const EMPTY_SELECTION: ModelingSelection = { budgetId: null, accountId: null };
 
-/** The jump list's three entries, which are view switches and nothing else. */
+/** The jump list's four entries, which are view switches and nothing else. */
 const VIEW_COMMAND: Readonly<Record<string, ModelingView | undefined>> = {
   'view:forecast': 'forecast',
   'view:timeline': 'timeline',
   'view:compare': 'compare',
+  'view:workbench': 'workbench',
 };
+
+/**
+ * How the workbench's own verbs reach it.
+ *
+ * `certify` and `publish` mean nothing to a projection, and `refresh`, `export` and `copy`
+ * mean something different there than they do here — but the toolbar, the accelerators, the
+ * jump list and the command palette all arrive through one function, and splitting that in
+ * two would mean two answers to "what does F5 do" depending on which half heard it first.
+ *
+ * So the workbench registers a sink and the shell offers each command to it before falling
+ * through to the projection's own handling. Returning `false` means "not mine", which is how
+ * `find` still focuses the search box from either half.
+ */
+export type WorkbenchSink = (id: string) => boolean;
 
 /** Where a right-click landed, and on which row. */
 export interface RowAnchor {
@@ -124,11 +148,21 @@ interface ModelingUi {
   readonly draft: string;
   /** Accounts the lookback never saw move are in the grid. */
   readonly showQuiet: boolean;
+  /**
+   * The model the workbench has open, held by key rather than id.
+   *
+   * The key is the unique name somebody typed, and `useLedgerCommand` reports whether a
+   * command succeeded without handing back the row it wrote — so after `model.create` the
+   * key is the only thing the window knows about what it just made. Selecting by it means
+   * the refetch lands on the new model instead of on nothing.
+   */
+  readonly modelKey: string | null;
   setSearch: (next: string) => void;
   setDraft: (next: string) => void;
   setQuiet: (next: boolean) => void;
   pickBudget: (id: string | null) => void;
   pickAccount: (id: string | null) => void;
+  pickModel: (key: string | null) => void;
   changeView: (next: ModelingView) => void;
   openMenu: (row: ForecastRow, event: MouseEvent) => void;
   closeMenu: () => void;
@@ -145,6 +179,7 @@ function useModelingUi(): ModelingUi {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [showQuiet, setQuiet] = useState(false);
+  const [modelKey, setModelKey] = useState<string | null>(null);
 
   const pickBudget = useCallback((budgetId: string | null) => {
     setSelection((current) => ({ ...current, budgetId }));
@@ -155,8 +190,11 @@ function useModelingUi(): ModelingUi {
   }, []);
   useAccountFocus(pickAccount);
 
-  // The search is kept across views, like the budgets window: all three views read the same
-  // projection, and clearing the box on a view switch throws away what was just typed.
+  const pickModel = useCallback((key: string | null) => setModelKey(key), []);
+
+  // The search is kept across views, like the budgets window: nothing in this window is a
+  // different search box wearing the same shape, and clearing it on a view switch throws
+  // away what was just typed.
   const changeView = useCallback((next: ModelingView) => setView(next), []);
 
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -182,11 +220,13 @@ function useModelingUi(): ModelingUi {
     editing,
     draft,
     showQuiet,
+    modelKey,
     setSearch,
     setDraft,
     setQuiet,
     pickBudget,
     pickAccount,
+    pickModel,
     changeView,
     openMenu,
     closeMenu,
@@ -206,6 +246,16 @@ export interface ModelingShell {
   readonly editing: boolean;
   readonly draft: string;
   readonly showQuiet: boolean;
+  /** The model the workbench has open, by key. Null until one is chosen. */
+  readonly modelKey: string | null;
+  /**
+   * Where the workbench hangs its command handler while it is mounted.
+   *
+   * A ref rather than a registration call because the handler closes over the workbench's
+   * own state and is therefore a new function every render — the same reason
+   * `useAccountFocus` holds its sink this way.
+   */
+  readonly workbenchSink: MutableRefObject<WorkbenchSink | null>;
   /** A row is selected, so a typed number has somewhere to land. */
   readonly canOverride: boolean;
   /** That row already carries one. */
@@ -227,6 +277,7 @@ export interface ModelingShell {
   keyDown: (event: KeyboardEvent<HTMLElement>) => void;
   pickBudget: (id: string | null) => void;
   pickAccount: (id: string | null) => void;
+  pickModel: (key: string | null) => void;
   changeView: (next: ModelingView) => void;
   openMenu: (row: ForecastRow, event: MouseEvent) => void;
   closeMenu: () => void;
@@ -236,10 +287,17 @@ export interface ModelingShell {
   copyGroup: (row: CompareRow) => void;
 }
 
-/** What the status bar counts, which is whatever the active view is showing. */
+/**
+ * What the status bar counts, which is whatever the active view is showing.
+ *
+ * The workbench is not asked: it renders its own status bar, because a count of projected
+ * accounts is not a fact about a model document and the two halves of this window share no
+ * noun. Its arm exists so the union is covered rather than defaulted.
+ */
 function shownCount(view: ModelingView, model: ModelingModel): number {
   if (view === 'timeline') return model.projection.timeline.length;
   if (view === 'compare') return model.projection.compare.length;
+  if (view === 'workbench') return 0;
   return model.rows.length;
 }
 
@@ -259,10 +317,12 @@ export function useModelingShell(): ModelingShell {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const ui = useModelingUi();
-  const { view, search, selection, menu, editing, draft, showQuiet } = ui;
+  const { view, search, selection, menu, editing, draft, showQuiet, modelKey } = ui;
   const { setSearch, setDraft, setQuiet, pickBudget, pickAccount, changeView, openMenu, closeMenu } = ui;
-  const { startOverride, endOverride } = ui;
+  const { startOverride, endOverride, pickModel } = ui;
   const searchRef = useRef<HTMLInputElement | null>(null);
+  // Null whenever the workbench is unmounted, which is the whole of its lifetime management.
+  const workbenchSink = useRef<WorkbenchSink | null>(null);
 
   const controls = useScenario();
   const { scenario } = controls;
@@ -306,6 +366,11 @@ export function useModelingShell(): ModelingShell {
         changeView(next);
         return;
       }
+      // View switches are resolved before the sink is consulted: Ctrl+4 got somebody into the
+      // workbench and Ctrl+1 has to get them out again, whatever the workbench thinks of the
+      // keystroke. Everything else it is offered first, and `false` means "not mine" — which
+      // is how `find` still reaches the search box from either half of the window.
+      if (view === 'workbench' && workbenchSink.current?.(id) === true) return;
       if (id === 'refresh') {
         model.refresh();
         return;
@@ -328,7 +393,7 @@ export function useModelingShell(): ModelingShell {
       }
       if (row !== null) actOn(id, row);
     },
-    [actOn, actions, changeView, controls, exportView, model, projection, scenario, t, tr],
+    [actOn, actions, changeView, controls, exportView, model, projection, scenario, t, tr, view],
   );
 
   const command = useCallback((id: string) => perform(id, model.selected), [model.selected, perform]);
@@ -377,6 +442,8 @@ export function useModelingShell(): ModelingShell {
     editing,
     draft,
     showQuiet,
+    modelKey,
+    workbenchSink,
     canOverride: selected !== null,
     canRelease: selected !== null && selected.overridden,
     shown: shownCount(view, model),
@@ -393,6 +460,7 @@ export function useModelingShell(): ModelingShell {
     keyDown,
     pickBudget,
     pickAccount,
+    pickModel,
     changeView,
     openMenu,
     closeMenu,

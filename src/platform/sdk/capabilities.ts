@@ -28,6 +28,18 @@ const LABELS: Readonly<Record<Capability, Localized>> = {
   'settings.write': { ar: 'حفظ إعدادات التطبيق', fr: 'Enregistrer ses réglages', en: 'Save its own settings' },
   power: { ar: 'إيقاف النظام', fr: 'Arrêter le système', en: 'Shut down or sign out' },
   'net.query': { ar: 'الاتصال بالخدمة', fr: 'Interroger le service', en: 'Query the service' },
+  // Worded so a person can tell the two apart at the moment of consent: one edits
+  // a working document, the other publishes a number other people will quote.
+  'model.write': {
+    ar: 'إعداد النماذج المالية',
+    fr: 'Modifier les modèles financiers',
+    en: 'Edit financial models',
+  },
+  'model.publish': {
+    ar: 'نشر نسخة من النموذج',
+    fr: 'Publier une version de modèle',
+    en: 'Publish a model version',
+  },
 };
 
 const isCapability = (value: string): value is Capability =>

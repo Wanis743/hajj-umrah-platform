@@ -14,7 +14,7 @@
  * The one dialog collects a number. It is not a confirmation: nothing in this window reaches
  * the book, so there is nothing to be sure about.
  */
-import { type MouseEvent, useCallback } from 'react';
+import { type CSSProperties, type KeyboardEvent, type MouseEvent, useCallback } from 'react';
 import {
   AppFrame,
   type AppEntryProps,
@@ -37,6 +37,7 @@ import {
 import { CompareList, ForecastList, TimelineList } from './list';
 import type { ModelingModel, ModelingView } from './model';
 import { useModelingShell } from './shell';
+import { Workbench } from './workbench';
 
 /**
  * The window's title: the driver and the horizon, and the overrides if there are any.
@@ -54,6 +55,29 @@ function windowTitle(scenario: Scenario, projection: Projection, locale: AppLoca
     ? head
     : `${head} (${fmt.integer(projection.overrides, locale.lang)})`;
 }
+
+/**
+ * The same line, for the other half of the window.
+ *
+ * A sibling rather than a branch inside `windowTitle`, because that function takes the projection's
+ * `Scenario` — a driver, a horizon and a set of per-account overrides — and the workbench has no
+ * such object. Its state is a model key and nothing else, so widening the signature would mean
+ * passing two things where one is always null.
+ */
+function workbenchTitle(modelKey: string | null, locale: AppLocale): string {
+  const name = locale.tr('النماذج المالية', 'Modélisation', 'Modeling');
+  const bench = locale.tr('المشغل', 'Atelier', 'Workbench');
+  return modelKey === null ? `${name} — ${bench}` : `${name} — ${bench} · ${modelKey}`;
+}
+
+/** The outer sheet, hoisted so the workbench and the projection are laid out by one object. */
+const SHEET: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  minHeight: 0,
+  minWidth: 0,
+};
 
 /* ------------------------------------------------------------------ *
  * The register
@@ -117,12 +141,34 @@ function ModelingBody(props: BodyProps) {
 
 export default function ModelingApp({ runtime }: AppEntryProps) {
   const shell = useModelingShell();
-  const { model, perform, scenario } = shell;
+  const { model, perform, scenario, view } = shell;
   const selected = model.selected;
 
   // Toolbar, accelerators, jump list and command palette are one path in.
   useAppCommands(shell.command);
-  useWindowTitle(windowTitle(scenario, model.projection, runtime.locale));
+  useWindowTitle(
+    view === 'workbench'
+      ? workbenchTitle(shell.modelKey, runtime.locale)
+      : windowTitle(scenario, model.projection, runtime.locale),
+  );
+
+  /**
+   * One keyboard handler for both halves of the window.
+   *
+   * Hoisted out of the JSX because two branches now need it, and because the accelerators are the
+   * one thing the workbench and the projection genuinely share: `shell.perform` resolves the view
+   * switches first, offers everything else to the workbench, and falls back to its own verbs — so
+   * Ctrl+4 gets somebody in here and Ctrl+1 gets them out, from either side.
+   */
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      // The dialog owns the keyboard while it is open: Ctrl+Enter in the field means apply,
+      // not "open the dialog again".
+      if (shell.editing) return;
+      shell.keyDown(event);
+    },
+    [shell.editing, shell.keyDown],
+  );
 
   /** The row menu acts on the row it names, which is not always the selected one. */
   const onMenuSelect = useCallback(
@@ -137,23 +183,41 @@ export default function ModelingApp({ runtime }: AppEntryProps) {
   // Double-click types a number: the one edit a projected row has.
   const onActivate = useCallback((row: ForecastRow) => perform('override', row), [perform]);
 
+  /**
+   * The workbench, returned before the projection is assembled.
+   *
+   * An early return rather than a fourth branch in `ModelingBody`, and the reason is a type as
+   * much as a layout: `view` is `ModelingView` at the top of this function and `ModelingStatus`
+   * accepts only `ProjectionView`, so returning here is what narrows the variable for every line
+   * below. The alternative was a cast at the status bar — the same code, with the compiler no
+   * longer checking the claim.
+   *
+   * It carries its own `AppFrame`, because the two halves share no region: a rail of models is not
+   * a rail of drivers, and a certificate is not an account.
+   */
+  if (view === 'workbench') {
+    return (
+      <div style={SHEET} onKeyDown={onKeyDown}>
+        <Workbench
+          modelKey={shell.modelKey}
+          onPickModel={shell.pickModel}
+          view={view}
+          onCommand={shell.command}
+          sink={shell.workbenchSink}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div
-      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0 }}
-      onKeyDown={(event) => {
-        // The dialog owns the keyboard while it is open: Ctrl+Enter in the field means apply,
-        // not "open the dialog again".
-        if (shell.editing) return;
-        shell.keyDown(event);
-      }}
-    >
+    <div style={SHEET} onKeyDown={onKeyDown}>
       <AppFrame
         scroll={false}
         navWidth={272}
         asideWidth={360}
         commands={
           <ModelingToolbar
-            view={shell.view}
+            view={view}
             search={shell.search}
             searchRef={shell.searchRef}
             busy={shell.busy}
@@ -186,7 +250,7 @@ export default function ModelingApp({ runtime }: AppEntryProps) {
           // The other two views have no account selected — one is months and one is types —
           // so the pane goes back to the whole model there even while a row is still held for
           // the forecast grid to return to.
-          shell.view === 'forecast' && selected !== null ? (
+          view === 'forecast' && selected !== null ? (
             <AccountPane
               row={selected}
               scenario={scenario}
@@ -207,7 +271,7 @@ export default function ModelingApp({ runtime }: AppEntryProps) {
         }
         status={
           <ModelingStatus
-            view={shell.view}
+            view={view}
             shown={shell.shown}
             scenario={scenario}
             projection={model.projection}
@@ -219,7 +283,7 @@ export default function ModelingApp({ runtime }: AppEntryProps) {
         }
       >
         <ModelingBody
-          view={shell.view}
+          view={view}
           model={model}
           searching={shell.search.trim() !== ''}
           showQuiet={shell.showQuiet}

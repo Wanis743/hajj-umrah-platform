@@ -75,6 +75,15 @@ export const CAPABILITIES = [
   'settings.write',
   'power',
   'net.query',
+  // A financial model is not the book. Editing one moves no money and posts no
+  // entry, so it must not borrow `ledger.post` -- an app that asked for the right
+  // to save a draft would have been handed the right to post a journal, and the
+  // consent prompt would have said so, which is how people learn to click through
+  // consent prompts. It is split in two because the two acts differ in kind:
+  // `model.write` drafts, and `model.publish` freezes a version and stamps the
+  // hash that every certificate and dashboard downstream will cite.
+  'model.write',
+  'model.publish',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -87,6 +96,12 @@ export const PRIVILEGED_CAPABILITIES: readonly Capability[] = [
   'service.control',
   'registry.write',
   'power',
+  // Publishing is the act others rely on; drafting is not. Deliberately absent:
+  // `model.write`, so editing a draft is as unceremonious as typing in a
+  // spreadsheet, and -- more importantly -- so recording a certificate never
+  // waits on consent. A prompt in front of a bad grade is a prompt somebody
+  // learns to cancel.
+  'model.publish',
 ];
 
 /* ------------------------------------------------------------------ *
@@ -501,6 +516,15 @@ export const DATASETS = [
   'exchangeRates',
   'closeTasks',
   'auditTrail',
+  // Modelling. These three resolve to SECURITY DEFINER functions rather than to a
+  // table projection, which is why `DatasetRow` earns its `unknown` values here:
+  // `modelingSpec` is a single nested document, returned as a one-row page. The
+  // alternative was six table datasets and a client-side assembly, which would
+  // have been a second answer to "what is a model" sitting next to the one the
+  // database already gives.
+  'modelingModels',
+  'modelingSpec',
+  'modelingCertificates',
 ] as const;
 
 export type DatasetName = (typeof DATASETS)[number];
@@ -549,15 +573,54 @@ export const LEDGER_COMMANDS = [
 
 export type LedgerCommandName = (typeof LEDGER_COMMANDS)[number];
 
+/**
+ * Modelling commands.
+ *
+ * A separate list rather than more entries in `LEDGER_COMMANDS`, because none of
+ * these touch the book: they write a model document, and the whole argument for
+ * the `model.write` capability is that the two are different acts. Folding them
+ * into a constant called `LEDGER_COMMANDS` would have made the name a lie in the
+ * one place a reader goes to find out what an app may do.
+ *
+ * `model.certificate.record` is here rather than being derived server-side on
+ * publish because a certificate is a *measurement*, taken by the engine in the
+ * browser against a model the user is looking at. The command stores the grade
+ * and the hash it was taken against; the database decides whether that hash is
+ * still current. Neither side can quietly award a better grade than was measured.
+ */
+export const MODEL_COMMANDS = [
+  'model.create',
+  'model.update',
+  'model.publish',
+  'model.revise',
+  'model.archive',
+  'model.assumption.upsert',
+  'model.assumption.delete',
+  'model.row.upsert',
+  'model.row.delete',
+  'model.scenario.upsert',
+  'model.scenario.delete',
+  'model.override.set',
+  'model.override.clear',
+  'model.certificate.record',
+] as const;
+
+export type ModelCommandName = (typeof MODEL_COMMANDS)[number];
+
+/** Every command `data.command` will carry, whatever subsystem answers it. */
+export const DATA_COMMANDS = [...LEDGER_COMMANDS, ...MODEL_COMMANDS] as const;
+
+export type DataCommandName = LedgerCommandName | ModelCommandName;
+
 export interface CommandInvocation {
-  readonly command: LedgerCommandName;
+  readonly command: DataCommandName;
   readonly payload: Readonly<Record<string, unknown>>;
   /** Idempotency key; the broker de-duplicates retries within a session. */
   readonly requestId?: string;
 }
 
 export interface CommandOutcome {
-  readonly command: LedgerCommandName;
+  readonly command: DataCommandName;
   readonly at: IsoTimestamp;
   readonly result: DatasetRow | null;
   /** Datasets the broker invalidated as a result. */
@@ -834,7 +897,7 @@ export const SYSCALL_CAPABILITY: { readonly [K in SyscallName]: Capability | nul
  * Per-command capability. `data.command` needs `ledger.read` to reach the
  * broker and then the command's own capability to execute.
  */
-export const COMMAND_CAPABILITY: { readonly [K in LedgerCommandName]: Capability } = {
+export const COMMAND_CAPABILITY: { readonly [K in DataCommandName]: Capability } = {
   'journal.create': 'ledger.post',
   'journal.post': 'ledger.post',
   'journal.void': 'ledger.post',
@@ -846,6 +909,24 @@ export const COMMAND_CAPABILITY: { readonly [K in LedgerCommandName]: Capability
   'period.reopen': 'ledger.close',
   'budget.upsert': 'ledger.post',
   'closeTask.complete': 'ledger.post',
+  'model.create': 'model.write',
+  'model.update': 'model.write',
+  // Publish and revise are the pair that move a version in and out of view, so
+  // they share the privileged capability. Archive does not: it hides a model and
+  // `model.archive` with `archived: false` brings it back, which is a filing
+  // decision, not a claim about a number.
+  'model.publish': 'model.publish',
+  'model.revise': 'model.publish',
+  'model.archive': 'model.write',
+  'model.assumption.upsert': 'model.write',
+  'model.assumption.delete': 'model.write',
+  'model.row.upsert': 'model.write',
+  'model.row.delete': 'model.write',
+  'model.scenario.upsert': 'model.write',
+  'model.scenario.delete': 'model.write',
+  'model.override.set': 'model.write',
+  'model.override.clear': 'model.write',
+  'model.certificate.record': 'model.write',
 };
 
 /* ------------------------------------------------------------------ *

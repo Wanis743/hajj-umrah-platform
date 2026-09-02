@@ -20,7 +20,6 @@
  */
 import type { Ref } from 'react';
 import {
-  Activity,
   AlertTriangle,
   CalendarClock,
   CalendarRange,
@@ -33,7 +32,6 @@ import {
   FileDown,
   Gauge,
   History,
-  LineChart,
   Lock,
   Pencil,
   Percent,
@@ -80,7 +78,8 @@ import {
   type Scenario,
 } from './forecast';
 import type { Month } from './history';
-import type { ModelingView } from './model';
+import type { ModelingView, ProjectionView } from './model';
+import { ViewSwitch } from './views';
 
 type Translate = (ar: string, fr: string, en: string) => string;
 
@@ -119,11 +118,6 @@ export function ModelingToolbar(props: ToolbarProps) {
   const { tr } = useLocale();
   const { busy, onCommand } = props;
   const working = busy !== null;
-  const views: readonly { value: ModelingView; label: string; icon: typeof LineChart }[] = [
-    { value: 'forecast', label: tr('التوقّع', 'Prévision', 'Forecast'), icon: LineChart },
-    { value: 'timeline', label: tr('الأشهر', 'Mois', 'Months'), icon: Activity },
-    { value: 'compare', label: tr('مقابل الخطة', 'Face au plan', 'Against plan'), icon: Scale },
-  ];
 
   return (
     <div className="fx-commandbar">
@@ -166,7 +160,7 @@ export function ModelingToolbar(props: ToolbarProps) {
         {tr('إرجاع', 'Rendre', 'Release')}
       </Button>
       <ToolbarSeparator />
-      <Segmented value={props.view} onChange={(next) => onCommand(`view:${next}`)} options={views} />
+      <ViewSwitch view={props.view} onCommand={onCommand} />
       <ToolbarSpacer />
       {props.view === 'forecast' ? (
         <IconButton
@@ -397,7 +391,14 @@ export function ScenarioRail(props: RailProps) {
  */
 
 interface StatusProps {
-  readonly view: ModelingView;
+  /**
+   * Narrower than the window's own union, because this status bar is the projection's.
+   *
+   * The workbench renders its own — a count of projected accounts is not a fact about a model
+   * document, and the two halves of the window share no noun. Saying so in the type is what
+   * keeps `NOUN` total without a dead fourth arm invented to satisfy it.
+   */
+  readonly view: ProjectionView;
   /** Rows the active view is showing, after the search box has had its say. */
   readonly shown: number;
   readonly scenario: Scenario;
@@ -409,7 +410,7 @@ interface StatusProps {
   readonly fetchedAt: string | null;
 }
 
-const NOUN: Readonly<Record<ModelingView, (tr: Translate) => string>> = {
+const NOUN: Readonly<Record<ProjectionView, (tr: Translate) => string>> = {
   forecast: (tr) => tr('حساب', 'comptes', 'accounts'),
   timeline: (tr) => tr('شهر', 'mois', 'months'),
   compare: (tr) => tr('نوع', 'types', 'types'),

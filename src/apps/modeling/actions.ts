@@ -19,6 +19,10 @@ import { REPORTS } from '../shared/paths';
  * `Ctrl+Enter` opens the override, which is the one thing in this window that replaces a
  * computed number with a typed one. `Ctrl+Backspace` takes it away again — destructive of
  * nothing but an assumption, so it needs no confirmation.
+ *
+ * `certify` and `publish` are absent on purpose and are absent from the manifest's
+ * accelerators for the same reason: they are the two commands whose result other people
+ * quote, and a keystroke's distance from a typo is the wrong distance for either.
  */
 export function hotkey(event: KeyboardEvent<HTMLElement>): string | null {
   if (event.key === 'F5') return 'refresh';
@@ -33,6 +37,7 @@ export function hotkey(event: KeyboardEvent<HTMLElement>): string | null {
   if (key === '1') return 'view:forecast';
   if (key === '2') return 'view:timeline';
   if (key === '3') return 'view:compare';
+  if (key === '4') return 'view:workbench';
   return null;
 }
 
