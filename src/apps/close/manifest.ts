@@ -16,9 +16,14 @@
  * lies about who is in charge.
  *
  * `ledger.close` carries `period.close` and `period.reopen`; `ledger.post` carries
- * `closeTask.complete`. Both are privileged, so the kernel raises its own consent and
- * nothing here asks first. The one dialog this app owns is the reopen reason, which
- * is not a confirmation — it is a required field the RPC refuses to run without.
+ * `closeTask.complete`. It also carries the controls register — a control is a standing
+ * promise about how the books are kept, and writing, testing or retiring one is the same
+ * privilege as drawing the line under a month. Both are privileged, so the kernel raises
+ * its own consent and nothing here asks first.
+ *
+ * The four dialogs this app owns are all forms and none is a confirmation: two collect a
+ * reason the RPC refuses to run without, one collects the code an upsert needs, and one
+ * collects the conclusion a recorded test is.
  *
  * `eventlog.read` is for the trail: after a close, the only honest answer to "who
  * closed March and when" is the audit log, not this window's memory of it.
@@ -30,9 +35,9 @@ export const closeManifest = defineApp({
   id: APP_IDS.close,
   name: text('إقفال الفترة', 'Clôture', 'Period Close'),
   description: text(
-    'قائمة تحقّق الإقفال الشهري: العوائق والمهام وإقفال الفترة',
-    'La checklist de clôture mensuelle : obstacles, tâches et clôture de la période',
-    'The month-end checklist: blockers, tasks, and closing the period',
+    'قائمة تحقّق الإقفال الشهري: العوائق والمهام والرقابات وإقفال الفترة',
+    'La checklist de clôture mensuelle : obstacles, tâches, contrôles internes et clôture de la période',
+    'The month-end checklist: blockers, tasks, controls, and closing the period',
   ),
   category: 'accounting',
   icon: 'calendar',
@@ -58,6 +63,11 @@ export const closeManifest = defineApp({
     'lock',
     'reopen',
     'cutoff',
+    'control',
+    'controls',
+    'internal control',
+    'test',
+    'retire',
     'clôture',
     'période',
     'exercice',
@@ -65,16 +75,25 @@ export const closeManifest = defineApp({
     'certifier',
     'verrouiller',
     'réouvrir',
+    'contrôle',
+    'contrôles internes',
+    'tester',
+    'retirer',
     'إقفال',
     'فترة',
     'شهر',
     'مهام',
     'تصديق',
     'إعادة فتح',
+    'رقابة',
+    'رقابات',
+    'اختبار',
+    'إيقاف',
   ],
   jumpList: [
     { id: 'view:checks', title: text('العوائق', 'Obstacles', 'Blockers') },
     { id: 'view:tasks', title: text('المهام', 'Tâches', 'Tasks') },
+    { id: 'view:controls', title: text('الرقابات', 'Contrôles internes', 'Controls') },
     { id: 'view:trail', title: text('السجل', 'Journal des actions', 'Audit trail') },
   ],
   commands: [
@@ -93,6 +112,20 @@ export const closeManifest = defineApp({
       title: text('تصديق المهمة', 'Certifier la tâche', 'Certify the task'),
       accelerator: 'Ctrl+Enter',
     },
+    // Only the test carries a stroke, because `hotkey` in `actions.ts` implements only that
+    // one. A manifest that advertises an accelerator the keyboard does not honour is a
+    // command palette that lies, and the palette is where people learn the strokes.
+    {
+      id: 'control:test',
+      title: text('تسجيل اختبار', 'Enregistrer un test', 'Record a test'),
+      accelerator: 'Ctrl+Shift+T',
+    },
+    { id: 'control:new', title: text('رقابة جديدة', 'Nouveau contrôle', 'New control') },
+    { id: 'control:edit', title: text('تعديل الرقابة', 'Modifier le contrôle', 'Edit the control') },
+    {
+      id: 'control:retire',
+      title: text('إيقاف الرقابة', 'Retirer le contrôle', 'Retire the control'),
+    },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
     {
@@ -102,6 +135,7 @@ export const closeManifest = defineApp({
     },
     { id: 'view:checks', title: text('العوائق', 'Obstacles', 'Blockers') },
     { id: 'view:tasks', title: text('المهام', 'Tâches', 'Tasks') },
+    { id: 'view:controls', title: text('الرقابات', 'Contrôles internes', 'Controls') },
     { id: 'view:trail', title: text('السجل', 'Journal des actions', 'Audit trail') },
   ],
 });

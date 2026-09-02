@@ -1,8 +1,8 @@
 /**
  * Inbox — the reads.
  *
- * Four queries for the queues and two more for whatever is selected. The four are
- * unconditional because the rail counts all three queues at once — a badge that
+ * Five queries for the queues and three more for whatever is selected. The five
+ * are unconditional because the rail counts all four queues at once — a badge that
  * only fills in after you visit the queue is a badge nobody trusts — and because
  * the approvals queue cannot be assembled without the periods: an entry's block
  * depends on the period covering its date, which is a different row.
@@ -13,6 +13,13 @@
  * Everything else — the search, "only mine", the ageing — is settled over the page,
  * because the broker's `where` speaks equality, `in` and `is null`, and none of
  * those three is any of them.
+ *
+ * The handoffs query pushes nothing at all, and cannot: it is an RPC that takes a
+ * limit and nothing else. Both filters a queue would want are already inside it —
+ * the projection returns `OPEN` and `ACCEPTED` rows only, and it scopes to the
+ * reader's agency and branch — so there is nothing left to ask for. That also
+ * settles what the queue means: a handoff that has been answered leaves it rather
+ * than greying out inside it, and who answered is read from the chain.
  *
  * The accounts query is deliberately shaped like Ledger's, down to the ordering:
  * same dataset, same limit, same `orderBy` means the same cache key, so opening a
@@ -34,6 +41,7 @@ import {
   toLine,
   toPeriod,
 } from '../shared/ledger';
+import { type SpineChainDoc, toChainDoc, toInboxItem } from '../shared/spine';
 import {
   buildItems,
   DECISION_ACTIONS,
@@ -41,6 +49,7 @@ import {
   type DependencyState,
   dependencyState,
   filterItems,
+  HANDOFF_LIMIT,
   type InboxFilter,
   type InboxTally,
   LINE_LIMIT,
@@ -58,7 +67,7 @@ import {
 const PERIOD_LIMIT = 200;
 
 export interface InboxModel {
-  /** All three queues, unfiltered — what the rail badges count. */
+  /** All four queues, unfiltered — what the rail badges count. */
   readonly items: readonly WorkItem[];
   /** The current queue, filtered — what the grid shows. */
   readonly visible: readonly WorkItem[];
@@ -72,14 +81,24 @@ export interface InboxModel {
   /** Resolved dependencies of the selected close task. */
   readonly dependencies: DependencyState | null;
   /**
+   * The whole chain behind the selected handoff, null for anything else.
+   *
+   * The selected row already says what is being asked; this says what has happened
+   * to the piece of work — every step in `seq` order and every event against it.
+   * A handoff read without its chain is a question with no history, and the first
+   * thing anyone asked to accept one wants to know is who has touched it already.
+   */
+  readonly chain: SpineChainDoc | null;
+  /**
    * Close tasks by name, so the reading pane can put a status against every
    * dependency it lists. Keyed by name because `dependencies` holds names.
    */
   readonly tasks: ReadonlyMap<string, CloseTask>;
-  /** True when one of the three sources came back at its ceiling. */
+  /** True when one of the four sources came back at its ceiling. */
   readonly truncated: boolean;
   readonly loading: boolean;
   readonly linesLoading: boolean;
+  readonly chainLoading: boolean;
   readonly error: string | null;
   readonly fetchedAt: string | null;
   refresh: () => void;
@@ -122,6 +141,12 @@ export function useInboxModel(
     limit: DECISION_LIMIT,
     orderBy: { column: 'created_at', ascending: false },
   });
+  // A limit and nothing else. The broker's binding for this dataset reads the limit
+  // and discards the rest of the query, so a `where` or an `orderBy` written here
+  // would not be refused — it would be dropped, which is worse. The ordering the
+  // grid gets is the projection's own `opened_at, seq`, restated in `buildItems`
+  // where it can be seen next to the sorts for the other three queues.
+  const handoffQuery = useMappedDataset('spineInbox', toInboxItem, { limit: HANDOFF_LIMIT });
 
   const tasks = useMemo(() => taskIndex(taskQuery.rows), [taskQuery.rows]);
   const context = useMemo(
@@ -129,8 +154,8 @@ export function useInboxModel(
     [viewer, periodQuery.rows, tasks, currency, today],
   );
   const items = useMemo(
-    () => buildItems(entries, taskQuery.rows, decisionQuery.rows, context),
-    [entries, taskQuery.rows, decisionQuery.rows, context],
+    () => buildItems(entries, taskQuery.rows, handoffQuery.rows, decisionQuery.rows, context),
+    [entries, taskQuery.rows, handoffQuery.rows, decisionQuery.rows, context],
   );
   const visible = useMemo(() => filterItems(items, filter), [items, filter]);
   const counts = useMemo(() => tally(items), [items]);
@@ -174,6 +199,21 @@ export function useInboxModel(
     [entryId, lineQuery.rows],
   );
 
+  // `chainId` is never null on a handoff — the mapper drops a row without one,
+  // because a handoff with nowhere to go back to cannot be read — so a selected
+  // handoff always has a chain to fetch.
+  const chainId = selected?.handoff?.chainId ?? null;
+  const chainQuery = useMappedDataset('spineChain', toChainDoc, {
+    where: { chainId: chainId ?? '' },
+    enabled: chainId !== null,
+  });
+  // Same guard as `lines`, for the same reason: a document left over from the
+  // previous selection would put one chain's history under another chain's header.
+  const chain = useMemo(
+    () => (chainId === null ? null : chainQuery.rows.find((doc) => doc.chain.id === chainId) ?? null),
+    [chainId, chainQuery.rows],
+  );
+
   const period = useMemo(
     () =>
       selected === null || selected.entry === null
@@ -191,8 +231,10 @@ export function useInboxModel(
     taskQuery.refetch();
     periodQuery.refetch();
     decisionQuery.refetch();
+    handoffQuery.refetch();
     lineQuery.refetch();
     accountQuery.refetch();
+    chainQuery.refetch();
   };
 
   return {
@@ -204,14 +246,18 @@ export function useInboxModel(
     accountLabelOf,
     period,
     dependencies,
+    chain,
     tasks,
     truncated:
       page.rows.length >= PAGE_LIMIT ||
       taskQuery.rows.length >= PAGE_LIMIT ||
+      handoffQuery.rows.length >= HANDOFF_LIMIT ||
       decisionQuery.rows.length >= DECISION_LIMIT,
-    loading: page.loading || taskQuery.loading || decisionQuery.loading,
+    loading: page.loading || taskQuery.loading || handoffQuery.loading || decisionQuery.loading,
     linesLoading: lineQuery.loading || accountQuery.loading,
-    error: page.error ?? taskQuery.error ?? periodQuery.error ?? decisionQuery.error,
+    chainLoading: chainQuery.loading,
+    error:
+      page.error ?? taskQuery.error ?? periodQuery.error ?? decisionQuery.error ?? handoffQuery.error,
     fetchedAt: page.fetchedAt,
     refresh,
   };

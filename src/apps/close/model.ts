@@ -21,6 +21,12 @@ import { useMemo } from 'react';
 import { type DatasetRow, useDataset, useMappedDataset } from '@/platform/sdk';
 import { asString, str } from '../shared/guards';
 import {
+  type ControlTest,
+  type FinancialControl,
+  toControlTest,
+  toFinancialControl,
+} from './controls';
+import {
   type BankStatement,
   type CloseTask,
   type FiscalPeriod,
@@ -48,12 +54,17 @@ export const STATEMENT_LIMIT = 200;
 export const TRIAL_LIMIT = 500;
 /** Audit rows behind the trail view. */
 export const TRAIL_LIMIT = 200;
+/** Controls in one register. A register past this is a framework, not a register. */
+export const CONTROL_LIMIT = 300;
+/** Test history of the selected control, newest first. */
+export const TEST_LIMIT = 100;
 
-export type CloseView = 'checks' | 'tasks' | 'trail';
+export type CloseView = 'checks' | 'tasks' | 'trail' | 'controls';
 
 export interface CloseSelection {
   readonly periodId: string | null;
   readonly taskId: string | null;
+  readonly controlId: string | null;
 }
 
 /**
@@ -89,6 +100,15 @@ export function toAuditRow(row: DatasetRow): AuditRow | null {
   };
 }
 
+/* ------------------------------------------------------------------ *
+ * The controls register
+ *
+ * Its vocabulary — the row shapes, the mappers, and the `controlState`
+ * judgement — lives in `./controls`, which holds no hooks, so the CSV
+ * writer and the grid can read the same rules without importing a query.
+ * What is left here is what needs a query: the two reads below.
+ * ------------------------------------------------------------------ */
+
 export interface CloseModel {
   readonly periods: readonly FiscalPeriod[];
   readonly period: FiscalPeriod | null;
@@ -101,6 +121,13 @@ export interface CloseModel {
   readonly visibleTrail: readonly AuditRow[];
   readonly selectedTask: ChecklistRow | null;
   readonly statements: readonly BankStatement[];
+  readonly controls: readonly FinancialControl[];
+  readonly visibleControls: readonly FinancialControl[];
+  readonly selectedControl: FinancialControl | null;
+  /** History of the selected control only. Loading every control's tests is a table scan. */
+  readonly controlTests: readonly ControlTest[];
+  readonly controlsLoading: boolean;
+  readonly testsLoading: boolean;
   readonly truncated: boolean;
   readonly loading: boolean;
   readonly trailLoading: boolean;
@@ -124,6 +151,17 @@ function filterTrail(rows: readonly AuditRow[], search: string): readonly AuditR
   const needle = search.trim().toLowerCase();
   if (needle === '') return rows;
   return rows.filter((row) => matchesText(needle, row.action, row.resource, row.email, row.at));
+}
+
+function filterControls(
+  rows: readonly FinancialControl[],
+  search: string,
+): readonly FinancialControl[] {
+  const needle = search.trim().toLowerCase();
+  if (needle === '') return rows;
+  return rows.filter((row) =>
+    matchesText(needle, row.code, row.description, row.ownerRole ?? '', row.frequency),
+  );
 }
 
 export function useCloseModel(view: CloseView, search: string, selection: CloseSelection): CloseModel {
@@ -189,6 +227,25 @@ export function useCloseModel(view: CloseView, search: string, selection: CloseS
     return out;
   }, [trailPage.rows]);
 
+  const controlQuery = useMappedDataset('financialControls', toFinancialControl, {
+    limit: CONTROL_LIMIT,
+    enabled: view === 'controls',
+  });
+  const controls = controlQuery.rows;
+  const selectedControl = useMemo(
+    () => controls.find((row) => row.id === selection.controlId) ?? null,
+    [controls, selection.controlId],
+  );
+
+  // The history follows the selection, not the view: nothing is loaded until a control is
+  // open, and `where` reaching `control_id` is the whole reason this is a table
+  // projection rather than an RPC.
+  const testQuery = useMappedDataset('controlTests', toControlTest, {
+    where: { control_id: selectedControl?.id ?? '' },
+    limit: TEST_LIMIT,
+    enabled: view === 'controls' && selectedControl !== null,
+  });
+
   const rows = useMemo(() => checklist(taskQuery.rows), [taskQuery.rows]);
   const assessment = useMemo(
     () =>
@@ -207,6 +264,7 @@ export function useCloseModel(view: CloseView, search: string, selection: CloseS
 
   const visibleTasks = useMemo(() => filterTasks(rows, search), [rows, search]);
   const visibleTrail = useMemo(() => filterTrail(trail, search), [trail, search]);
+  const visibleControls = useMemo(() => filterControls(controls, search), [controls, search]);
   const selectedTask = useMemo(
     () => rows.find((row) => row.task.id === selection.taskId) ?? null,
     [rows, selection.taskId],
@@ -220,6 +278,8 @@ export function useCloseModel(view: CloseView, search: string, selection: CloseS
     taskQuery.refetch();
     trialPage.refetch();
     trailPage.refetch();
+    controlQuery.refetch();
+    testQuery.refetch();
   };
 
   return {
@@ -233,6 +293,12 @@ export function useCloseModel(view: CloseView, search: string, selection: CloseS
     visibleTrail,
     selectedTask,
     statements: statementQuery.rows,
+    controls,
+    visibleControls,
+    selectedControl,
+    controlTests: testQuery.rows,
+    controlsLoading: controlQuery.loading,
+    testsLoading: testQuery.loading,
     truncated:
       entryPage.rows.length >= ENTRY_LIMIT ||
       orphanQuery.rows.length >= ORPHAN_LIMIT ||
@@ -246,7 +312,9 @@ export function useCloseModel(view: CloseView, search: string, selection: CloseS
       orphanQuery.error ??
       statementQuery.error ??
       trialPage.error ??
-      trailPage.error,
+      trailPage.error ??
+      controlQuery.error ??
+      testQuery.error,
     fetchedAt: entryPage.fetchedAt,
     refresh,
   };

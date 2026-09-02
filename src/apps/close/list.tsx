@@ -1,5 +1,5 @@
 /**
- * Period close — the three registers.
+ * Period close — the four registers.
  *
  * The checks grid is the one that carries an opinion. Every row states the finding, the
  * count behind it and — for the two control totals — the gap in money, and every row
@@ -8,9 +8,21 @@
  *
  * The trail is deliberately flat: timestamps, actions, resources, who. It is read when
  * somebody is asked "when was March closed, and by whom", and nothing else.
+ *
+ * The controls register carries two columns that disagree on purpose — the state and the
+ * last result — because a control whose one test passed in March is `passed` and `overdue`
+ * at once, and a grid that showed only the first would call it healthy forever.
  */
 import type { MouseEvent } from 'react';
-import { AlertTriangle, ArrowRight, BadgeCheck, CircleSlash, ExternalLink, ShieldAlert } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BadgeCheck,
+  CircleSlash,
+  ExternalLink,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react';
 import { Badge, Button, type Column, DataGrid, EmptyState, fmt, useLocale } from '@/platform/sdk';
 import { EPSILON, TASK_STATUS_LABEL, taskTone } from '../shared/ledger';
 import { CHECK_APP } from './actions';
@@ -23,6 +35,14 @@ import {
   type ChecklistRow,
   type CloseCheck,
 } from './checks';
+import {
+  CONTROL_FREQUENCY_LABEL,
+  CONTROL_RESULT_LABEL,
+  CONTROL_STATE_LABEL,
+  CONTROL_STATE_TONE,
+  controlState,
+  type FinancialControl,
+} from './controls';
 import type { AuditRow } from './model';
 
 const STATE_ICON: Readonly<Record<CheckState, typeof BadgeCheck>> = {
@@ -311,6 +331,154 @@ export function TrailList({ rows, loading, searching, onActivate }: TrailListPro
             searching
               ? tr('لا نتائج', 'Aucun résultat', 'No matches')
               : tr('لا أحداث', 'Aucun événement', 'No events')
+          }
+        />
+      }
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * The controls register
+ * ------------------------------------------------------------------ */
+
+interface ControlListProps {
+  readonly rows: readonly FinancialControl[];
+  readonly selectedId: string | null;
+  /** One clock for the whole register, so no two rows can disagree about `overdue`. */
+  readonly now: number;
+  readonly loading: boolean;
+  readonly searching: boolean;
+  onSelect: (id: string | null) => void;
+  onContext: (control: FinancialControl, event: MouseEvent) => void;
+}
+
+export function ControlList({
+  rows,
+  selectedId,
+  now,
+  loading,
+  searching,
+  onSelect,
+  onContext,
+}: ControlListProps) {
+  const { t, tr, lang } = useLocale();
+  const columns: readonly Column<FinancialControl>[] = [
+    {
+      id: 'state',
+      header: tr('الحالة', 'État', 'State'),
+      width: 132,
+      sort: (a, b) => controlState(a, now).localeCompare(controlState(b, now)),
+      render: (row) => {
+        const state = controlState(row, now);
+        return <Badge tone={CONTROL_STATE_TONE[state]}>{t(CONTROL_STATE_LABEL[state])}</Badge>;
+      },
+    },
+    {
+      id: 'control',
+      header: tr('الرقابة', 'Contrôle', 'Control'),
+      sort: (a, b) => a.code.localeCompare(b.code),
+      render: (row) => (
+        <div style={{ display: 'grid', gap: 1, minWidth: 0 }}>
+          <span className="fx-title-ellipsis" style={{ fontWeight: 600 }}>
+            {row.code}
+          </span>
+          {row.description === '' ? null : (
+            <span
+              className="fx-title-ellipsis"
+              style={{ color: 'var(--fx-text-tertiary)', fontSize: 'var(--fx-caption)' }}
+            >
+              {row.description}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'frequency',
+      header: tr('التواتر', 'Fréquence', 'Frequency'),
+      width: 128,
+      sort: (a, b) => a.frequency.localeCompare(b.frequency),
+      render: (row) => t(CONTROL_FREQUENCY_LABEL[row.frequency]),
+    },
+    {
+      id: 'owner',
+      header: tr('المسؤول', 'Responsable', 'Owner'),
+      width: 168,
+      render: (row) =>
+        row.ownerRole === null ? <span style={{ color: 'var(--fx-text-disabled)' }}>—</span> : row.ownerRole,
+    },
+    {
+      id: 'tested',
+      header: tr('آخر اختبار', 'Dernier test', 'Last tested'),
+      width: 164,
+      mono: true,
+      sort: (a, b) => (a.lastTestedAt ?? '').localeCompare(b.lastTestedAt ?? ''),
+      render: (row) =>
+        row.lastTestedAt === null ? (
+          <span style={{ color: 'var(--fx-text-disabled)' }}>—</span>
+        ) : (
+          fmt.dateTime(row.lastTestedAt, lang)
+        ),
+    },
+    {
+      id: 'result',
+      header: tr('النتيجة', 'Résultat', 'Result'),
+      width: 176,
+      render: (row) =>
+        row.lastResult === null ? (
+          <span style={{ color: 'var(--fx-text-disabled)' }}>—</span>
+        ) : (
+          <div style={{ display: 'grid', gap: 1, minWidth: 0 }}>
+            <span>{t(CONTROL_RESULT_LABEL[row.lastResult])}</span>
+            {row.exceptions === '' ? null : (
+              <span
+                className="fx-title-ellipsis"
+                style={{ color: 'var(--fx-warning)', fontSize: 'var(--fx-caption)' }}
+                title={row.exceptions}
+              >
+                {row.exceptions}
+              </span>
+            )}
+          </div>
+        ),
+    },
+  ];
+
+  return (
+    <DataGrid
+      rows={rows}
+      columns={columns}
+      rowKey={(row) => row.id}
+      loading={loading}
+      density="compact"
+      virtualized
+      selectedKeys={selectedId === null ? undefined : new Set([selectedId])}
+      onSelectionChange={(keys) => {
+        const list = [...keys];
+        onSelect(list.length === 0 ? null : list[0]);
+      }}
+      onRowContextMenu={onContext}
+      // Only a failed test tints the whole row. Overdue is the common state of a real
+      // register in the days after a month end, and a grid where most rows are amber has
+      // stopped saying anything; the badge column still carries it.
+      rowTone={(row) => (controlState(row, now) === 'failing' ? CONTROL_STATE_TONE.failing : undefined)}
+      empty={
+        <EmptyState
+          icon={ShieldCheck}
+          title={
+            searching
+              ? tr('لا نتائج', 'Aucun résultat', 'No matches')
+              : tr('لا رقابات', 'Aucun contrôle', 'No controls')
+          }
+          description={
+            searching
+              ? undefined
+              : tr(
+                  'سجل الرقابات فارغ: لا شيء يُختبر بعد.',
+                  'Le registre des contrôles est vide : rien à tester encore.',
+                  'The controls register is empty: nothing to test yet.',
+                )
           }
         />
       }

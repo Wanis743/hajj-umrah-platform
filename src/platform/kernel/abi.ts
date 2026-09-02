@@ -84,6 +84,12 @@ export const CAPABILITIES = [
   // hash that every certificate and dashboard downstream will cite.
   'model.write',
   'model.publish',
+  // Handing work to another stage is not doing the work. `spine.handoff` opens,
+  // answers and closes the chain that says finance is waiting on operations; it
+  // posts nothing and pays nobody. Borrowing `ledger.post` for it would have made
+  // the Inbox -- an app whose entire job is to show you other people's requests --
+  // an app that holds the right to write to the book.
+  'spine.handoff',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -525,6 +531,22 @@ export const DATASETS = [
   'modelingModels',
   'modelingSpec',
   'modelingCertificates',
+  // The spine. `spineInbox` is a list, `spineChain` is one nested document returned
+  // as a one-row page, and `spineOverview` is the shape of the board. All three are
+  // SECURITY DEFINER functions for the same reason the modelling three are: the
+  // ordering rule that makes a chain readable -- handoffs by `seq`, events by time --
+  // belongs beside the column that defines it, not in a client that would have to
+  // re-derive it and could disagree.
+  'spineInbox',
+  'spineChain',
+  'spineOverview',
+  // The controls register. Both are plain table projections, unlike the six above:
+  // there is no ordering rule or nesting for the database to own here, and the
+  // generic `where` already reaches `control_id`, which is the only filter the UI
+  // needs. Adding read RPCs would mean writing SECURITY DEFINER functions whose
+  // whole body is a select the table's own policy already scopes correctly.
+  'financialControls',
+  'controlTests',
 ] as const;
 
 export type DatasetName = (typeof DATASETS)[number];
@@ -607,10 +629,72 @@ export const MODEL_COMMANDS = [
 
 export type ModelCommandName = (typeof MODEL_COMMANDS)[number];
 
-/** Every command `data.command` will carry, whatever subsystem answers it. */
-export const DATA_COMMANDS = [...LEDGER_COMMANDS, ...MODEL_COMMANDS] as const;
+/**
+ * Spine commands.
+ *
+ * Six, because the migration exposes six wrappers, and the list is deliberately
+ * that short. A handoff can be opened, taken, finished, refused; a chain can be
+ * started and ended. There is no `spine.handoff.reassign` and no
+ * `spine.handoff.reopen`, because the database refuses both: DONE, DECLINED and
+ * SUPERSEDED are terminal, and the way to ask a question twice is to ask it again,
+ * where the ledger can show that you did.
+ *
+ * `spine.handoff.decline` carries a required note. Every other command here takes
+ * one optionally. That asymmetry is the whole of the spine's opinion about refusal:
+ * the person who says no is the person holding the context nobody else has.
+ */
+export const SPINE_COMMANDS = [
+  'spine.chain.open',
+  'spine.handoff.open',
+  'spine.handoff.accept',
+  'spine.handoff.complete',
+  'spine.handoff.decline',
+  'spine.chain.close',
+] as const;
 
-export type DataCommandName = LedgerCommandName | ModelCommandName;
+export type SpineCommandName = (typeof SPINE_COMMANDS)[number];
+
+/**
+ * The controls register. Three commands, and the shape of the list is the design:
+ * there is no `controls.delete`.
+ *
+ * `controls.upsert` is a PUT and not a PATCH -- the server writes code,
+ * description, owner and frequency from its arguments unconditionally, so an
+ * omitted description clears the stored one. The form has to send every field.
+ *
+ * `controls.test` is the one that matters. It writes a history row and moves the
+ * register's four latest-result columns in the same transaction, which is why the
+ * client holds no UPDATE on either table: a client that could write one without
+ * the other could leave `last_result = 'passed'` above a history that says
+ * otherwise, and a register that disagrees with its own evidence is worse than no
+ * register at all.
+ *
+ * `controls.retire` ends a control's life without deleting it: the row stays, its
+ * history stays readable, and it stops accepting tests. Deleting one would take
+ * every test ever recorded against it through `on delete cascade`, so no command
+ * offers to.
+ */
+export const CONTROL_COMMANDS = [
+  'controls.upsert',
+  'controls.test',
+  'controls.retire',
+] as const;
+
+export type ControlCommandName = (typeof CONTROL_COMMANDS)[number];
+
+/** Every command `data.command` will carry, whatever subsystem answers it. */
+export const DATA_COMMANDS = [
+  ...LEDGER_COMMANDS,
+  ...MODEL_COMMANDS,
+  ...SPINE_COMMANDS,
+  ...CONTROL_COMMANDS,
+] as const;
+
+export type DataCommandName =
+  | LedgerCommandName
+  | ModelCommandName
+  | SpineCommandName
+  | ControlCommandName;
 
 export interface CommandInvocation {
   readonly command: DataCommandName;
@@ -927,6 +1011,22 @@ export const COMMAND_CAPABILITY: { readonly [K in DataCommandName]: Capability }
   'model.override.set': 'model.write',
   'model.override.clear': 'model.write',
   'model.certificate.record': 'model.write',
+  'spine.chain.open': 'spine.handoff',
+  'spine.handoff.open': 'spine.handoff',
+  'spine.handoff.accept': 'spine.handoff',
+  'spine.handoff.complete': 'spine.handoff',
+  'spine.handoff.decline': 'spine.handoff',
+  'spine.chain.close': 'spine.handoff',
+  // All three controls commands map to `ledger.close`, which Close already holds
+  // and which is privileged. Recording that a control passed is signing an
+  // assurance, and one deliberate consent per session is the right price for a
+  // signature -- the same price the period close itself pays. Splitting the three
+  // across two capabilities would mean the act of retiring a control was cheaper
+  // than the act of testing it, which is backwards: retirement is the one that
+  // stops a check from ever running again.
+  'controls.upsert': 'ledger.close',
+  'controls.test': 'ledger.close',
+  'controls.retire': 'ledger.close',
 };
 
 /* ------------------------------------------------------------------ *

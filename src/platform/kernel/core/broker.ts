@@ -390,6 +390,99 @@ const SOURCES: { readonly [K in DatasetName]: DatasetSource } = {
     },
     rows: asRows,
   },
+
+  /**
+   * Every live handoff in scope, oldest first, each carrying a `mine` flag the
+   * function computed: addressed to me by name, or to my role and unclaimed, or
+   * to nobody in particular.
+   *
+   * One list with a flag rather than two datasets, because "waiting on me" and
+   * "waiting on someone" are read together or not at all -- an Inbox that showed
+   * only mine would let a person clear their queue while the thing they asked
+   * for on Tuesday sat unassigned and invisible. The flag decides emphasis; it
+   * does not decide visibility.
+   */
+  spineInbox: {
+    kind: 'rpc',
+    rpc: 'get_spine_inbox',
+    capability: 'ledger.read',
+    args: (_query, limit) => succeed({ p_limit: limit }),
+    rows: asRows,
+  },
+
+  /**
+   * One chain, whole: every handoff in `seq` order with its event ledger nested
+   * underneath. The ordering is the document -- a chain read out of order is a
+   * different story about who was waiting on whom -- so it is decided beside the
+   * column that defines it and arrives here already sorted.
+   */
+  spineChain: {
+    kind: 'rpc',
+    rpc: 'get_spine_chain',
+    capability: 'ledger.read',
+    args: (query) => {
+      const id = requireWhereString(query, 'chainId');
+      if (!id.ok) return id;
+      return succeed({ p_chain_id: id.value });
+    },
+    rows: asDocumentRows,
+  },
+
+  /**
+   * The board: counts of live handoffs by destination stage, counts by status,
+   * the age of the oldest thing still waiting, and the open chains themselves.
+   * This is the read that answers "where does work pile up" rather than "what is
+   * waiting on me", which is the only question a cross-application spine exists
+   * to answer.
+   *
+   * `asDocumentRows`, not `asRows`: the function answers with one object, and
+   * `asRows` on an object returns an empty page rather than an error -- a
+   * dashboard of zeroes that looks like a quiet week.
+   */
+  spineOverview: {
+    kind: 'rpc',
+    rpc: 'get_spine_overview',
+    capability: 'ledger.read',
+    args: (_query, limit) => succeed({ p_limit: limit }),
+    rows: asDocumentRows,
+  },
+
+  /**
+   * The controls register. A plain table read, ordered by code, because a register
+   * is a list somebody reads top to bottom and looks a control up in.
+   *
+   * `last_result` and `last_tested_at` are selected alongside the definition on
+   * purpose: the question the register is opened to answer is not "what do we
+   * check" but "what have we not checked lately", and a UI that had to join a
+   * second dataset to answer it would show the definition first and the silence
+   * second.
+   */
+  financialControls: {
+    kind: 'table',
+    table: 'financial_controls',
+    select:
+      'id,agency_id,control_code,description,owner_role,frequency,status,last_tested_at,last_result,test_population,exceptions,created_at,updated_at',
+    order: { column: 'control_code', ascending: true },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * A control's test history, newest first. The generic `where` reaches
+   * `control_id`, which is the only filter the detail pane needs.
+   *
+   * `tested_by_email` is a column and not a join: PostgREST cannot reach
+   * `auth.users`, so the address is denormalised when the test is written. It is
+   * the identity of whoever signed the assurance, and a history that could only
+   * show a uuid would be evidence nobody could read.
+   */
+  controlTests: {
+    kind: 'table',
+    table: 'financial_control_tests',
+    select:
+      'id,agency_id,control_id,tested_at,tested_by,tested_by_email,result,population,exceptions,note,created_at',
+    order: { column: 'tested_at', ascending: false },
+    capability: 'ledger.read',
+  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -889,6 +982,265 @@ const BINDINGS: { readonly [K in DataCommandName]: CommandBinding } = {
     // No `auditTrail`: `modeling_certificates` carries no audit trigger, because a
     // certificate is already an append-only record of who measured what, when.
     invalidates: ['modelingCertificates', 'modelingModels'],
+  },
+
+  /* ---- The spine. -------------------------------------------------- *
+   *
+   * Six commands, six wrappers, and `spine.handoff` on every one rather than
+   * `ledger.post`. Asking operations for a rooming list is not an accounting
+   * act, and these are called from the Inbox -- an app whose whole job is
+   * showing you other people's requests should not need the right to write to
+   * the book in order to answer one.
+   *
+   * Argument names are transcribed from section J of the migration rather than
+   * recalled, per this table's own warning: PostgREST matches by name, so a
+   * wrong one is a PGRST202 in front of a user.
+   *
+   * Stages, intents, priorities and roles are upper-cased here; subject types
+   * are not. That is not an inconsistency -- the CHECK constraints spell the
+   * first four in capitals and the twenty-five subject names in lower snake
+   * case, and neither the wrappers nor the bodies fold case. A lower-case
+   * 'high' passed through untouched arrives as a constraint violation, which
+   * reads like a broken database rather than a bad argument.
+   * ------------------------------------------------------------------ */
+
+  'spine.chain.open': {
+    rpc: 'open_spine_chain_command',
+    args: (payload) => {
+      const title = requireString(payload.title, 'title');
+      if (!title.ok) return title;
+      const subjectType = requireString(payload.subjectType, 'subjectType');
+      if (!subjectType.ok) return subjectType;
+      const subjectId = requireString(payload.subjectId, 'subjectId');
+      if (!subjectId.ok) return subjectId;
+      const originStage = requireString(payload.originStage, 'originStage');
+      if (!originStage.ok) return originStage;
+      const args: Record<string, unknown> = {
+        p_title: title.value,
+        p_subject_type: subjectType.value,
+        p_subject_id: subjectId.value,
+        p_origin_stage: originStage.value.toUpperCase(),
+      };
+      const titleAr = asString(payload.titleAr);
+      if (titleAr !== null) args.p_title_ar = titleAr;
+      const priority = asString(payload.priority);
+      if (priority !== null) args.p_priority = priority.toUpperCase();
+      return succeed(args);
+    },
+    // Not `spineInbox`: a chain with no handoff on it is in nobody's queue.
+    // Not `spineChain`: nothing was cached for an id that did not exist.
+    invalidates: ['spineOverview', 'auditTrail'],
+  },
+
+  /**
+   * Hand work to another stage.
+   *
+   * Fourteen arguments, five of them required, and the nine optional ones are
+   * where the honesty lives: `assignedRole` narrows a request to a role without
+   * naming a person, `assignedTo` names one, `dueOn` says when it stops being
+   * patient, `parentId` says which answer this one is waiting on. Omitting all
+   * nine is a valid handoff -- "operations, please review this" -- and the
+   * database will take it.
+   *
+   * `payload` is refused rather than coerced when it is an array or a scalar. A
+   * jsonb column that sometimes holds `[1,2]` and sometimes holds an object is a
+   * column every reader has to guard, and the guard always gets written once.
+   */
+  'spine.handoff.open': {
+    rpc: 'open_spine_handoff_command',
+    args: (payload) => {
+      const chain = requireString(payload.chainId, 'chainId');
+      if (!chain.ok) return chain;
+      const fromStage = requireString(payload.fromStage, 'fromStage');
+      if (!fromStage.ok) return fromStage;
+      const toStage = requireString(payload.toStage, 'toStage');
+      if (!toStage.ok) return toStage;
+      const intent = requireString(payload.intent, 'intent');
+      if (!intent.ok) return intent;
+      const title = requireString(payload.title, 'title');
+      if (!title.ok) return title;
+      const args: Record<string, unknown> = {
+        p_chain_id: chain.value,
+        p_from_stage: fromStage.value.toUpperCase(),
+        p_to_stage: toStage.value.toUpperCase(),
+        p_intent: intent.value.toUpperCase(),
+        p_title: title.value,
+      };
+      const titleAr = asString(payload.titleAr);
+      if (titleAr !== null) args.p_title_ar = titleAr;
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      const role = asString(payload.assignedRole);
+      if (role !== null) args.p_assigned_role = role.toUpperCase();
+      const assignee = asString(payload.assignedTo);
+      if (assignee !== null) args.p_assigned_to = assignee;
+      const dueOn = asString(payload.dueOn);
+      if (dueOn !== null) args.p_due_on = dueOn;
+      const parent = asString(payload.parentId);
+      if (parent !== null) args.p_parent_id = parent;
+      const subjectType = asString(payload.subjectType);
+      if (subjectType !== null) args.p_subject_type = subjectType;
+      const subjectId = asString(payload.subjectId);
+      if (subjectId !== null) args.p_subject_id = subjectId;
+      if (payload.payload !== undefined && payload.payload !== null) {
+        if (typeof payload.payload !== 'object' || Array.isArray(payload.payload)) {
+          return fail('INVALID_ARGUMENT', 'payload must be an object');
+        }
+        args.p_payload = payload.payload;
+      }
+      return succeed(args);
+    },
+    invalidates: ['spineInbox', 'spineChain', 'spineOverview', 'auditTrail'],
+  },
+
+  /** Take it. Says who is holding it now, which is the whole point of a queue
+   *  that more than one person can see. */
+  'spine.handoff.accept': {
+    rpc: 'accept_spine_handoff_command',
+    args: (payload) => {
+      const id = requireString(payload.handoffId, 'handoffId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_handoff_id: id.value };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['spineInbox', 'spineChain', 'spineOverview', 'auditTrail'],
+  },
+
+  /** Done. Advances the chain's stage, which is why `spineOverview` goes stale. */
+  'spine.handoff.complete': {
+    rpc: 'complete_spine_handoff_command',
+    args: (payload) => {
+      const id = requireString(payload.handoffId, 'handoffId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_handoff_id: id.value };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['spineInbox', 'spineChain', 'spineOverview', 'auditTrail'],
+  },
+
+  /**
+   * No, and here is why.
+   *
+   * `requireString`, not `asString`, and it is the only command here where the
+   * note is mandatory. The wrapper has no default on `p_note` either, so this
+   * refusal happens twice on purpose: a decline with no reason is a row that
+   * stops a flow and explains nothing, and the person best placed to explain it
+   * is the one who just said no.
+   */
+  'spine.handoff.decline': {
+    rpc: 'decline_spine_handoff_command',
+    args: (payload) => {
+      const id = requireString(payload.handoffId, 'handoffId');
+      if (!id.ok) return id;
+      const note = requireString(payload.note, 'note');
+      if (!note.ok) return note;
+      return succeed({ p_handoff_id: id.value, p_note: note.value });
+    },
+    invalidates: ['spineInbox', 'spineChain', 'spineOverview', 'auditTrail'],
+  },
+
+  /**
+   * End the chain: CLOSED if everything was answered, ABANDONED if it was not.
+   *
+   * ABANDONED supersedes whatever is still open, one event each, so rows leave
+   * queues that the caller may never have looked at -- which is why this
+   * invalidates the Inbox as well as the board.
+   */
+  'spine.chain.close': {
+    rpc: 'close_spine_chain_command',
+    args: (payload) => {
+      const id = requireString(payload.chainId, 'chainId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_chain_id: id.value };
+      const status = asString(payload.status);
+      if (status !== null) args.p_status = status.toUpperCase();
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['spineInbox', 'spineChain', 'spineOverview', 'auditTrail'],
+  },
+
+  /**
+   * Open or amend a control. `controlId` absent means create; present means amend,
+   * and the server authorises the two differently -- `create` reaches nothing but
+   * the create verb, `update` goes through the guard that also refuses a retired
+   * row.
+   *
+   * Every field is sent every time, including the ones the user did not touch. The
+   * server writes all four from its arguments unconditionally, so omitting the
+   * description would clear it. That is a PUT, and pretending otherwise in the
+   * broker -- by dropping absent keys -- would turn "I only edited the frequency"
+   * into a silent erasure of the description.
+   */
+  'controls.upsert': {
+    rpc: 'upsert_financial_control_command',
+    args: (payload) => {
+      const code = requireString(payload.controlCode, 'controlCode');
+      if (!code.ok) return code;
+      const frequency = requireString(payload.frequency, 'frequency');
+      if (!frequency.ok) return frequency;
+      return succeed({
+        p_id: asString(payload.controlId),
+        p_control_code: code.value,
+        p_description: asString(payload.description),
+        p_owner_role: asString(payload.ownerRole),
+        p_frequency: frequency.value.toLowerCase(),
+      });
+    },
+    invalidates: ['financialControls', 'auditTrail'],
+  },
+
+  /**
+   * Record a test. This writes the history row and moves the register's four
+   * latest-result columns in one server-side transaction, which is why both
+   * datasets are invalidated: a UI that refreshed only the history would show a
+   * test the register does not yet reflect, and the disagreement is exactly the
+   * failure mode the single-command design exists to prevent.
+   *
+   * `result` is lower-cased here as well as on the server. The server is the
+   * authority; this only keeps a `PASSED` from a select element from arriving as a
+   * refusal the user cannot explain.
+   */
+  'controls.test': {
+    rpc: 'record_control_test_command',
+    args: (payload) => {
+      const id = requireString(payload.controlId, 'controlId');
+      if (!id.ok) return id;
+      const result = requireString(payload.result, 'result');
+      if (!result.ok) return result;
+      return succeed({
+        p_control_id: id.value,
+        p_result: result.value.toLowerCase(),
+        p_population: asString(payload.population),
+        p_exceptions: asString(payload.exceptions),
+        p_note: asString(payload.note),
+      });
+    },
+    invalidates: ['financialControls', 'controlTests', 'auditTrail'],
+  },
+
+  /**
+   * Retire a control. The reason is required by the server and required here, so
+   * the refusal arrives before the round trip rather than after it.
+   *
+   * `controlTests` is not invalidated: retiring changes what the register accepts,
+   * not what its history says. Nothing about the recorded tests moves.
+   */
+  'controls.retire': {
+    rpc: 'retire_financial_control_command',
+    args: (payload) => {
+      const id = requireString(payload.controlId, 'controlId');
+      if (!id.ok) return id;
+      const reason = requireString(payload.reason, 'reason');
+      if (!reason.ok) return reason;
+      return succeed({ p_control_id: id.value, p_reason: reason.value });
+    },
+    invalidates: ['financialControls', 'auditTrail'],
   },
 };
 

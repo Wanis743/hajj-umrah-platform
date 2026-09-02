@@ -27,7 +27,9 @@ import {
   TASK_STATUS_LABEL,
   taskTone,
 } from '../shared/ledger';
+import type { SpineChainDoc } from '../shared/spine';
 import type { InboxBusy } from './actions';
+import { HandoffDetail } from './handoff';
 import {
   DECISION_LABEL,
   decisionTone,
@@ -672,6 +674,14 @@ export interface DetailPaneProps {
   readonly tasks: ReadonlyMap<string, CloseTask>;
   readonly currency: Currency;
   readonly busy: InboxBusy;
+  /**
+   * The selected handoff's chain, or `null` while the read is in flight or was refused.
+   *
+   * One document for the whole pane rather than one per row: only the selected handoff's
+   * history is ever on screen, and `private.spine_chain` returns a chain whole.
+   */
+  readonly chain: SpineChainDoc | null;
+  readonly chainLoading: boolean;
   accountLabelOf: (accountId: string | null) => string;
   onOpenAccount: (accountId: string) => void;
   onSweep: () => void;
@@ -691,6 +701,8 @@ export function DetailPane({
   tasks,
   currency,
   busy,
+  chain,
+  chainLoading,
   accountLabelOf,
   onOpenAccount,
   onSweep,
@@ -724,6 +736,21 @@ export function DetailPane({
         task={item.task}
         dependencies={dependencies ?? { blocker: null, unknown: [] }}
         tasks={tasks}
+        busy={busy}
+        onCommand={onCommand}
+      />
+    );
+  }
+  // Narrowed here rather than inside the pane: `WorkItem` carries a `kind` beside four
+  // independently-nullable payloads, so `kind === 'handoff'` tells the compiler nothing
+  // about `item.handoff`. The arm that reads the payload is the arm that proves it.
+  if (item !== null && item.handoff !== null) {
+    return (
+      <HandoffDetail
+        item={item}
+        handoff={item.handoff}
+        chain={chain}
+        chainLoading={chainLoading}
         busy={busy}
         onCommand={onCommand}
       />

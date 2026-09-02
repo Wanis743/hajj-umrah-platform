@@ -54,9 +54,10 @@ DB_URL=$(supabase status -o env | awk -F= '/DB_URL=/{print substr($0,index($0,"=
 # `begin ... rollback`, so the authorization guards are satisfied by RBAC rows
 # rather than by the superuser, and nothing it writes survives the suite.
 #
-# dms_lifecycle.sql, bi_studio_lifecycle.sql and modeling_engine_lifecycle.sql belong
+# dms_lifecycle.sql, bi_studio_lifecycle.sql, modeling_engine_lifecycle.sql,
+# integration_spine_lifecycle.sql and controls_register_lifecycle.sql belong
 # here on that same argument, and each states it in its own header rather than
-# inheriting it. All three read the
+# inheriting it. All five read the
 # catalog in Part 1, drive their commands inside one `begin ... rollback` in Part 2
 # with auth.users rows and JWT claims they create themselves, and assert refusals
 # by SQLSTATE. A superuser connection cannot soften those refusals, because the
@@ -76,6 +77,8 @@ SUPABASE_DB_URL="$DB_URL" node scripts/run-sql-gate.mjs \
   supabase/tests/dms_lifecycle.sql \
   supabase/tests/bi_studio_lifecycle.sql \
   supabase/tests/modeling_engine_lifecycle.sql \
+  supabase/tests/integration_spine_lifecycle.sql \
+  supabase/tests/controls_register_lifecycle.sql \
   supabase/tests/final_enterprise_hardening.sql \
   supabase/tests/maintainability_contracts.sql
 

@@ -3,16 +3,18 @@
  *
  * Stateless chrome: each piece takes what it shows and reports what was pressed.
  *
- * The command bar changes with the queue, because the queues are not three views of
- * one list — they are three different acts. Approvals get Approve and Reject and
- * the sweep; the checklist gets Certify; the decided queue gets nothing to press,
- * which is correct, since nothing in it is still a decision.
+ * The command bar changes with the queue, because the queues are not four views of
+ * one list — they are four different acts. Approvals get Approve and Reject and the
+ * sweep; the checklist gets Certify; handoffs get Accept, Complete and Decline,
+ * which is the whole vocabulary of work passed between desks; the decided queue gets
+ * nothing to press, which is correct, since nothing in it is still a decision.
  *
  * The sweep's label always states its count, and states whether a selection scoped
  * it. "Approve all ready (12)" and "Approve 3 selected" are different promises, and
  * a button that makes twelve changes should say twelve before it is pressed.
  */
 import {
+  ArrowLeftRight,
   Ban,
   BadgeCheck,
   Check,
@@ -49,6 +51,7 @@ import type { InboxBusy } from './actions';
 import {
   AGE_CHOICES,
   AGE_DANGER,
+  handoffActs,
   type InboxFilter,
   type InboxTally,
   type QueueId,
@@ -71,6 +74,15 @@ export interface InboxToolbarProps {
   readonly canApprove: boolean;
   readonly canReject: boolean;
   readonly canCertify: boolean;
+  /**
+   * The three handoff acts, computed by the caller with `handoffActs` — the one
+   * mirror of the server guard's status rule. Passed in rather than read off the row
+   * here so the toolbar and the row menu cannot drift into disagreeing about which
+   * of accept, complete and decline a handoff is currently open to.
+   */
+  readonly canAccept: boolean;
+  readonly canComplete: boolean;
+  readonly canDecline: boolean;
   readonly canCopy: boolean;
   readonly canExport: boolean;
   /** How many entries the sweep would post. */
@@ -90,6 +102,9 @@ export function InboxToolbar({
   canApprove,
   canReject,
   canCertify,
+  canAccept,
+  canComplete,
+  canDecline,
   canCopy,
   canExport,
   sweepCount,
@@ -158,6 +173,56 @@ export function InboxToolbar({
           {tr('تصديق', 'Certifier', 'Certify')}
         </Button>
       ) : null}
+      {queue === 'handoffs' ? (
+        <>
+          <Button
+            size="sm"
+            variant="accent"
+            icon={Check}
+            busy={busy === 'accept'}
+            disabled={!canAccept}
+            onClick={() => onCommand('accept')}
+            title={tr(
+              'تولّي التحويل: يصير باسمك، ويرى القسم المُحوِّل ذلك.',
+              'Prendre en charge : la transmission passe à votre nom, et le service émetteur le voit.',
+              'Take the handoff: it moves to your name, and the sending desk sees that.',
+            )}
+          >
+            {tr('قبول', 'Prendre en charge', 'Accept')}
+          </Button>
+          <Button
+            size="sm"
+            icon={CheckCheck}
+            busy={busy === 'complete'}
+            disabled={!canComplete}
+            onClick={() => onCommand('complete')}
+            title={tr(
+              'إنجاز التحويل وإعادته إلى السلسلة.',
+              'Terminer la transmission et la rendre à la chaîne.',
+              'Finish the handoff and hand it back to the chain.',
+            )}
+          >
+            {tr('إنجاز', 'Terminer', 'Complete')}
+          </Button>
+          {/* No separator before this one. On the approvals bar a separator means "a
+              different kind of act" — the bulk sweep, not the single decision — and
+              declining one handoff is the same kind of act as accepting it. */}
+          <Button
+            size="sm"
+            icon={Ban}
+            busy={busy === 'decline'}
+            disabled={!canDecline}
+            onClick={() => onCommand('decline')}
+            title={tr(
+              'رفض التحويل بسبب يقرأه القسم المُحوِّل.',
+              'Refuser avec un motif que le service émetteur lira.',
+              'Decline with a reason the sending desk will read.',
+            )}
+          >
+            {tr('رفض…', 'Refuser…', 'Decline…')}
+          </Button>
+        </>
+      ) : null}
       {queue === 'decided' ? (
         <Button size="sm" icon={ClipboardCopy} disabled={!canCopy} onClick={() => onCommand('copy')}>
           {tr('نسخ', 'Copier', 'Copy')}
@@ -201,7 +266,12 @@ export interface QueueRailProps {
 }
 
 /**
- * The three queues and the three narrowings.
+ * The four queues and the three narrowings.
+ *
+ * Handoffs sit third, between this desk's own work and the archive of what it has
+ * already settled, because that is the order of obligation: what only you can
+ * approve, what the close is waiting on, what another desk is waiting on, and then
+ * what is over.
  *
  * The badges count the whole queue, not the filtered view, so switching queues
  * always tells the truth about what is over there — a rail that counted the filter
@@ -229,6 +299,13 @@ export function QueueRail({ filter, onFilter, tally }: QueueRailProps) {
         selected={filter.queue === 'checklist'}
         badge={badge(tally.byQueue.checklist)}
         onClick={() => patch({ queue: 'checklist' })}
+      />
+      <NavItem
+        icon={ArrowLeftRight}
+        label={tr('تحويلات', 'Transmissions', 'Handoffs')}
+        selected={filter.queue === 'handoffs'}
+        badge={badge(tally.byQueue.handoffs)}
+        onClick={() => patch({ queue: 'handoffs' })}
       />
       <NavItem
         icon={History}
@@ -415,6 +492,10 @@ export interface ItemMenuProps {
  */
 export function ItemMenu({ x, y, item, onSelect, onDismiss }: ItemMenuProps) {
   const { t, tr } = useApp().locale;
+  // The same mirror of the guard the toolbar is disabled from, asked here about the
+  // row that was right-clicked rather than the row that is selected. A menu that
+  // offered what the toolbar refuses would be two answers to one question.
+  const gate = handoffActs(item);
   const acts: MenuEntry[] =
     item.kind === 'entry'
       ? [
@@ -450,7 +531,29 @@ export function ItemMenu({ x, y, item, onSelect, onDismiss }: ItemMenuProps) {
               disabled: !item.canCertify,
             },
           ]
-        : [];
+        : item.kind === 'handoff'
+          ? [
+              {
+                id: 'accept',
+                label: tr('قبول', 'Prendre en charge', 'Accept'),
+                icon: Check,
+                disabled: !gate.accept,
+              },
+              {
+                id: 'complete',
+                label: tr('إنجاز', 'Terminer', 'Complete'),
+                icon: CheckCheck,
+                disabled: !gate.complete,
+              },
+              {
+                id: 'decline',
+                label: tr('رفض…', 'Refuser…', 'Decline…'),
+                icon: Ban,
+                danger: true,
+                disabled: !gate.decline,
+              },
+            ]
+          : [];
   return (
     <MenuFlyout
       position="fixed"

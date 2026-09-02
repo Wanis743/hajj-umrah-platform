@@ -72,6 +72,8 @@ const GATES = [
   { name: 'dms', label: 'DMS lifecycle (upload → version → extract → review → approve → seal → expire)', command: 'npm run verify:dms', env: ['SUPABASE_DB_URL'] },
   { name: 'bi', label: 'BI studio (semantic layer, metric registry, drill-through, lineage, dashboards)', command: 'npm run verify:bi', env: ['SUPABASE_DB_URL'] },
   { name: 'modeling', label: 'Finance modeling engine (formulas, scenarios, overrides, publish, certificates)', command: 'npm run verify:modeling', env: ['SUPABASE_DB_URL'] },
+  { name: 'spine', label: 'Integration spine (CRM → operations → DMS → accounting → BI → decision → approval → execution → audit)', command: 'npm run verify:spine', env: ['SUPABASE_DB_URL'] },
+  { name: 'controls', label: 'Controls register (write → test → retire, with the register columns re-read from the table)', command: 'npm run verify:controls', env: ['SUPABASE_DB_URL'] },
   // Needs the Supabase CLI and Docker, which no environment variable can prove
   // are present, so it is opt-in: FRESH_DB_ENABLE=1 says "this machine can run a
   // throwaway stack". Skipped rather than attempted anywhere else.

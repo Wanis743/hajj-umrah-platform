@@ -1,11 +1,12 @@
 /**
  * Inbox — what is waiting, normalised.
  *
- * Three sources, one row shape. A draft journal entry, an uncertified close step
- * and a decision already recorded in the audit trail are not the same object, but
- * they are the same *kind* of thing to the person reading this window: something
- * that needs a decision, or the record of one. So each is mapped to a `WorkItem`
- * and the grid, the search, the ageing and the export are written once.
+ * Four sources, one row shape. A draft journal entry, an uncertified close step, a
+ * handoff another department has addressed to this one, and a decision already
+ * recorded in the audit trail are not the same object, but they are the same *kind*
+ * of thing to the person reading this window: something that needs a decision, or
+ * the record of one. So each is mapped to a `WorkItem` and the grid, the search, the
+ * ageing and the export are written once.
  *
  * The interesting work here is the pre-flight. Every act this app offers is an RPC
  * with its own refusals, and an inbox that lets you press Approve on something the
@@ -22,6 +23,12 @@
  *     first uncertified dependency by task name. This file names the same one, in
  *     the same order, because it sorts the candidates the way the RPC's `ORDER BY`
  *     does.
+ *   • The three handoff RPCs guard on status and nothing else: accept demands OPEN,
+ *     complete and decline demand a live row. That rule is a total function of the
+ *     status, so a waiting handoff always has exactly one act available and is never
+ *     blocked — which is why the handoff mirror below is three predicates and no
+ *     sentence. The one refusal it cannot mirror is `has_permission`, held by the
+ *     server; that one surfaces as a failed command, not a disabled button.
  *
  * Nothing below formats or fetches. It is a function of the page the broker
  * returned and of `today`, which is passed in so the same page renders the same
@@ -46,12 +53,33 @@ import {
   taskTone,
   withinPeriod,
 } from '../shared/ledger';
+import {
+  canAcceptHandoff,
+  canCompleteHandoff,
+  canDeclineHandoff,
+  HANDOFF_STATUS_LABEL,
+  handoffTone,
+  INTENT_LABEL,
+  isHandoffLive,
+  type SpineInboxItem,
+  STAGE_LABEL,
+} from '../shared/spine';
 
 /** The broker's page ceiling, mirrored so the status bar can say when it bit. */
 export const PAGE_LIMIT = 500;
 
 /** Decisions kept in the archive. The Event Viewer is where the whole log lives. */
 export const DECISION_LIMIT = 200;
+
+/**
+ * Live handoffs read per page.
+ *
+ * `private.spine_inbox` defaults to 200 and clamps to `least(p_limit, 1000)`, so
+ * this is the RPC's own default restated rather than a number chosen here. It is
+ * sent explicitly anyway: a limit that only exists as a server default is a limit
+ * the status bar cannot honestly report as having bitten.
+ */
+export const HANDOFF_LIMIT = 200;
 
 /** Lines loaded for the selected entry. A journal entry with more is pathological. */
 export const LINE_LIMIT = 200;
@@ -143,17 +171,17 @@ export function toDecision(row: DatasetRow): Decision | null {
  * Work items
  * ------------------------------------------------------------------ */
 
-export type QueueId = 'approvals' | 'checklist' | 'decided';
+export type QueueId = 'approvals' | 'checklist' | 'handoffs' | 'decided';
 
-export const QUEUES: readonly QueueId[] = ['approvals', 'checklist', 'decided'];
+export const QUEUES: readonly QueueId[] = ['approvals', 'checklist', 'handoffs', 'decided'];
 
-export type ItemKind = 'entry' | 'task' | 'decision';
+export type ItemKind = 'entry' | 'task' | 'handoff' | 'decision';
 
 /** `waiting` needs a decision, `blocked` cannot take one yet, `done` is history. */
 export type ItemState = 'waiting' | 'blocked' | 'done';
 
 export interface WorkItem {
-  /** Unique across the three sources, because one grid shows all of them. */
+  /** Unique across the four sources, because one grid shows all of them. */
   readonly key: string;
   readonly kind: ItemKind;
   readonly id: string;
@@ -166,6 +194,11 @@ export interface WorkItem {
    * the grid prints it only when it has nothing better — which is what `mine` is
    * for. It is exact: `principal.sid` *is* `created_by`/`owner_id`, and
    * `principal.email` *is* `audit_logs.user_email`.
+   *
+   * A handoff is the one row that may name a *role* here rather than a person,
+   * because that is what the database holds: `assigned_to` is null until someone
+   * takes it, and until then the only answer to "whose is this" is `assigned_role`.
+   * Roles are the seven uppercase words in `spine.ts`, so the two never blur.
    */
   readonly who: string;
   readonly mine: boolean;
@@ -185,6 +218,7 @@ export interface WorkItem {
   readonly block: Localized | null;
   readonly entry: JournalEntry | null;
   readonly task: CloseTask | null;
+  readonly handoff: SpineInboxItem | null;
   readonly decision: Decision | null;
 }
 
@@ -371,6 +405,7 @@ export function entryItem(entry: JournalEntry, context: ItemContext): WorkItem {
     block,
     entry,
     task: null,
+    handoff: null,
     decision: null,
   };
 }
@@ -401,6 +436,7 @@ export function taskItem(task: CloseTask, context: ItemContext): WorkItem {
     block,
     entry: null,
     task,
+    handoff: null,
     decision: null,
   };
 }
@@ -432,21 +468,110 @@ export function decisionItem(decision: Decision, context: ItemContext): WorkItem
     block: null,
     entry: null,
     task: null,
+    handoff: null,
     decision,
   };
 }
 
 /**
- * The three sources, in the order each queue is read in.
+ * A handoff addressed to this desk.
+ *
+ * `who` may hold a role rather than a person, and that is the row talking: until
+ * somebody accepts, `assigned_to` is null and the only answer to "whose is this"
+ * is `assigned_role`. `mine` is not recomputed here — the projection computes it
+ * server-side against `auth.uid()` and `staff_role()`, which is the only place
+ * that knows both.
+ *
+ * No `block` is ever produced, and that is a fact about the guard rather than an
+ * omission: `spine_guard_handoff` refuses on permission and row scope, both of
+ * which are already spent by the time a row reaches this function, and then on
+ * status. Every live status has exactly one act available — OPEN accepts,
+ * ACCEPTED completes, both decline — so a waiting handoff is never blocked, and
+ * `state` is therefore only ever `waiting` or `done`.
+ */
+export function handoffItem(handoff: SpineInboxItem, context: ItemContext): WorkItem {
+  const at = handoff.openedAt ?? '';
+  return {
+    key: `handoff:${handoff.id}`,
+    kind: 'handoff',
+    id: handoff.id,
+    queue: 'handoffs',
+    title: handoff.title !== '' ? handoff.title : `#${shortId(handoff.id)}`,
+    // The chain, because a queue that says "Review the rooming list" without saying
+    // which booking it belongs to is a queue that has to be clicked through to read.
+    subtitle: handoff.chainTitle !== '' ? handoff.chainTitle : (handoff.note ?? ''),
+    who: handoff.assignedTo ?? handoff.assignedRole ?? '',
+    mine: handoff.mine,
+    at,
+    amount: null,
+    currency: context.currency,
+    state: isHandoffLive(handoff.status) ? 'waiting' : 'done',
+    badge: HANDOFF_STATUS_LABEL[handoff.status],
+    tone: handoffTone(handoff.status),
+    age: ageInDays(at, context.today),
+    canApprove: false,
+    canReject: false,
+    canCertify: false,
+    block: null,
+    entry: null,
+    task: null,
+    handoff,
+    decision: null,
+  };
+}
+
+/** The three acts a handoff row offers. Empty for every other kind. */
+export interface HandoffActs {
+  readonly accept: boolean;
+  readonly complete: boolean;
+  readonly decline: boolean;
+}
+
+const NO_ACTS: HandoffActs = { accept: false, complete: false, decline: false };
+
+/**
+ * `spine_guard_handoff`'s status rule, mirrored once so five call sites agree.
+ *
+ * Accept demands exactly OPEN; complete and decline demand a live row. The
+ * permission check the guard runs first is not mirrored — this app cannot see the
+ * role's grant table, and a button disabled on a guess is worse than an act that
+ * fails with the server's own sentence.
+ *
+ * A null row answers the same as a row with no handoff, because the toolbar asks this
+ * question about whatever is selected and most of the time nothing is: nothing
+ * selected is nothing permitted, and that is cheaper stated once here than guarded at
+ * every call site.
+ */
+export function handoffActs(item: WorkItem | null): HandoffActs {
+  const handoff = item?.handoff ?? null;
+  if (handoff === null) return NO_ACTS;
+  return {
+    accept: canAcceptHandoff(handoff.status),
+    complete: canCompleteHandoff(handoff.status),
+    decline: canDeclineHandoff(handoff.status),
+  };
+}
+
+/**
+ * The four sources, in the order each queue is read in.
  *
  * Approvals oldest-first, because the thing that has waited longest is the thing
  * that should be decided next. The checklist by name, which is the order the RPC
- * resolves dependencies in and therefore the order the steps fall. Decisions
- * newest-first, because an archive is read from the top.
+ * resolves dependencies in and therefore the order the steps fall. Handoffs
+ * oldest-first then by `seq`, which is `private.spine_inbox`'s own `ORDER BY`.
+ * Decisions newest-first, because an archive is read from the top.
+ *
+ * Handoffs are deliberately *not* sorted by chain priority, tempting as it is.
+ * The projection picks its page with `order by opened_at, seq limit p_limit`, so
+ * re-sorting the page by priority would put URGENT at the top of a list that was
+ * chosen by age — a triage the limit cannot actually deliver, since a newer urgent
+ * handoff outside the page would still be missing. Priority is shown on the row
+ * instead, where it informs without promising.
  */
 export function buildItems(
   entries: readonly JournalEntry[],
   tasks: readonly CloseTask[],
+  handoffs: readonly SpineInboxItem[],
   decisions: readonly Decision[],
   context: ItemContext,
 ): readonly WorkItem[] {
@@ -456,10 +581,16 @@ export function buildItems(
   const checklist = tasks
     .map((task) => taskItem(task, context))
     .sort((a, b) => a.title.localeCompare(b.title));
+  const waiting = [...handoffs]
+    .sort((a, b) => {
+      const opened = (a.openedAt ?? '').localeCompare(b.openedAt ?? '');
+      return opened !== 0 ? opened : a.seq - b.seq;
+    })
+    .map((handoff) => handoffItem(handoff, context));
   const decided = decisions
     .map((decision) => decisionItem(decision, context))
     .sort((a, b) => b.at.localeCompare(a.at));
-  return [...approvals, ...checklist, ...decided];
+  return [...approvals, ...checklist, ...waiting, ...decided];
 }
 
 /* ------------------------------------------------------------------ *
@@ -540,7 +671,7 @@ export interface InboxTally {
  * questions is three times the work for no more truth.
  */
 export function tally(items: readonly WorkItem[]): InboxTally {
-  const byQueue: Record<QueueId, number> = { approvals: 0, checklist: 0, decided: 0 };
+  const byQueue: Record<QueueId, number> = { approvals: 0, checklist: 0, handoffs: 0, decided: 0 };
   let ready = 0;
   let blocked = 0;
   let waiting = 0;
@@ -556,7 +687,9 @@ export function tally(items: readonly WorkItem[]): InboxTally {
       waiting += 1;
       if (item.age > oldest) oldest = item.age;
       if (item.age >= AGE_DANGER) stale += 1;
-      if (item.canApprove || item.canCertify) ready += 1;
+      // A waiting handoff is ready by construction: the projection returns live rows
+      // only, and every live status has an act. See `handoffItem`.
+      if (item.canApprove || item.canCertify || item.kind === 'handoff') ready += 1;
       if (item.queue === 'approvals' && item.amount !== null) amount += item.amount;
     }
   }
@@ -635,6 +768,7 @@ export type Label = (value: Localized) => string;
 const QUEUE_CODE: Readonly<Record<QueueId, string>> = {
   approvals: 'APPROVALS',
   checklist: 'CHECKLIST',
+  handoffs: 'HANDOFFS',
   decided: 'DECIDED',
 };
 
@@ -650,10 +784,18 @@ const STATE_CODE: Readonly<Record<ItemState, string>> = {
  * Codes rather than labels in the machine columns, because a CSV outlives the
  * language it was exported in; the two prose columns are translated, since a block
  * reason is a sentence or it is nothing.
+ *
+ * The last three columns are only ever filled for a handoff, and they are separate
+ * columns rather than one packed cell because this file is opened in a spreadsheet
+ * and sorted: which desk asked, what it asked for, and how loudly are three
+ * different questions somebody will want to filter on.
  */
 export function queueCsv(items: readonly WorkItem[], t: Label): string {
   return csvDocument(
-    ['queue', 'kind', 'id', 'state', 'reference', 'detail', 'who', 'date', 'age_days', 'amount', 'currency', 'status', 'blocked_because'],
+    [
+      'queue', 'kind', 'id', 'state', 'reference', 'detail', 'who', 'date', 'age_days',
+      'amount', 'currency', 'status', 'blocked_because', 'route', 'intent', 'priority',
+    ],
     items.map((item) => [
       QUEUE_CODE[item.queue],
       item.kind.toUpperCase(),
@@ -668,6 +810,9 @@ export function queueCsv(items: readonly WorkItem[], t: Label): string {
       item.amount === null ? '' : item.currency,
       t(item.badge),
       item.block === null ? '' : t(item.block),
+      item.handoff === null ? '' : `${item.handoff.fromStage}>${item.handoff.toStage}`,
+      item.handoff === null ? '' : item.handoff.intent,
+      item.handoff === null ? '' : item.handoff.chainPriority,
     ]),
   );
 }
@@ -694,6 +839,14 @@ export function itemClipboardText(
   if (item.who !== '') out.push(item.who);
   if (item.amount !== null) out.push(`${item.amount.toFixed(2)} ${item.currency}`);
   if (item.block !== null) out.push(t(item.block));
+  // A handoff pasted without its route is a sentence with no subject: the colleague
+  // being asked needs to know which desk is asking and for what before anything else.
+  if (item.handoff !== null) {
+    const route = `${t(STAGE_LABEL[item.handoff.fromStage])} → ${t(STAGE_LABEL[item.handoff.toStage])}`;
+    out.push(`${route} · ${t(INTENT_LABEL[item.handoff.intent])}`);
+    if (item.handoff.dueOn !== null) out.push(item.handoff.dueOn);
+    if (item.handoff.note !== null && item.handoff.note !== '') out.push(item.handoff.note);
+  }
   if (item.task !== null && item.task.dependencies.length > 0) {
     out.push(item.task.dependencies.join(' · '));
   }

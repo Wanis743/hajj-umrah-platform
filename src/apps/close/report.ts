@@ -3,7 +3,7 @@
  *
  * A close produces paper. Somebody signs the checklist, somebody else keeps it, and
  * an auditor asks for it eleven months later — so the export is not a convenience,
- * it is the artefact. Three of them, one per view, because "export" on a toolbar
+ * it is the artefact. Four of them, one per view, because "export" on a toolbar
  * means "the thing I am looking at" and nothing else.
  *
  * Values are raw on purpose: ISO dates, decimals with a dot, statuses in the reader's
@@ -14,6 +14,13 @@ import { csvDocument } from '../shared/csv';
 import { type CloseTask, type FiscalPeriod, PERIOD_STATUS_LABEL, TASK_STATUS_LABEL } from '../shared/ledger';
 import type { Localized } from '@/platform/sdk';
 import { CHECK_LABEL, CHECK_STATE_LABEL, type ChecklistRow, type CloseAssessment, type CloseCheck } from './checks';
+import {
+  CONTROL_FREQUENCY_LABEL,
+  CONTROL_RESULT_LABEL,
+  CONTROL_STATE_LABEL,
+  controlState,
+  type FinancialControl,
+} from './controls';
 import type { AuditRow } from './model';
 
 /** The translator the runtime already holds, narrowed to what a pure module needs. */
@@ -87,6 +94,72 @@ export function trailCsv(rows: readonly AuditRow[], tr: Translate): string {
     ],
     rows.map((row) => [row.at, row.action, row.resource, row.resourceId ?? '', row.email]),
   );
+}
+
+/**
+ * The register, as an auditor asks for it.
+ *
+ * `state` is exported alongside `last_result` rather than instead of it, because the
+ * two disagree on purpose: a control whose last test passed in March is `passed` and
+ * `overdue`, and a file that carried only the first would be the misleading half.
+ */
+export function controlCsv(
+  rows: readonly FinancialControl[],
+  now: number,
+  t: Label,
+  tr: Translate,
+): string {
+  return csvDocument(
+    [
+      tr('الرمز', 'Code', 'Code'),
+      tr('الوصف', 'Description', 'Description'),
+      tr('المسؤول', 'Responsable', 'Owner'),
+      tr('التواتر', 'Fréquence', 'Frequency'),
+      tr('الحالة', 'État', 'State'),
+      tr('آخر اختبار', 'Dernier test', 'Last tested'),
+      tr('النتيجة', 'Résultat', 'Result'),
+      tr('العيّنة', 'Population', 'Population'),
+      tr('الاستثناءات', 'Exceptions', 'Exceptions'),
+    ],
+    rows.map((row) => [
+      row.code,
+      row.description,
+      row.ownerRole ?? '',
+      t(CONTROL_FREQUENCY_LABEL[row.frequency]),
+      t(CONTROL_STATE_LABEL[controlState(row, now)]),
+      row.lastTestedAt ?? '',
+      row.lastResult === null ? '' : t(CONTROL_RESULT_LABEL[row.lastResult]),
+      row.population,
+      row.exceptions,
+    ]),
+  );
+}
+
+/** One control and its last test, for the thread asking whether it was done. */
+export function controlClipboardText(
+  control: FinancialControl,
+  now: number,
+  t: Label,
+  tr: Translate,
+): string {
+  const parts = [
+    `${control.code} — ${t(CONTROL_STATE_LABEL[controlState(control, now)])}`,
+    `${tr('التواتر', 'Fréquence', 'Frequency')}: ${t(CONTROL_FREQUENCY_LABEL[control.frequency])}`,
+  ];
+  if (control.description !== '') parts.push(control.description);
+  if (control.ownerRole !== null) {
+    parts.push(`${tr('المسؤول', 'Responsable', 'Owner')}: ${control.ownerRole}`);
+  }
+  if (control.lastTestedAt === null) {
+    parts.push(tr('لم يُختبر بعد.', 'Jamais testé.', 'Never tested.'));
+  } else {
+    const result = control.lastResult === null ? '' : ` — ${t(CONTROL_RESULT_LABEL[control.lastResult])}`;
+    parts.push(`${tr('آخر اختبار', 'Dernier test', 'Last tested')}: ${control.lastTestedAt}${result}`);
+  }
+  if (control.exceptions !== '') {
+    parts.push(`${tr('الاستثناءات', 'Exceptions', 'Exceptions')}: ${control.exceptions}`);
+  }
+  return parts.join('\n');
 }
 
 /**

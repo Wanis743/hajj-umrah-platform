@@ -7,6 +7,10 @@
  * the rules, and a window that refuses a close the server would accept is a window
  * lying about who is in charge.
  *
+ * The register's three acts appear only in the register's own view. They are not period
+ * acts — a control is tested against the calendar, not against the month on screen — and
+ * a toolbar carrying all nine commands at once would be a toolbar nobody reads.
+ *
  * The rail is the periods, grouped by year the way Windows groups files by date, with the
  * month's task progress pinned above them so it stays visible in every view. A closed
  * period carries a padlock; that is the whole state somebody needs at a glance.
@@ -14,19 +18,24 @@
 import { Fragment, type Ref } from 'react';
 import {
   AlertTriangle,
+  Archive,
   BadgeCheck,
   Ban,
   CalendarRange,
+  ClipboardCheck,
   Clock,
   Copy,
   FileDown,
   History,
   ListChecks,
   Lock,
+  Pencil,
+  Plus,
   RefreshCw,
   RotateCw,
   Scale,
   ShieldAlert,
+  ShieldCheck,
   Sigma,
 } from 'lucide-react';
 import {
@@ -49,6 +58,7 @@ import {
 import { EPSILON, type FiscalPeriod, PERIOD_STATUS_LABEL, periodTone, TASK_STATUS_LABEL } from '../shared/ledger';
 import type { CloseBusy } from './actions';
 import type { ChecklistRow, CloseAssessment } from './checks';
+import { CONTROL_STATE_LABEL, controlState, type FinancialControl } from './controls';
 import type { CloseView } from './model';
 
 interface ToolbarProps {
@@ -61,6 +71,15 @@ interface ToolbarProps {
   readonly canClose: boolean;
   readonly canReopen: boolean;
   readonly canCertify: boolean;
+  /**
+   * The register's acts, which all need a control that is still live.
+   *
+   * Editing a retired control is refused along with the other two: a control nobody
+   * runs any more is a record of what used to be assured, and a register that invited
+   * edits to it would be inviting the history to be rewritten.
+   */
+  readonly canTest: boolean;
+  readonly canRetire: boolean;
   /** Findings that will be argued about, shown beside the button rather than blocking it. */
   readonly failures: number;
   onSearch: (next: string) => void;
@@ -74,6 +93,7 @@ export function CloseToolbar(props: ToolbarProps) {
   const views: readonly { value: CloseView; label: string; icon: typeof ShieldAlert }[] = [
     { value: 'checks', label: tr('الفحوص', 'Contrôles', 'Checks'), icon: ShieldAlert },
     { value: 'tasks', label: tr('المهام', 'Tâches', 'Tasks'), icon: ListChecks },
+    { value: 'controls', label: tr('الرقابات', 'Contrôles internes', 'Controls'), icon: ShieldCheck },
     { value: 'trail', label: tr('السجل', 'Journal', 'Trail'), icon: History },
   ];
 
@@ -119,6 +139,43 @@ export function CloseToolbar(props: ToolbarProps) {
       </Button>
       <ToolbarSeparator />
       <Segmented value={props.view} onChange={(next) => onCommand(`view:${next}`)} options={views} />
+      {props.view === 'controls' ? (
+        <>
+          <ToolbarSeparator />
+          <Button
+            icon={ClipboardCheck}
+            variant="accent"
+            busy={busy === 'test'}
+            disabled={working || !props.canTest}
+            onClick={() => onCommand('control:test')}
+            title={tr(
+              'تسجيل اختبار (Ctrl+Shift+T)',
+              'Enregistrer un test (Ctrl+Maj+T)',
+              'Record a test (Ctrl+Shift+T)',
+            )}
+          >
+            {tr('اختبار', 'Tester', 'Test')}
+          </Button>
+          <IconButton
+            icon={Plus}
+            label={tr('رقابة جديدة', 'Nouveau contrôle', 'New control')}
+            disabled={working}
+            onClick={() => onCommand('control:new')}
+          />
+          <IconButton
+            icon={Pencil}
+            label={tr('تعديل الرقابة', 'Modifier le contrôle', 'Edit the control')}
+            disabled={working || !props.canTest}
+            onClick={() => onCommand('control:edit')}
+          />
+          <IconButton
+            icon={Archive}
+            label={tr('إيقاف الرقابة', 'Retirer le contrôle', 'Retire the control')}
+            disabled={working || !props.canRetire}
+            onClick={() => onCommand('control:retire')}
+          />
+        </>
+      ) : null}
       <ToolbarSpacer />
       {props.view === 'checks' ? null : (
         <SearchBox
@@ -129,7 +186,9 @@ export function CloseToolbar(props: ToolbarProps) {
           placeholder={
             props.view === 'tasks'
               ? tr('بحث في المهام', 'Rechercher une tâche', 'Search tasks')
-              : tr('بحث في السجل', 'Rechercher dans le journal', 'Search the trail')
+              : props.view === 'controls'
+                ? tr('بحث في الرقابات', 'Rechercher un contrôle', 'Search controls')
+                : tr('بحث في السجل', 'Rechercher dans le journal', 'Search the trail')
           }
         />
       )}
@@ -242,9 +301,17 @@ interface StatusProps {
   readonly fetchedAt: string | null;
 }
 
+/**
+ * The noun the count is counting, one per view.
+ *
+ * French says `contrôles` for a pre-close check and `contrôles internes` for a register
+ * entry, and the longer phrase is deliberate: shortened, the status bar would read
+ * `12 contrôles` in two views that count entirely different things.
+ */
 const NOUN: Readonly<Record<CloseView, (tr: (ar: string, fr: string, en: string) => string) => string>> = {
   checks: (tr) => tr('فحص', 'contrôles', 'checks'),
   tasks: (tr) => tr('مهمة', 'tâches', 'tasks'),
+  controls: (tr) => tr('رقابة', 'contrôles internes', 'controls'),
   trail: (tr) => tr('حدث', 'événements', 'events'),
 };
 
@@ -381,4 +448,69 @@ export function TaskMenu({ x, y, row, busy, onSelect, onDismiss }: TaskMenuProps
     { id: 'copyTask', label: tr('نسخ', 'Copier', 'Copy'), icon: Copy, accelerator: 'Ctrl+C' },
   ];
   return <MenuFlyout x={x} y={y} entries={entries} onSelect={onSelect} onDismiss={onDismiss} minWidth={230} />;
+}
+
+/* ------------------------------------------------------------------ *
+ * Register context menu
+ * ------------------------------------------------------------------ *
+ * Every entry is one of the toolbar's own command ids, because opening this menu moves
+ * the selection first. The register's acts read the selection, so the menu does not need
+ * a private vocabulary to say "this row" — it says the same thing the toolbar says, and
+ * the selection underneath it has already changed to agree.
+ *
+ * The three acts are gated on `control.retired`, the row's own flag, rather than on
+ * `controlState`. Whether a control is overdue is a judgement about a date; whether it
+ * has been retired is a fact on the record, and only the fact belongs in a disabled check.
+ */
+
+interface ControlMenuProps {
+  readonly x: number;
+  readonly y: number;
+  readonly control: FinancialControl;
+  /** The register's one clock, so this header cannot disagree with the row it came from. */
+  readonly now: number;
+  readonly busy: boolean;
+  onSelect: (id: string) => void;
+  onDismiss: () => void;
+}
+
+export function ControlMenu({ x, y, control, now, busy, onSelect, onDismiss }: ControlMenuProps) {
+  const { t, tr } = useLocale();
+  const dead = busy || control.retired;
+  const entries: readonly MenuEntry[] = [
+    {
+      id: 'header',
+      kind: 'header',
+      label: `${control.code} — ${t(CONTROL_STATE_LABEL[controlState(control, now)])}`,
+    },
+    {
+      id: 'control:test',
+      label: tr('تسجيل اختبار', 'Enregistrer un test', 'Record a test'),
+      icon: ClipboardCheck,
+      accelerator: 'Ctrl+Shift+T',
+      disabled: dead,
+    },
+    {
+      id: 'control:edit',
+      label: tr('تعديل', 'Modifier', 'Edit'),
+      icon: Pencil,
+      disabled: dead,
+    },
+    {
+      id: 'control:retire',
+      label: tr('إيقاف الرقابة', 'Retirer le contrôle', 'Retire the control'),
+      icon: Archive,
+      danger: true,
+      disabled: dead,
+    },
+    { id: 'sep', kind: 'separator' },
+    {
+      id: 'control:new',
+      label: tr('رقابة جديدة', 'Nouveau contrôle', 'New control'),
+      icon: Plus,
+      disabled: busy,
+    },
+    { id: 'copy', label: tr('نسخ', 'Copier', 'Copy'), icon: Copy, accelerator: 'Ctrl+C' },
+  ];
+  return <MenuFlyout x={x} y={y} entries={entries} onSelect={onSelect} onDismiss={onDismiss} minWidth={240} />;
 }

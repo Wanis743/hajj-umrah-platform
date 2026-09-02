@@ -40,6 +40,14 @@ const LABELS: Readonly<Record<Capability, Localized>> = {
     fr: 'Publier une version de modèle',
     en: 'Publish a model version',
   },
+  // Says "hand work to someone else" rather than "write handoffs", because the
+  // thing being consented to is not a row appearing in a table — it is a colleague
+  // in another department acquiring an obligation with this app's name on it.
+  'spine.handoff': {
+    ar: 'تحويل العمل بين الأقسام',
+    fr: 'Transmettre du travail entre services',
+    en: 'Hand work to another department',
+  },
 };
 
 const isCapability = (value: string): value is Capability =>
