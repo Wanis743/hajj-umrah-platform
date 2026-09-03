@@ -3,9 +3,9 @@
  *
  * An app exists to the OS because its manifest is registered here. That gives
  * the shell one place to read from (Start, taskbar pins, jump lists) and Settings
- * one inventory to list, and it gives the user one place to inspect: every record
- * is mirrored into `HKLM\SOFTWARE\FinanceOS\Apps`, so Regedit shows the same
- * inventory Settings does.
+ * one inventory to list, and every record is mirrored into
+ * `HKLM\SOFTWARE\FinanceOS\Apps`, so the same inventory is readable as registry
+ * keys by anything holding `registry.read`.
  *
  * The split between machine and user state matches Windows:
  *   - HKLM holds what was installed (version, publisher, capabilities);

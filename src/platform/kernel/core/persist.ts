@@ -2,8 +2,9 @@
  * Persistence backend for the registry and the `C:` volume.
  *
  * The kernel is the *only* layer allowed to touch `localStorage` — apps reach
- * storage through the VFS and the registry, which is what makes their state
- * inspectable in Regedit instead of hidden in browser storage.
+ * storage through the VFS and the registry, which keeps their state inside the
+ * OS's own namespaces, readable by anything holding `registry.read`, rather than
+ * scattered through browser storage under keys only the writer understands.
  *
  * Writes are coalesced through a flusher so a burst of registry sets costs one
  * serialization, and every access is defensive: private-browsing modes and

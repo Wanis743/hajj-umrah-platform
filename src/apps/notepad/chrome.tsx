@@ -365,10 +365,10 @@ export interface FindReplaceProps {
 /**
  * Find & Replace.
  *
- * Regedit's Find shows a list because it holds the whole hive. A text editor
- * cannot: the hits are positions in the buffer you are editing, so this keeps
- * Notepad's Find Next / Find Previous and adds the one thing Win32 never showed
- * you — how many there are, and which one you are on.
+ * The hits are positions in a buffer that is being edited, which is why this is a
+ * cursor over the text rather than a list of results: an edit above a hit moves
+ * every offset below it. So Notepad keeps Find Next / Find Previous and adds the
+ * one thing Win32 never showed you — how many there are, and which one you are on.
  */
 export function FindReplace({
   needle,

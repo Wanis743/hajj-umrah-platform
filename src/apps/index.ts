@@ -24,7 +24,6 @@ import { modelingManifest } from './modeling/manifest';
 import { notepadManifest } from './notepad/manifest';
 import { profitabilityManifest } from './profitability/manifest';
 import { reconcileManifest } from './reconcile/manifest';
-import { registryEditorManifest } from './regedit/manifest';
 import { settingsManifest } from './settings/manifest';
 import { sheetsManifest } from './sheets/manifest';
 import { statementsManifest } from './statements/manifest';
@@ -33,7 +32,6 @@ import { treasuryManifest } from './treasury/manifest';
 export const APP_PACKAGES: readonly AppPackage[] = [
   { manifest: settingsManifest, load: () => import('./settings/App') },
   { manifest: eventViewerManifest, load: () => import('./eventviewer/App') },
-  { manifest: registryEditorManifest, load: () => import('./regedit/App') },
   { manifest: notepadManifest, load: () => import('./notepad/App') },
   { manifest: calculatorManifest, load: () => import('./calculator/App') },
   { manifest: sheetsManifest, load: () => import('./sheets/App') },

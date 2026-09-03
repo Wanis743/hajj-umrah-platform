@@ -11,7 +11,7 @@
  *   - `dependsOn` is honoured at start time and again (in reverse) at stop time,
  *     so a dependency is never pulled out from under a dependent;
  *   - start type lives in `HKLM\SYSTEM\CurrentControlSet\Services\<name>`, which
- *     means Regedit, the Widgets service tile and the SCM all read the same truth;
+ *     means the Widgets service tile and the SCM read the same truth;
  *   - a tick that throws is a fault: the service is respawned with a growing
  *     backoff and, once the restart policy is exhausted, left `faulted` with the
  *     error retained for the operator.

@@ -88,9 +88,9 @@ function bounded(text: string, start: number, end: number): boolean {
 }
 
 /**
- * Every hit, in order. Regedit's Find holds the whole hive for the same reason:
- * once the list exists, "3 of 12" and Replace All are the same walk as Find Next,
- * and none of the three can drift from the others.
+ * Every hit, in order. Holding the whole list rather than walking to the next hit
+ * is what keeps "3 of 12" and Replace All from drifting: both become the same walk
+ * Find Next already does, so none of the three can disagree about what matched.
  */
 export function matchesOf(text: string, needle: string, options: FindOptions): readonly Match[] {
   if (needle === '') return [];

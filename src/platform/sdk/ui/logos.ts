@@ -3,7 +3,7 @@
  *
  * An app names its icon as a string (`'book-open'`), and {@link glyphFor}
  * resolves that name to a Lucide glyph the shell strokes on a category-tinted
- * plate. That plate is a *placeholder*: it gives 17 apps a coherent Start menu
+ * plate. That plate is a *placeholder*: it gives 16 apps a coherent Start menu
  * without anyone drawing anything. Real artwork replaces it, which is what
  * Windows does for an installed app — the logo is the identity, not the tile
  * behind it.

@@ -1129,7 +1129,6 @@ export type LaunchArgs = Readonly<Record<string, string>>;
 export const APP_IDS = {
   settings: appId('com.financeos.settings'),
   eventViewer: appId('com.financeos.eventviewer'),
-  registryEditor: appId('com.financeos.regedit'),
   notepad: appId('com.financeos.notepad'),
   calculator: appId('com.financeos.calculator'),
   sheets: appId('com.financeos.sheets'),
