@@ -450,6 +450,24 @@ function ResultList({
   );
 }
 
+/** One app in the A–Z list, with its display name resolved once. */
+interface AppRow {
+  readonly app: InstalledApp;
+  readonly name: string;
+}
+
+/** Every app sharing an initial, under the divider that labels them. */
+interface LetterGroup {
+  /**
+   * The first app's id. Keying on the letter itself would assume that
+   * `localeCompare` never interleaves two initials — true for en/fr, not a
+   * promise worth making for every locale the shell can run in.
+   */
+  readonly key: string;
+  readonly letter: string;
+  readonly rows: AppRow[];
+}
+
 function AllApps({
   locale,
   apps,
@@ -463,15 +481,26 @@ function AllApps({
   onOpen: (app: InstalledApp) => void;
   onContext: (app: InstalledApp, clientX: number, clientY: number) => void;
 }) {
-  const sorted = useMemo(
-    () =>
-      [...apps].sort((a, b) =>
-        locale.t(a.manifest.name).localeCompare(locale.t(b.manifest.name), locale.intlLocale),
-      ),
-    [apps, locale],
-  );
+  /**
+   * Grouped by initial rather than merely tagged with one. The divider is
+   * `position: sticky`, and a sticky box can only travel inside its own
+   * containing block — so the wrapper has to span the whole group. One wrapper
+   * per app caps the pin at a single row's worth of scrolling, which reads as a
+   * divider that slides away instead of one that holds its section.
+   */
+  const groups = useMemo<readonly LetterGroup[]>(() => {
+    const named: AppRow[] = apps.map((app) => ({ app, name: locale.t(app.manifest.name) }));
+    named.sort((a, b) => a.name.localeCompare(b.name, locale.intlLocale));
+    const out: LetterGroup[] = [];
+    for (const row of named) {
+      const letter = row.name.slice(0, 1).toUpperCase();
+      const last = out.length === 0 ? undefined : out[out.length - 1];
+      if (last !== undefined && last.letter === letter) last.rows.push(row);
+      else out.push({ key: row.app.manifest.id as string, letter, rows: [row] });
+    }
+    return out;
+  }, [apps, locale]);
 
-  let letter = '';
   return (
     <>
       <div className="fx-start-section">
@@ -482,15 +511,12 @@ function AllApps({
         <span className="fx-subtitle-text">{locale.tr('كل التطبيقات', 'Toutes les applications', 'All apps')}</span>
       </div>
       <div className="fx-start-list">
-        {sorted.map((app) => {
-          const name = locale.t(app.manifest.name);
-          const first = name.slice(0, 1).toUpperCase();
-          const header = first === letter ? null : first;
-          letter = first;
-          return (
-            <div key={app.manifest.id as string}>
-              {header !== null ? <div className="fx-start-letter">{header}</div> : null}
+        {groups.map((group) => (
+          <div key={group.key} className="fx-start-group">
+            <div className="fx-start-letter">{group.letter}</div>
+            {group.rows.map(({ app, name }) => (
               <button
+                key={app.manifest.id as string}
                 type="button"
                 className="fx-start-list-item"
                 onClick={() => onOpen(app)}
@@ -499,9 +525,9 @@ function AllApps({
                 <AppIcon icon={app.manifest.icon} category={app.manifest.category} size={24} />
                 <span>{name}</span>
               </button>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        ))}
       </div>
     </>
   );

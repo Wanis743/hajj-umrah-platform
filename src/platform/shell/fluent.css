@@ -128,6 +128,29 @@
    */
   --fx-sheen: rgba(255, 255, 255, 0.16);
   --fx-sheen-soft: rgba(255, 255, 255, 0.08);
+  /*
+   * The bottom edge. Glass is lit from above, so the lip that catches light has to
+   * have a counterpart in shadow or the pane reads as a flat wash with a stripe on
+   * it. Riding inside the lift shadows below means every surface gets both edges
+   * from one place — a directional ring rather than a border.
+   */
+  --fx-shade: rgba(0, 0, 0, 0.26);
+  /*
+   * Specular layers, laid on as background images rather than as pseudo-elements.
+   * A `::before` on a window would need its children restacked and its pointer
+   * events managed; a gradient layer composites for free and costs no structure.
+   * `sheen` is the directional band a pane catches across its face, `glow` the
+   * light pooling in the corner nearest the source. Setting either to `none` — as
+   * the reduced-transparency and no-backdrop-filter blocks do — flattens every
+   * surface that uses them without touching a single rule.
+   */
+  --fx-glass-sheen: linear-gradient(
+    157deg,
+    rgba(255, 255, 255, 0.11) 0%,
+    rgba(255, 255, 255, 0.042) 27%,
+    rgba(255, 255, 255, 0) 54%
+  );
+  --fx-glass-glow: radial-gradient(126% 92% at 4% -10%, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 62%);
 
   --fx-stroke: rgba(255, 255, 255, 0.12);
   --fx-stroke-strong: rgba(255, 255, 255, 0.22);
@@ -159,14 +182,14 @@
    * a drop shadow. The negative spreads keep the wide layer off the edges so it
    * darkens the ground without muddying the hairline.
    */
-  --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), 0 2px 8px -2px rgba(0, 0, 0, 0.32),
-    0 14px 36px -10px rgba(0, 0, 0, 0.5);
-  --fx-shadow-window: inset 0 1px 0 var(--fx-sheen), 0 2px 6px -2px rgba(0, 0, 0, 0.34),
-    0 22px 52px -14px rgba(0, 0, 0, 0.52);
-  --fx-shadow-window-focus: inset 0 1px 0 var(--fx-sheen), 0 4px 12px -2px rgba(0, 0, 0, 0.4),
-    0 44px 88px -18px rgba(0, 0, 0, 0.6);
-  --fx-shadow-card: inset 0 1px 0 var(--fx-sheen-soft), 0 1px 3px rgba(0, 0, 0, 0.24),
-    0 8px 20px -10px rgba(0, 0, 0, 0.32);
+  --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
+    0 2px 8px -2px rgba(0, 0, 0, 0.32), 0 14px 36px -10px rgba(0, 0, 0, 0.5);
+  --fx-shadow-window: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
+    0 2px 6px -2px rgba(0, 0, 0, 0.34), 0 22px 52px -14px rgba(0, 0, 0, 0.52);
+  --fx-shadow-window-focus: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
+    0 4px 12px -2px rgba(0, 0, 0, 0.4), 0 44px 88px -18px rgba(0, 0, 0, 0.6);
+  --fx-shadow-card: inset 0 1px 0 var(--fx-sheen-soft), inset 0 -1px 0 var(--fx-shade),
+    0 1px 3px rgba(0, 0, 0, 0.24), 0 8px 20px -10px rgba(0, 0, 0, 0.32);
   --fx-smoke: rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
@@ -198,6 +221,25 @@
    */
   --fx-sheen: rgba(255, 255, 255, 0.9);
   --fx-sheen-soft: rgba(255, 255, 255, 0.65);
+  /*
+   * Light glass sits on a pale ground, so its lower edge is a faint grey rather
+   * than the near-black the dark theme can afford — any more and the pane looks
+   * like it has a border on three sides.
+   */
+  --fx-shade: rgba(0, 0, 0, 0.055);
+  /*
+   * The specular layers survive the theme flip, but they invert in role: on a pale
+   * pane a white band adds almost nothing, so the sheen carries a whisper of the
+   * ground's own shadow at its far end instead, and the corner glow stays white to
+   * keep the lit corner reading as light rather than as a smudge.
+   */
+  --fx-glass-sheen: linear-gradient(
+    157deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(0, 0, 0, 0.016) 100%
+  );
+  --fx-glass-glow: radial-gradient(126% 92% at 4% -10%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 58%);
 
   --fx-stroke: rgba(0, 0, 0, 0.08);
   --fx-stroke-strong: rgba(0, 0, 0, 0.16);
@@ -224,14 +266,14 @@
   --fx-info: #005fb8;
   --fx-info-bg: rgba(0, 95, 184, 0.12);
 
-  --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), 0 2px 8px -3px rgba(0, 0, 0, 0.12),
-    0 14px 36px -12px rgba(0, 0, 0, 0.2);
-  --fx-shadow-window: inset 0 1px 0 var(--fx-sheen), 0 2px 6px -2px rgba(0, 0, 0, 0.1),
-    0 22px 52px -16px rgba(0, 0, 0, 0.22);
-  --fx-shadow-window-focus: inset 0 1px 0 var(--fx-sheen), 0 4px 12px -2px rgba(0, 0, 0, 0.14),
-    0 44px 88px -20px rgba(0, 0, 0, 0.28);
-  --fx-shadow-card: inset 0 1px 0 var(--fx-sheen-soft), 0 1px 2px rgba(0, 0, 0, 0.06),
-    0 8px 20px -12px rgba(0, 0, 0, 0.16);
+  --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
+    0 2px 8px -3px rgba(0, 0, 0, 0.12), 0 14px 36px -12px rgba(0, 0, 0, 0.2);
+  --fx-shadow-window: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
+    0 2px 6px -2px rgba(0, 0, 0, 0.1), 0 22px 52px -16px rgba(0, 0, 0, 0.22);
+  --fx-shadow-window-focus: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
+    0 4px 12px -2px rgba(0, 0, 0, 0.14), 0 44px 88px -20px rgba(0, 0, 0, 0.28);
+  --fx-shadow-card: inset 0 1px 0 var(--fx-sheen-soft), inset 0 -1px 0 var(--fx-shade),
+    0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 20px -12px rgba(0, 0, 0, 0.16);
   --fx-smoke: rgba(255, 255, 255, 0.42);
   color-scheme: light;
 }
@@ -322,6 +364,15 @@
 }
 
 /* ---------------- window ---------------- */
+/*
+ * The deepest pane in the shell, and the one that has to sell the material. Three
+ * background layers, painted front-to-back: the sheen band across the face, the
+ * corner glow where the light pools, and the mica tint that actually carries the
+ * colour. Only the last layer may name a colour, which is exactly the order the
+ * shorthand wants — and setting either gradient to `none` (as the reduced
+ * transparency and no-backdrop-filter blocks do) flattens this back to plain mica
+ * without a single rule needing to know.
+ */
 .fx-window {
   position: absolute;
   display: flex;
@@ -331,14 +382,19 @@
   border: 1px solid var(--fx-stroke-strong);
   box-shadow: var(--fx-shadow-window);
   overflow: hidden;
-  background: var(--fx-mica);
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-mica);
   backdrop-filter: blur(var(--fx-glass-blur-xl)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-xl)) saturate(var(--fx-glass-sat));
   animation: fx-window-in var(--fx-normal) var(--fx-ease-out);
 }
+/*
+ * Focus. Windows marks it with depth alone, which disappears against a wallpaper
+ * that happens to match the shadow. A hairline carrying a trace of the accent
+ * reads the same way at a glance and costs nothing: the border was already there.
+ */
 .fx-window[data-focused='true'] {
   box-shadow: var(--fx-shadow-window-focus);
-  border-color: var(--fx-stroke-strong);
+  border-color: color-mix(in srgb, var(--fx-accent) 30%, var(--fx-stroke-strong));
 }
 .fx-window[data-focused='false'] {
   filter: saturate(0.85);
@@ -374,7 +430,13 @@
   flex: none;
   padding-inline-start: 12px;
   gap: 8px;
-  background: var(--fx-mica-alt);
+  /*
+   * Sheen over Mica Alt, and no corner glow: the window's glow is pooled at this
+   * same corner already, one layer below, and doubling it turns light into a
+   * bright patch. The band continues the window's diagonal instead of cutting it,
+   * which is the difference between a title bar *on* glass and a strip beside it.
+   */
+  background: var(--fx-glass-sheen), var(--fx-mica-alt);
   border-bottom: 1px solid var(--fx-divider);
   /*
    * The window's own sheen is behind this band — the title bar is flush with the
@@ -453,7 +515,13 @@
   align-items: center;
   justify-content: space-between;
   padding-inline: 8px;
-  background: var(--fx-acrylic);
+  /*
+   * Only the sheen, not the corner glow: the bar is a wide, short box, so a
+   * radial pooled at one end would read as a stain rather than as light. The
+   * gradient runs across the height instead, carrying the lit lip below into a
+   * falloff rather than stopping dead after one pixel.
+   */
+  background: var(--fx-glass-sheen), var(--fx-acrylic);
   backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   border-top: 1px solid var(--fx-stroke);
@@ -480,17 +548,29 @@
   place-items: center;
   border-radius: var(--fx-radius-control);
   color: var(--fx-text-primary);
-  transition: background var(--fx-fast) var(--fx-ease-out), transform var(--fx-fast) var(--fx-ease-out);
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out),
+    transform var(--fx-fast) var(--fx-ease-out);
 }
+/*
+ * Hover is a pill of glass rather than a flat wash: the lit top edge is what
+ * makes a 40px square read as a raised surface at this size, and the 1px lift
+ * gives the press below something to travel back from.
+ */
 .fx-tb-btn:hover {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
+  transform: translateY(-1px);
 }
 .fx-tb-btn:active {
   background: var(--fx-subtle-pressed);
+  box-shadow: none;
   transform: scale(0.94);
 }
 .fx-tb-btn[data-active='true'] {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 /* running / active indicator pill */
 .fx-tb-indicator {
@@ -501,15 +581,24 @@
   height: 3px;
   border-radius: 999px;
   background: var(--fx-accent-light2);
-  transition: width var(--fx-normal) var(--fx-ease-out), opacity var(--fx-fast);
+  transition:
+    width var(--fx-normal) var(--fx-ease-out),
+    box-shadow var(--fx-normal) var(--fx-ease-out),
+    opacity var(--fx-fast);
 }
 .fx-tb-btn[data-running='true'] .fx-tb-indicator {
   width: 6px;
   opacity: 0.85;
 }
+/*
+ * The focused app's indicator. A 3px bar is a small thing to find on a busy
+ * wallpaper, so the focused one lights the glass around it — the halo is what the
+ * eye catches, and it needs no extra element to draw.
+ */
 .fx-tb-btn[data-focusedwin='true'] .fx-tb-indicator {
   width: 16px;
   opacity: 1;
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--fx-accent-light2) 55%, transparent);
 }
 .fx-tb-badge {
   position: absolute;
@@ -525,6 +614,14 @@
   font-weight: 600;
   display: grid;
   place-items: center;
+  /*
+   * Ringed in the bar's own material so the badge appears punched through the
+   * icon rather than pasted onto it, then lifted a little — an accent chip on an
+   * accent-coloured app logo would otherwise vanish into it.
+   */
+  box-shadow:
+    0 0 0 2px var(--fx-acrylic),
+    0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .fx-tray {
   display: flex;
@@ -541,22 +638,41 @@
   border-radius: var(--fx-radius-control);
   color: var(--fx-text-primary);
   font-size: var(--fx-caption);
-  transition: background var(--fx-fast) var(--fx-ease-out);
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out);
 }
 .fx-tray-btn:hover {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 .fx-tray-btn[data-active='true'] {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
+/*
+ * Show desktop. A 6px sliver at the very corner of the screen is the whole target
+ * — it is Windows' own oldest Fitts's-law trick — but a sliver that only reacts
+ * once you are already on it is undiscoverable. So it carries a permanent hairline
+ * and brightens into a full accent seam under the pointer, which is enough to
+ * tell you something is there without adding width the layout cannot spare.
+ */
 .fx-show-desktop {
   width: 6px;
   height: 40px;
   border-inline-start: 1px solid var(--fx-stroke);
   margin-inline-start: 4px;
+  border-radius: 2px;
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    border-color var(--fx-fast) var(--fx-ease-out);
 }
 .fx-show-desktop:hover {
   background: var(--fx-subtle-hover);
+  border-inline-start-color: color-mix(in srgb, var(--fx-accent-light2) 70%, transparent);
+}
+.fx-show-desktop:active {
+  background: var(--fx-subtle-pressed);
 }
 
 /* ---------------- flyouts (Start, Quick Settings, notifications) ---------------- */
@@ -566,7 +682,9 @@
   border-radius: var(--fx-radius-flyout);
   border: 1px solid var(--fx-stroke);
   box-shadow: var(--fx-shadow-flyout);
-  background: var(--fx-acrylic);
+  /* Both specular layers: a flyout is tall enough for the corner glow to read as
+     light falling into it rather than as a smear across one end. */
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-acrylic);
   backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   animation: fx-flyout-in var(--fx-normal) var(--fx-ease-out);
@@ -625,7 +743,7 @@
   border-radius: var(--fx-radius-flyout);
   border: 1px solid var(--fx-stroke);
   box-shadow: var(--fx-shadow-flyout);
-  background: var(--fx-acrylic);
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-acrylic);
   backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   animation: fx-flyout-in var(--fx-fast) var(--fx-ease-out);
@@ -1273,7 +1391,7 @@
   padding: 14px 16px;
   border-radius: var(--fx-radius-flyout);
   border: 1px solid var(--fx-stroke);
-  background: var(--fx-acrylic);
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-acrylic);
   backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   box-shadow: var(--fx-shadow-flyout);
@@ -1305,7 +1423,12 @@
 
 /* desktop icons */
 .fx-desk-icon {
-  width: 88px;
+  /*
+   * The cell owns the width; the icon leaves a 4px gutter inside it. Declaring it
+   * here rather than inline is what lets the compact form factor tighten the whole
+   * desktop by retuning one token — an inline width would outrank every rule.
+   */
+  width: calc(var(--fx-desk-cell-w) - 4px);
   padding: 6px 4px 8px;
   border-radius: var(--fx-radius-control);
   display: flex;
@@ -1313,14 +1436,39 @@
   align-items: center;
   gap: 6px;
   color: #ffffff;
-  transition: background var(--fx-fast) var(--fx-ease-out);
+  /* A touch drag has to reach the pointer handler instead of scrolling the page. */
+  touch-action: none;
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out);
 }
 .fx-desk-icon:hover {
   background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 .fx-desk-icon[data-selected='true'] {
   background: color-mix(in srgb, var(--fx-accent) 40%, transparent);
   outline: 1px solid color-mix(in srgb, var(--fx-accent) 70%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+/*
+ * Mid-drag. The transform is written straight onto the element by the drag code,
+ * so this rule only supplies the lift: above its neighbours, slightly transparent
+ * so the cell underneath stays readable, and untransitioned so it tracks 1:1.
+ *
+ * The lift is a `filter`, not a `box-shadow` and certainly not a `scale` — an
+ * inline transform outranks any stylesheet one, so a CSS scale here would simply
+ * be overwritten the moment the pointer moves. `drop-shadow` composes with the
+ * inline transform instead of fighting it, and it follows the icon's own alpha
+ * rather than its box, which is what makes the carried icon read as picked up
+ * off the wallpaper rather than as a floating rectangle.
+ */
+.fx-desk-icon[data-dragging='true'] {
+  z-index: 30;
+  opacity: 0.86;
+  cursor: grabbing;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.55));
+  transition: none;
 }
 .fx-desk-label {
   font-size: 12px;
@@ -1413,7 +1561,7 @@
   flex-direction: column;
   border-radius: 12px;
   border: 1px solid var(--fx-stroke);
-  background: var(--fx-acrylic);
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-acrylic);
   backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   box-shadow: var(--fx-shadow-flyout);
@@ -1440,13 +1588,28 @@
   border-radius: var(--fx-radius-control);
   padding: 8px 4px;
   color: var(--fx-text-primary);
-  transition: background var(--fx-fast) var(--fx-ease-out), transform var(--fx-fast);
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out),
+    transform var(--fx-fast);
 }
+/*
+ * A tile is the one place in the shell where a hover can afford to be generous:
+ * it is large, it is the thing the pointer is aiming at, and the accent pooled
+ * beneath it is what tells you the pane is glass with a light behind it rather
+ * than a printed grid. The lift and the underglow are one gesture — remove either
+ * and it reads as a flat highlight again.
+ */
 .fx-start-tile:hover {
   background: var(--fx-subtle-hover);
+  box-shadow:
+    inset 0 1px 0 var(--fx-sheen-soft),
+    0 8px 18px -10px color-mix(in srgb, var(--fx-accent) 60%, transparent);
+  transform: translateY(-2px);
 }
 .fx-start-tile:active {
   background: var(--fx-subtle-pressed);
+  box-shadow: none;
   transform: scale(0.97);
 }
 .fx-start-list-item {
@@ -1460,10 +1623,13 @@
   text-align: start;
   color: var(--fx-text-primary);
   font-size: var(--fx-body);
-  transition: background var(--fx-fast) var(--fx-ease-out);
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out);
 }
 .fx-start-list-item:hover {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 
 /* app icon tile */
@@ -1538,23 +1704,44 @@
   text-align: center;
   font-size: var(--fx-body);
 }
+/*
+ * A window card. It sits on Task View's own 64px blur, so it gets the specular
+ * layers but deliberately *not* a blur of its own: there can be a dozen of these
+ * fading in at once, and stacking another backdrop pass per card is the one thing
+ * in this file that would be felt as jank rather than seen as depth. The lit top
+ * edge does the same job for free.
+ */
 .fx-tv-card {
   position: relative;
   border-radius: var(--fx-radius-card);
   border: 1px solid var(--fx-stroke);
-  background: var(--fx-card);
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-card);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
   overflow: hidden;
   transition: transform var(--fx-normal) var(--fx-ease-out), border-color var(--fx-fast),
     box-shadow var(--fx-fast);
 }
+/* Lift plus an accent pool underneath — the same gesture as a Start tile, because
+   it answers the same question: which one am I about to pick? */
 .fx-tv-card:hover {
   transform: translateY(-4px);
   border-color: var(--fx-accent);
-  box-shadow: var(--fx-shadow-card);
+  box-shadow:
+    inset 0 1px 0 var(--fx-sheen),
+    var(--fx-shadow-card),
+    0 12px 26px -14px color-mix(in srgb, var(--fx-accent) 65%, transparent);
 }
+/*
+ * The focused window. A 1px accent ring is correct but easy to lose among eleven
+ * neighbours, so it keeps the ring and gains a bloom around it: the ring says
+ * *which*, the bloom is what makes the eye land there first.
+ */
 .fx-tv-card[data-focused='true'] {
   border-color: var(--fx-accent);
-  box-shadow: 0 0 0 1px var(--fx-accent);
+  box-shadow:
+    inset 0 1px 0 var(--fx-sheen),
+    0 0 0 1px var(--fx-accent),
+    0 0 24px -6px color-mix(in srgb, var(--fx-accent) 45%, transparent);
 }
 .fx-tv-card-main {
   width: 100%;
@@ -1572,6 +1759,10 @@
   border-radius: 6px;
   background: var(--fx-layer-alt);
   border: 1px solid var(--fx-stroke-card);
+  /* Recessed rather than flush: this is a little screen set into the card's face,
+     and an inner shadow is the whole difference between "inset panel" and
+     "differently coloured rectangle". */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
 .fx-tv-mini-win {
@@ -1609,6 +1800,17 @@
   border-radius: var(--fx-radius-control);
   color: var(--fx-text-primary);
   background: var(--fx-acrylic);
+  /*
+   * Frosted and ringed. It floats over a thumbnail whose colours it cannot
+   * predict, so it needs to own its 24px: the blur separates it from whatever is
+   * behind, and the hairline keeps its edge when that happens to be a light patch.
+   * Inline material, hence the 24px tier rather than the pane one.
+   */
+  backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
+  box-shadow:
+    inset 0 0 0 1px var(--fx-stroke),
+    0 2px 6px -2px rgba(0, 0, 0, 0.4);
   opacity: 0;
   transition: opacity var(--fx-fast) var(--fx-ease-out), background var(--fx-fast);
 }
@@ -1635,15 +1837,26 @@
   position: relative;
   border-radius: var(--fx-radius-card);
   border: 1px solid transparent;
-  transition: border-color var(--fx-fast), background var(--fx-fast);
+  transition:
+    border-color var(--fx-fast),
+    background var(--fx-fast),
+    box-shadow var(--fx-fast),
+    transform var(--fx-fast) var(--fx-ease-out);
 }
 .fx-tv-desk:hover {
   background: var(--fx-subtle-hover);
   border-color: var(--fx-stroke);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
+  transform: translateY(-2px);
 }
+/* The desktop you are on. Ring plus bloom, matching the focused window card, so
+   "current" reads the same way in both halves of Task View. */
 .fx-tv-desk[data-active='true'] {
   border-color: var(--fx-accent);
   background: var(--fx-subtle-hover);
+  box-shadow:
+    inset 0 1px 0 var(--fx-sheen-soft),
+    0 0 20px -6px color-mix(in srgb, var(--fx-accent) 45%, transparent);
 }
 .fx-tv-desk-main {
   padding: 8px 10px;
@@ -1661,6 +1874,9 @@
   border-radius: 6px;
   border: 1px solid var(--fx-stroke-card);
   background: var(--fx-layer);
+  /* Recessed for the same reason as the window wireframe above: it stands for a
+     screen, and screens sit inside things. */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
   font-family: var(--fx-font-display);
   font-size: var(--fx-body-large);
   color: var(--fx-text-secondary);
@@ -1668,6 +1884,9 @@
 .fx-tv-desk[data-active='true'] .fx-tv-desk-thumb {
   color: var(--fx-text-primary);
   border-color: var(--fx-accent);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.3),
+    0 0 0 1px color-mix(in srgb, var(--fx-accent) 40%, transparent);
 }
 .fx-tv-desk-name {
   font-size: var(--fx-caption);
@@ -1740,7 +1959,7 @@
   align-items: center;
   gap: 8px;
   border-radius: var(--fx-radius-flyout);
-  background: var(--fx-acrylic);
+  background: var(--fx-glass-sheen), var(--fx-glass-glow), var(--fx-acrylic);
   backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   border: 1px solid var(--fx-stroke);
@@ -1763,10 +1982,19 @@
   gap: 8px;
   color: var(--fx-text-primary);
   border: 2px solid transparent;
+  transition: background var(--fx-fast), border-color var(--fx-fast), box-shadow var(--fx-fast);
 }
+/*
+ * The highlighted tile. Alt+Tab is held down and walked through, so this state
+ * changes several times a second — it has to be findable at a glance without any
+ * geometry moving, which rules out a lift. Ring plus bloom, nothing that reflows.
+ */
 .fx-switcher-tile[data-active='true'] {
   background: var(--fx-subtle-hover);
   border-color: var(--fx-accent);
+  box-shadow:
+    inset 0 1px 0 var(--fx-sheen-soft),
+    0 0 18px -6px color-mix(in srgb, var(--fx-accent) 50%, transparent);
 }
 .fx-switcher-label {
   font-size: var(--fx-caption);
@@ -1980,16 +2208,37 @@
  * Icons flow top-to-bottom then wrap into the next column, the way Windows
  * arranges the desktop. The grid starts at the desktop's own origin because the
  * marquee and the context menu are positioned from its bounding box.
+ *
+ * A real grid rather than a wrapping flex column, so that a dragged icon can be
+ * given a definite `grid-column` / `grid-row` and stay exactly where it was
+ * dropped. Grid resolves definite placements before it flows the auto ones, so an
+ * icon the user has never touched moves aside for a dropped one at no cost. The
+ * cell pitch is declared here and read back by the drag code, which is why there
+ * is no `gap`: the gutter is folded into the cell so that one track equals one
+ * cell equals the number TypeScript measures.
  */
 .fx-desk-grid {
+  --fx-desk-cell-w: 92px;
+  --fx-desk-cell-h: 98px;
   position: absolute;
   inset: 0;
   padding: 8px 8px calc(var(--fx-taskbar) + 8px);
-  display: flex;
-  flex-direction: column;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 2px;
+  display: grid;
+  grid-auto-flow: column dense;
+  grid-template-rows: repeat(auto-fill, var(--fx-desk-cell-h));
+  grid-auto-columns: var(--fx-desk-cell-w);
+  align-content: start;
+  justify-content: start;
+  align-items: start;
+  justify-items: center;
+}
+.fx-desk-grid[data-size='small'] {
+  --fx-desk-cell-w: 80px;
+  --fx-desk-cell-h: 86px;
+}
+.fx-desk-grid[data-size='large'] {
+  --fx-desk-cell-w: 104px;
+  --fx-desk-cell-h: 110px;
 }
 .fx-desk-rename {
   width: 100%;
@@ -2068,6 +2317,15 @@
   --fx-card: var(--fx-solid-alt);
   --fx-card-secondary: var(--fx-solid-alt);
   --fx-glass-thick: var(--fx-solid);
+  /*
+   * The specular layers go with them. `none` is a valid `<bg-image>`, so every
+   * `background: var(--fx-glass-sheen), var(--fx-glass-glow), <colour>` in the
+   * sheet keeps parsing and simply collapses to the colour — no rule has to know
+   * that it is being flattened. `--fx-shade` deliberately stays: a lower edge in
+   * shadow is depth, not transparency, and it still reads on an opaque pane.
+   */
+  --fx-glass-sheen: none;
+  --fx-glass-glow: none;
 }
 .fos[data-transparency='false'] * {
   backdrop-filter: none !important;
@@ -2107,6 +2365,14 @@
     --fx-acrylic: var(--fx-solid);
     --fx-acrylic-thin: var(--fx-solid);
     --fx-glass-thick: var(--fx-solid);
+    /*
+     * And the specular gradients, for a different reason than above: a highlight
+     * is specular *about* something. With no blur behind the pane there is nothing
+     * for the light to be falling through, so the band over a flat fill stops
+     * reading as material and starts reading as a banding artefact.
+     */
+    --fx-glass-sheen: none;
+    --fx-glass-glow: none;
   }
 
   /* Its fill is a literal, so no token above reaches it, and it is the one card
@@ -2930,14 +3196,24 @@
   background: var(--fx-control);
   color: var(--fx-text-primary);
   font-size: var(--fx-body);
+  transition:
+    border-color var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out);
 }
 .fx-start-input::placeholder {
   color: var(--fx-text-tertiary);
 }
+/*
+ * The search field is the one control that is focused the instant Start opens, so
+ * its focus state is the first thing the eye lands on. The accent halo does that
+ * job without moving the box: growing the border alone shifts the text baseline by
+ * a pixel, which is visible as a twitch when focus arrives with the animation.
+ */
 .fx-start-input:focus {
   outline: none;
   border-color: var(--fx-accent);
   border-bottom-width: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fx-accent) 20%, transparent);
 }
 .fx-start-body {
   flex: 1;
@@ -2987,12 +3263,24 @@
   border-radius: var(--fx-radius-control);
   text-align: start;
   color: var(--fx-text-primary);
-  transition: background var(--fx-fast) var(--fx-ease-out);
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out);
 }
 .fx-start-rec-item:hover {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 .fx-start-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/*
+ * A letter's apps share one wrapper, so the divider above them has a containing
+ * block as tall as the whole group to pin inside — see `.fx-start-letter`.
+ */
+.fx-start-group {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -3012,18 +3300,39 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Alphabet divider in the All apps list. */
+/*
+ * Alphabet divider in the All apps list. It sticks to the top of the scrollport,
+ * which is what makes a long list navigable — you always know which letter you are
+ * in. Two consequences follow and both are handled here:
+ *
+ *   · Consecutive dividers all pin to `top: 0`, so the incoming one has to *cover*
+ *     the outgoing one rather than let it show through. That means it needs a
+ *     material of its own: the thin acrylic, frosting the rows sliding underneath.
+ *   · It has to sit above the rows it covers, hence the `z-index`. Rows carry none,
+ *     so 1 is enough.
+ */
 .fx-start-letter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: 12px 12px 4px;
   font-size: var(--fx-caption);
   font-weight: 600;
   color: var(--fx-accent-text);
+  background: var(--fx-acrylic-thin);
+  backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
 }
 .fx-start-empty {
   margin: 0;
   padding: 32px 12px;
   text-align: center;
 }
+/*
+ * The footer is a plinth, not a strip of the pane: a lit top edge on top of the
+ * divider is what separates the two materials, so the account row and the power
+ * button read as sitting *on* Start rather than floating in the last of its rows.
+ */
 .fx-start-footer {
   flex: none;
   display: flex;
@@ -3033,6 +3342,7 @@
   padding: 12px 24px;
   background: var(--fx-layer-alt);
   border-top: 1px solid var(--fx-divider);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 .fx-start-user {
   display: flex;
@@ -3041,10 +3351,13 @@
   padding: 6px 10px;
   border-radius: var(--fx-radius-control);
   color: var(--fx-text-primary);
-  transition: background var(--fx-fast) var(--fx-ease-out);
+  transition:
+    background var(--fx-fast) var(--fx-ease-out),
+    box-shadow var(--fx-fast) var(--fx-ease-out);
 }
 .fx-start-user:hover {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 .fx-start-avatar {
   flex: none;
@@ -3057,6 +3370,11 @@
   color: #ffffff;
   font-size: 11px;
   font-weight: 600;
+  /* Ringed and lifted: a flat accent disc on an accent-tinted plinth loses its
+     edge, and this one carries the only initials in the shell. */
+  box-shadow:
+    0 0 0 1px var(--fx-sheen-soft),
+    0 2px 6px -2px rgba(0, 0, 0, 0.42);
 }
 .fx-start-user-name {
   font-size: var(--fx-body);
@@ -3453,8 +3771,9 @@
 .fos[data-form-factor='medium'] .fx-tv-strip {
   padding: 12px 24px 24px;
 }
-.fos[data-form-factor='compact'] .fx-desk-icon {
-  width: 76px;
+/* Retune the cell, not the icon: the icon derives its width from the cell. */
+.fos[data-form-factor='compact'] .fx-desk-grid {
+  --fx-desk-cell-w: 80px;
 }
 .fos[data-form-factor='compact'] .fx-toast-host {
   inset-inline: 8px;

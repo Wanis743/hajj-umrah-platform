@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 import {
   useCallback,
+  useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -54,12 +56,37 @@ import {
   useShellHostController,
   useToast,
 } from './bindings';
+import {
+  cellAt,
+  decodePlacements,
+  encodePlacements,
+  fitPlacements,
+  gridBounds,
+  resolveDrop,
+  type Cell,
+  type CellSize,
+  type GridBounds,
+  type Move,
+  type Placements,
+} from './deskLayout';
 import { iconForContentType } from './iconRegistry';
 import { AppIcon } from './icons';
 
 const DESKTOP_FOLDER = `${KERNEL_USER_FOLDER}\\Desktop`;
 /** Opening a whole marquee-selected screenful at once would be hostile. */
 const MAX_BULK_OPEN = 4;
+/** Pointer travel, in pixels, before a press on an icon counts as a drag. */
+const DRAG_SLOP = 4;
+/**
+ * Cell pitch per icon size, for the frame before the stylesheet has resolved.
+ * The stylesheet is the real source of truth — these mirror it so that a first
+ * measurement taken too early is approximately right rather than absurd.
+ */
+const CELL_FALLBACK: Record<IconSize, CellSize> = {
+  small: { w: 80, h: 86 },
+  medium: { w: 92, h: 98 },
+  large: { w: 104, h: 110 },
+};
 
 type SortKey = 'name' | 'kind' | 'date' | 'size';
 const SORT_KEYS: readonly SortKey[] = ['name', 'kind', 'date', 'size'];
@@ -137,6 +164,185 @@ function bandHits(cells: Map<string, HTMLElement>, origin: DOMRect, band: Rect):
     if (touches) found.push(key);
   }
   return found;
+}
+
+/** The grid's own cell pitch, as the stylesheet computed it for this icon size. */
+function readCell(grid: HTMLElement, size: IconSize): CellSize {
+  const style = getComputedStyle(grid);
+  const w = Number.parseFloat(style.getPropertyValue('--fx-desk-cell-w'));
+  const h = Number.parseFloat(style.getPropertyValue('--fx-desk-cell-h'));
+  const fallback = CELL_FALLBACK[size];
+  return { w: w > 0 ? w : fallback.w, h: h > 0 ? h : fallback.h };
+}
+
+/** The grid's content box in viewport coordinates: where the first cell begins. */
+function contentBox(grid: HTMLElement): CellSize & { readonly x: number; readonly y: number } {
+  const rect = grid.getBoundingClientRect();
+  const style = getComputedStyle(grid);
+  const left = Number.parseFloat(style.paddingLeft);
+  const top = Number.parseFloat(style.paddingTop);
+  return {
+    x: rect.left + grid.clientLeft + left,
+    y: rect.top + grid.clientTop + top,
+    w: grid.clientWidth - left - Number.parseFloat(style.paddingRight),
+    h: grid.clientHeight - top - Number.parseFloat(style.paddingBottom),
+  };
+}
+
+interface DeskLayout {
+  /** Cells to render, already fitted to the grid that actually exists. */
+  readonly placements: Placements;
+  readonly beginDrag: (
+    event: ReactPointerEvent<HTMLElement>,
+    key: string,
+    group: Selection,
+    tap: () => void,
+  ) => void;
+}
+
+/**
+ * Free icon placement. The drag itself never goes through React: the grid's
+ * contents are re-listed from the VFS on every render, so a state update per
+ * pointermove would relist the whole desktop sixty times a second in order to
+ * move one icon. The carried elements — already held in `cells` for the marquee —
+ * get a `transform` written straight onto them instead, and React learns the
+ * outcome once, at the drop. React never clears a style property it did not set
+ * itself, so an imperative transform survives a re-render landing mid-drag.
+ */
+function useDeskLayout(
+  kernel: Kernel,
+  gridRef: { current: HTMLDivElement | null },
+  cells: Map<string, HTMLElement>,
+  items: readonly DeskItem[],
+  size: IconSize,
+): DeskLayout {
+  const raw = useKernelView(kernel.registry, () =>
+    kernel.registry.getString(REG.userDesktop, 'IconPlacements', ''),
+  );
+  const [bounds, setBounds] = useState<GridBounds | null>(null);
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (grid === null) return;
+    const measure = () => {
+      const next = gridBounds(contentBox(grid), readCell(grid, size));
+      setBounds((old) => (old !== null && old.cols === next.cols && old.rows === next.rows ? old : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [gridRef, size]);
+
+  const placements = useMemo(() => {
+    const stored = decodePlacements(raw);
+    return bounds === null ? stored : fitPlacements(stored, bounds);
+  }, [raw, bounds]);
+
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>, key: string, group: Selection, tap: () => void) => {
+    const grid = gridRef.current;
+    const held = cells.get(key);
+    if (event.button !== 0 || grid === null || held === undefined) return;
+
+    const box = contentBox(grid);
+    const cell = readCell(grid, size);
+    const area = gridBounds(box, cell);
+    /** Column 1 is the right-hand column under RTL, so measure the near edge. */
+    const rtl = getComputedStyle(grid).direction === 'rtl';
+    const near = (rect: DOMRect, dx: number) => (rtl ? box.x + box.w - (rect.right + dx) : rect.left + dx - box.x);
+    const cellOf = (rect: DOMRect) => cellAt({ x: near(rect, 0), y: rect.top - box.y }, cell, area);
+
+    const start = held.getBoundingClientRect();
+    const from = { x: event.clientX, y: event.clientY };
+    const carried: { readonly node: HTMLElement; readonly move: Move }[] = [];
+    for (const member of group) {
+      const node = cells.get(member);
+      if (node !== undefined) carried.push({ node, move: { key: member, at: cellOf(node.getBoundingClientRect()) } });
+    }
+    let dragging = false;
+
+    const move = (native: PointerEvent) => {
+      const dx = native.clientX - from.x;
+      const dy = native.clientY - from.y;
+      if (!dragging && Math.abs(dx) < DRAG_SLOP && Math.abs(dy) < DRAG_SLOP) return;
+      dragging = true;
+      for (const entry of carried) {
+        entry.node.dataset.dragging = 'true';
+        entry.node.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+      }
+    };
+
+    const finish = (native: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      for (const entry of carried) {
+        delete entry.node.dataset.dragging;
+        entry.node.style.transform = '';
+      }
+      if (!dragging) {
+        tap();
+        return;
+      }
+      const dx = native.clientX - from.x;
+      const dy = native.clientY - from.y;
+      const target = cellAt({ x: near(start, dx), y: start.top + dy - box.y }, cell, area);
+      const next = resolveDrop({
+        placements,
+        moves: carried.map((entry) => entry.move),
+        target,
+        anchor: key,
+        bounds: area,
+        alive: new Set(items.map((item) => item.key)),
+      });
+      kernel.registry.set(REG.userDesktop, 'IconPlacements', encodePlacements(next));
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish, { once: true });
+  };
+
+  return { placements, beginDrag };
+}
+
+/**
+ * Pointer-down on an icon. The group a drag carries is the selection *after* the
+ * click — but a plain click on an icon that is already selected must not collapse
+ * the group to one, or dragging a multi-selection would be impossible. So that
+ * collapse is deferred to `beginDrag`, which runs it only if the pointer never
+ * moved. Modifier clicks never start a drag: ctrl-clicking an icon out of the
+ * selection and then dragging it would carry a group it is not part of.
+ */
+function deskGrab(o: {
+  readonly items: readonly DeskItem[];
+  readonly selection: Selection;
+  readonly setSelection: Dispatch<SetStateAction<Selection>>;
+  readonly anchor: { current: number };
+  readonly beginDrag: DeskLayout['beginDrag'];
+}) {
+  return (event: ReactPointerEvent<HTMLElement>, index: number, item: DeskItem) => {
+    if (event.ctrlKey) {
+      const next = new Set(o.selection);
+      if (next.has(item.key)) next.delete(item.key);
+      else next.add(item.key);
+      o.setSelection(next);
+      o.anchor.current = index;
+      return;
+    }
+    if (event.shiftKey) {
+      const [from, to] = o.anchor.current <= index ? [o.anchor.current, index] : [index, o.anchor.current];
+      o.setSelection(new Set(o.items.slice(from, to + 1).map((entry) => entry.key)));
+      return;
+    }
+    const only = () => {
+      o.anchor.current = index;
+      o.setSelection(new Set([item.key]));
+    };
+    if (o.selection.has(item.key)) {
+      o.beginDrag(event, item.key, o.selection, only);
+      return;
+    }
+    only();
+    o.beginDrag(event, item.key, new Set([item.key]), () => undefined);
+  };
 }
 
 /** `New folder`, `New folder (2)`, … — the same disambiguation Windows uses. */
@@ -316,25 +522,8 @@ export function Desktop({ locale, appearance }: DesktopProps) {
     [kernel, runAction],
   );
 
-  const select = (index: number, item: DeskItem, event: { ctrlKey: boolean; shiftKey: boolean }) => {
-    if (event.ctrlKey) {
-      setSelection((previous) => {
-        const next = new Set(previous);
-        if (next.has(item.key)) next.delete(item.key);
-        else next.add(item.key);
-        return next;
-      });
-      anchor.current = index;
-      return;
-    }
-    if (event.shiftKey) {
-      const [from, to] = anchor.current <= index ? [anchor.current, index] : [index, anchor.current];
-      setSelection(new Set(items.slice(from, to + 1).map((entry) => entry.key)));
-      return;
-    }
-    setSelection(new Set([item.key]));
-    anchor.current = index;
-  };
+  const layout = useDeskLayout(kernel, gridRef, cells, items, appearance.iconSize);
+  const grab = deskGrab({ items, selection, setSelection, anchor, beginDrag: layout.beginDrag });
 
   /** Rubber band. Tracked on `window` so a drag that leaves the grid still works. */
   const beginBand = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -385,6 +574,7 @@ export function Desktop({ locale, appearance }: DesktopProps) {
     else if (id === 'refresh') refresh();
     else if (id === 'display') settings('system');
     else if (id === 'personalise') settings('personalisation');
+    else if (id === 'resetpos') kernel.registry.delete(REG.userDesktop, 'IconPlacements');
     else if (menu?.item != null) onItemCommand(menu.item, id);
   };
 
@@ -422,6 +612,7 @@ export function Desktop({ locale, appearance }: DesktopProps) {
       <div
         ref={gridRef}
         className="fx-desk-grid"
+        data-size={appearance.iconSize}
         tabIndex={0}
         aria-label={locale.tr('سطح المكتب', 'Bureau', 'Desktop')}
         onPointerDown={beginBand}
@@ -439,13 +630,14 @@ export function Desktop({ locale, appearance }: DesktopProps) {
                 key={item.key}
                 item={item}
                 size={appearance.iconSize}
+                at={layout.placements.get(item.key) ?? null}
                 selected={selection.has(item.key)}
                 renaming={item.kind === 'file' && files.renaming === item.stat.path}
                 register={(element) => {
                   if (element === null) cells.delete(item.key);
                   else cells.set(item.key, element);
                 }}
-                onSelect={(event) => select(index, item, event)}
+                onSelect={(event) => grab(event, index, item)}
                 onOpen={() => open(item)}
                 onRename={(next) => {
                   if (item.kind === 'file') files.rename(item, next);
@@ -471,7 +663,9 @@ export function Desktop({ locale, appearance }: DesktopProps) {
           y={menu.y}
           minWidth={menu.item === null ? 236 : 216}
           entries={
-            menu.item === null ? desktopEntries(locale, appearance, sort) : itemEntries(menu.item, locale, chosen.length)
+            menu.item === null
+              ? desktopEntries(locale, appearance, sort, layout.placements.size > 0)
+              : itemEntries(menu.item, locale, chosen.length)
           }
           onDismiss={() => setMenu(null)}
           onSelect={onCommand}
@@ -488,10 +682,12 @@ export function Desktop({ locale, appearance }: DesktopProps) {
 interface DeskIconProps {
   readonly item: DeskItem;
   readonly size: IconSize;
+  /** The cell this icon was dropped on, or `null` to let the grid place it. */
+  readonly at: Cell | null;
   readonly selected: boolean;
   readonly renaming: boolean;
   readonly register: (element: HTMLElement | null) => void;
-  readonly onSelect: (event: { ctrlKey: boolean; shiftKey: boolean }) => void;
+  readonly onSelect: (event: ReactPointerEvent<HTMLElement>) => void;
   readonly onOpen: () => void;
   readonly onRename: (next: string) => void;
   readonly onCancelRename: () => void;
@@ -501,6 +697,7 @@ interface DeskIconProps {
 function DeskIcon({
   item,
   size,
+  at,
   selected,
   renaming,
   register,
@@ -518,7 +715,7 @@ function DeskIcon({
       ref={register}
       className="fx-desk-icon"
       data-selected={selected ? 'true' : 'false'}
-      style={{ width: pixels + 44 }}
+      style={at === null ? undefined : { gridColumn: at.col, gridRow: at.row }}
       role="button"
       tabIndex={-1}
       aria-pressed={selected}
@@ -593,7 +790,12 @@ function RenameField({
  * Menus
  * ------------------------------------------------------------------ */
 
-function desktopEntries(locale: AppLocale, appearance: Appearance, sort: SortKey): readonly MenuEntry[] {
+function desktopEntries(
+  locale: AppLocale,
+  appearance: Appearance,
+  sort: SortKey,
+  placed: boolean,
+): readonly MenuEntry[] {
   const sizes: readonly { readonly id: IconSize; readonly label: string }[] = [
     { id: 'large', label: locale.tr('أيقونات كبيرة', 'Grandes icônes', 'Large icons') },
     { id: 'medium', label: locale.tr('أيقونات متوسطة', 'Icônes moyennes', 'Medium icons') },
@@ -605,6 +807,16 @@ function desktopEntries(locale: AppLocale, appearance: Appearance, sort: SortKey
     { id: 'date', label: locale.tr('تاريخ التعديل', 'Date de modification', 'Date modified') },
     { id: 'size', label: locale.tr('الحجم', 'Taille', 'Size') },
   ];
+
+  /** Offered only once something has actually been dropped, like Windows. */
+  const reset: readonly MenuEntry[] = placed
+    ? [
+        {
+          id: 'resetpos',
+          label: locale.tr('إعادة ترتيب الأيقونات', 'Réinitialiser les positions', 'Reset icon positions'),
+        },
+      ]
+    : [];
 
   return [
     {
@@ -623,6 +835,7 @@ function desktopEntries(locale: AppLocale, appearance: Appearance, sort: SortKey
           label: locale.tr('إظهار أيقونات سطح المكتب', 'Afficher les icônes', 'Show desktop icons'),
           checked: appearance.showDesktopIcons,
         },
+        ...reset,
       ],
     },
     {
