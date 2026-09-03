@@ -54,6 +54,24 @@
   --fx-normal: 0.2s;
   --fx-slow: 0.3s;
 
+  /* ---------- glass ---------- *
+   * Liquid glass is a material, not a colour, so its geometry lives here with
+   * the radii and the curves. Three blur depths, named for what they cover
+   * rather than for a number, so a surface asks for `lg` and stays coherent
+   * when the recipe is retuned:
+   *
+   *   `sm`  inline material — tooltip, sign-in card; small, and cheap to sample
+   *   `lg`  chrome panes — taskbar, flyout, menu, toast, Start, switcher
+   *   `xl`  whole surfaces — a window, and the Task View that replaces them all
+   *
+   * Saturation above 100% is what separates glass from grey film. A wide blur
+   * averages the wallpaper toward mid-grey; pushing the chroma back up is what
+   * makes the colour behind a pane read *through* it rather than under it. */
+  --fx-glass-blur-sm: 24px;
+  --fx-glass-blur-lg: 40px;
+  --fx-glass-blur-xl: 64px;
+  --fx-glass-sat: 165%;
+
   /* ---------- accent (overridden per user preference) ---------- */
   --fx-accent: #0078d4;
   --fx-accent-light1: #2a90da;
@@ -78,49 +96,78 @@
   --fx-text-tertiary: rgba(255, 255, 255, 0.44);
   --fx-text-disabled: rgba(255, 255, 255, 0.28);
 
-  /* Mica: window backdrop tinted by the wallpaper behind it. */
-  --fx-mica: rgba(32, 32, 32, 0.78);
-  --fx-mica-alt: rgba(26, 26, 26, 0.86);
+  /* Mica: window backdrop tinted by the wallpaper behind it. Thinner than
+     Fluent's, because the blur behind it is wider and the sheen below carries
+     the top edge — the pane stops being a dark card and becomes glass. */
+  --fx-mica: rgba(28, 30, 36, 0.62);
+  --fx-mica-alt: rgba(20, 22, 27, 0.72);
   /* Layered surfaces inside a window. */
-  --fx-layer: rgba(58, 58, 58, 0.3);
-  --fx-layer-alt: rgba(255, 255, 255, 0.045);
-  --fx-card: rgba(255, 255, 255, 0.052);
-  --fx-card-secondary: rgba(255, 255, 255, 0.032);
+  --fx-layer: rgba(72, 78, 90, 0.24);
+  --fx-layer-alt: rgba(255, 255, 255, 0.055);
+  --fx-card: rgba(255, 255, 255, 0.064);
+  --fx-card-secondary: rgba(255, 255, 255, 0.038);
   /* Acrylic for flyouts, menus and the taskbar. */
-  --fx-acrylic: rgba(44, 44, 44, 0.88);
-  --fx-acrylic-thin: rgba(32, 32, 32, 0.72);
+  --fx-acrylic: rgba(32, 35, 42, 0.7);
+  --fx-acrylic-thin: rgba(22, 24, 30, 0.56);
   --fx-solid: #202020;
   --fx-solid-alt: #1c1c1c;
+  /*
+   * Thick glass, for the surfaces that must read as the same material but may
+   * not carry a blur of their own: `backdrop-filter` makes an element the
+   * containing block of every fixed-positioned descendant, and these host app
+   * content that can contain one. At this alpha the pane is opaque enough to
+   * read a form over and still tinted to the hue of the glass around it.
+   */
+  --fx-glass-thick: rgba(30, 32, 38, 0.95);
 
-  --fx-stroke: rgba(255, 255, 255, 0.0837);
-  --fx-stroke-strong: rgba(255, 255, 255, 0.16);
-  --fx-stroke-card: rgba(255, 255, 255, 0.0578);
-  --fx-divider: rgba(255, 255, 255, 0.0837);
+  /*
+   * The top edge. A frosted pane catches light along its upper lip, and without
+   * that line a blur is just a low-opacity div. It rides *inside* the lift
+   * shadows below rather than on each surface, so every shadow consumer — the
+   * one in the app layer included — inherits it from one place.
+   */
+  --fx-sheen: rgba(255, 255, 255, 0.16);
+  --fx-sheen-soft: rgba(255, 255, 255, 0.08);
 
-  --fx-control: rgba(255, 255, 255, 0.0605);
-  --fx-control-hover: rgba(255, 255, 255, 0.0837);
-  --fx-control-pressed: rgba(255, 255, 255, 0.0326);
-  --fx-control-disabled: rgba(255, 255, 255, 0.0419);
-  --fx-subtle-hover: rgba(255, 255, 255, 0.0605);
-  --fx-subtle-pressed: rgba(255, 255, 255, 0.0419);
-  --fx-control-stroke: rgba(255, 255, 255, 0.0698);
-  --fx-control-stroke-bottom: rgba(255, 255, 255, 0.14);
+  --fx-stroke: rgba(255, 255, 255, 0.12);
+  --fx-stroke-strong: rgba(255, 255, 255, 0.22);
+  --fx-stroke-card: rgba(255, 255, 255, 0.09);
+  --fx-divider: rgba(255, 255, 255, 0.075);
+
+  --fx-control: rgba(255, 255, 255, 0.075);
+  --fx-control-hover: rgba(255, 255, 255, 0.105);
+  --fx-control-pressed: rgba(255, 255, 255, 0.042);
+  --fx-control-disabled: rgba(255, 255, 255, 0.035);
+  --fx-subtle-hover: rgba(255, 255, 255, 0.075);
+  --fx-subtle-pressed: rgba(255, 255, 255, 0.05);
+  --fx-control-stroke: rgba(255, 255, 255, 0.1);
+  --fx-control-stroke-bottom: rgba(255, 255, 255, 0.17);
 
   --fx-success: #6ccb5f;
-  --fx-success-bg: rgba(108, 203, 95, 0.12);
+  --fx-success-bg: rgba(108, 203, 95, 0.14);
   --fx-warning: #fce100;
-  --fx-warning-bg: rgba(252, 225, 0, 0.12);
+  --fx-warning-bg: rgba(252, 225, 0, 0.14);
   --fx-danger: #ff99a4;
-  --fx-danger-bg: rgba(255, 153, 164, 0.12);
+  --fx-danger-bg: rgba(255, 153, 164, 0.14);
   --fx-info: #60cdff;
-  --fx-info-bg: rgba(96, 205, 255, 0.12);
+  --fx-info-bg: rgba(96, 205, 255, 0.14);
   --fx-close-hover: #c42b1c;
 
-  --fx-shadow-flyout: 0 8px 16px rgba(0, 0, 0, 0.34);
-  --fx-shadow-window: 0 2px 4px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.44);
-  --fx-shadow-window-focus: 0 4px 8px rgba(0, 0, 0, 0.34), 0 32px 64px rgba(0, 0, 0, 0.5);
-  --fx-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
-  --fx-smoke: rgba(0, 0, 0, 0.3);
+  /*
+   * Lift. Each one leads with the sheen, then a tight contact shadow, then a
+   * wide soft one — a pane floating over the wallpaper, rather than a card with
+   * a drop shadow. The negative spreads keep the wide layer off the edges so it
+   * darkens the ground without muddying the hairline.
+   */
+  --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), 0 2px 8px -2px rgba(0, 0, 0, 0.32),
+    0 14px 36px -10px rgba(0, 0, 0, 0.5);
+  --fx-shadow-window: inset 0 1px 0 var(--fx-sheen), 0 2px 6px -2px rgba(0, 0, 0, 0.34),
+    0 22px 52px -14px rgba(0, 0, 0, 0.52);
+  --fx-shadow-window-focus: inset 0 1px 0 var(--fx-sheen), 0 4px 12px -2px rgba(0, 0, 0, 0.4),
+    0 44px 88px -18px rgba(0, 0, 0, 0.6);
+  --fx-shadow-card: inset 0 1px 0 var(--fx-sheen-soft), 0 1px 3px rgba(0, 0, 0, 0.24),
+    0 8px 20px -10px rgba(0, 0, 0, 0.32);
+  --fx-smoke: rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
 
@@ -131,47 +178,61 @@
   --fx-text-tertiary: rgba(0, 0, 0, 0.4458);
   --fx-text-disabled: rgba(0, 0, 0, 0.3614);
 
-  --fx-mica: rgba(243, 243, 243, 0.82);
-  --fx-mica-alt: rgba(238, 238, 238, 0.88);
-  --fx-layer: rgba(255, 255, 255, 0.5);
-  --fx-layer-alt: rgba(255, 255, 255, 0.7);
-  --fx-card: rgba(255, 255, 255, 0.7);
-  --fx-card-secondary: rgba(246, 246, 246, 0.5);
-  --fx-acrylic: rgba(249, 249, 249, 0.9);
-  --fx-acrylic-thin: rgba(252, 252, 252, 0.78);
+  --fx-mica: rgba(250, 250, 252, 0.64);
+  --fx-mica-alt: rgba(242, 243, 246, 0.74);
+  --fx-layer: rgba(255, 255, 255, 0.42);
+  --fx-layer-alt: rgba(255, 255, 255, 0.54);
+  --fx-card: rgba(255, 255, 255, 0.62);
+  --fx-card-secondary: rgba(255, 255, 255, 0.4);
+  --fx-acrylic: rgba(252, 252, 253, 0.72);
+  --fx-acrylic-thin: rgba(250, 250, 252, 0.58);
   --fx-solid: #f3f3f3;
   --fx-solid-alt: #fafafa;
+  --fx-glass-thick: rgba(250, 250, 252, 0.95);
 
-  --fx-stroke: rgba(0, 0, 0, 0.0578);
+  /*
+   * On light glass the sheen is the material's brightest note, not a hint: white
+   * over a pale tint is what a lit edge looks like. The hairlines below stay
+   * dark for the opposite reason — a white line on a white pane is no line, and
+   * a card still has to have an edge.
+   */
+  --fx-sheen: rgba(255, 255, 255, 0.9);
+  --fx-sheen-soft: rgba(255, 255, 255, 0.65);
+
+  --fx-stroke: rgba(0, 0, 0, 0.08);
   --fx-stroke-strong: rgba(0, 0, 0, 0.16);
-  --fx-stroke-card: rgba(0, 0, 0, 0.0578);
-  --fx-divider: rgba(0, 0, 0, 0.0803);
+  --fx-stroke-card: rgba(0, 0, 0, 0.07);
+  --fx-divider: rgba(0, 0, 0, 0.075);
 
-  --fx-control: rgba(255, 255, 255, 0.7);
-  --fx-control-hover: rgba(249, 249, 249, 0.5);
-  --fx-control-pressed: rgba(249, 249, 249, 0.3);
+  --fx-control: rgba(255, 255, 255, 0.72);
+  --fx-control-hover: rgba(255, 255, 255, 0.92);
+  --fx-control-pressed: rgba(249, 249, 249, 0.42);
   --fx-control-disabled: rgba(249, 249, 249, 0.3);
-  --fx-subtle-hover: rgba(0, 0, 0, 0.0373);
-  --fx-subtle-pressed: rgba(0, 0, 0, 0.0241);
-  --fx-control-stroke: rgba(0, 0, 0, 0.0578);
+  --fx-subtle-hover: rgba(0, 0, 0, 0.042);
+  --fx-subtle-pressed: rgba(0, 0, 0, 0.028);
+  --fx-control-stroke: rgba(0, 0, 0, 0.07);
   --fx-control-stroke-bottom: rgba(0, 0, 0, 0.16);
 
   --fx-accent: #005fb8;
   --fx-accent-text: #003e92;
   --fx-success: #0f7b0f;
-  --fx-success-bg: rgba(15, 123, 15, 0.1);
+  --fx-success-bg: rgba(15, 123, 15, 0.12);
   --fx-warning: #9d5d00;
-  --fx-warning-bg: rgba(157, 93, 0, 0.1);
+  --fx-warning-bg: rgba(157, 93, 0, 0.12);
   --fx-danger: #c42b1c;
-  --fx-danger-bg: rgba(196, 43, 28, 0.1);
+  --fx-danger-bg: rgba(196, 43, 28, 0.12);
   --fx-info: #005fb8;
-  --fx-info-bg: rgba(0, 95, 184, 0.1);
+  --fx-info-bg: rgba(0, 95, 184, 0.12);
 
-  --fx-shadow-flyout: 0 8px 16px rgba(0, 0, 0, 0.14);
-  --fx-shadow-window: 0 2px 4px rgba(0, 0, 0, 0.13), 0 16px 40px rgba(0, 0, 0, 0.15);
-  --fx-shadow-window-focus: 0 4px 8px rgba(0, 0, 0, 0.14), 0 32px 64px rgba(0, 0, 0, 0.19);
-  --fx-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
-  --fx-smoke: rgba(255, 255, 255, 0.3);
+  --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), 0 2px 8px -3px rgba(0, 0, 0, 0.12),
+    0 14px 36px -12px rgba(0, 0, 0, 0.2);
+  --fx-shadow-window: inset 0 1px 0 var(--fx-sheen), 0 2px 6px -2px rgba(0, 0, 0, 0.1),
+    0 22px 52px -16px rgba(0, 0, 0, 0.22);
+  --fx-shadow-window-focus: inset 0 1px 0 var(--fx-sheen), 0 4px 12px -2px rgba(0, 0, 0, 0.14),
+    0 44px 88px -20px rgba(0, 0, 0, 0.28);
+  --fx-shadow-card: inset 0 1px 0 var(--fx-sheen-soft), 0 1px 2px rgba(0, 0, 0, 0.06),
+    0 8px 20px -12px rgba(0, 0, 0, 0.16);
+  --fx-smoke: rgba(255, 255, 255, 0.42);
   color-scheme: light;
 }
 
@@ -238,14 +299,26 @@
 /* ---------------- material helpers ---------------- *
  * Only the shared card shape earns a class. The Mica and Acrylic recipes are
  * applied directly by the surfaces that use them (window, taskbar, flyout,
- * menu) because each picks its own blur radius; apps compose surfaces from the
+ * menu) because each picks its own blur depth; apps compose surfaces from the
  * SDK's controls and address the palette through the `--fx-*` tokens, which are
- * the documented boundary.
+ * the documented boundary — which is also why retuning those tokens restyles
+ * every app interior without a single app file changing.
+ *
+ * One recipe, three depths: tint + blur + hairline + lift, with an inset top
+ * sheen. The sheen is what actually sells the material — a frosted pane catches
+ * light on its top edge, and without that line the blur just looks like a
+ * low-opacity div — so it lives inside the `--fx-shadow-*` values and arrives
+ * with the lift rather than being repeated on every surface.
+ *
+ * A card is the shallowest depth: it carries no blur of its own, because it sits
+ * on a pane that already blurred the wallpaper for it. What makes it read as
+ * glass is the lift and the sheen.
  */
 .fx-card {
   background: var(--fx-card);
   border: 1px solid var(--fx-stroke-card);
   border-radius: var(--fx-radius-card);
+  box-shadow: var(--fx-shadow-card);
 }
 
 /* ---------------- window ---------------- */
@@ -259,8 +332,8 @@
   box-shadow: var(--fx-shadow-window);
   overflow: hidden;
   background: var(--fx-mica);
-  backdrop-filter: blur(60px) saturate(125%);
-  -webkit-backdrop-filter: blur(60px) saturate(125%);
+  backdrop-filter: blur(var(--fx-glass-blur-xl)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-xl)) saturate(var(--fx-glass-sat));
   animation: fx-window-in var(--fx-normal) var(--fx-ease-out);
 }
 .fx-window[data-focused='true'] {
@@ -303,6 +376,12 @@
   gap: 8px;
   background: var(--fx-mica-alt);
   border-bottom: 1px solid var(--fx-divider);
+  /*
+   * The window's own sheen is behind this band — the title bar is flush with the
+   * top edge and paints over it — so the lit lip is repeated here. Keeping both
+   * means the window still reads as glass if a form factor ever drops the bar.
+   */
+  box-shadow: inset 0 1px 0 var(--fx-sheen);
   touch-action: none;
 }
 .fx-titlebar-text {
@@ -375,9 +454,12 @@
   justify-content: space-between;
   padding-inline: 8px;
   background: var(--fx-acrylic);
-  backdrop-filter: blur(30px) saturate(125%);
-  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   border-top: 1px solid var(--fx-stroke);
+  /* The bar's lit lip. It has no lift shadow of its own — it is welded to the
+     bottom of the screen — so the sheen is declared here directly. */
+  box-shadow: inset 0 1px 0 var(--fx-sheen);
 }
 .fx-taskbar-center {
   display: flex;
@@ -485,8 +567,8 @@
   border: 1px solid var(--fx-stroke);
   box-shadow: var(--fx-shadow-flyout);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(30px) saturate(125%);
-  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   animation: fx-flyout-in var(--fx-normal) var(--fx-ease-out);
   overflow: hidden;
 }
@@ -544,8 +626,8 @@
   border: 1px solid var(--fx-stroke);
   box-shadow: var(--fx-shadow-flyout);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(30px) saturate(125%);
-  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   animation: fx-flyout-in var(--fx-fast) var(--fx-ease-out);
 }
 .fx-menu-item {
@@ -604,6 +686,12 @@
   border-bottom-color: var(--fx-control-stroke-bottom);
   color: var(--fx-text-primary);
   font-size: var(--fx-body);
+  /* A control is a chip of the same glass: the lit top lip is what separates it
+     from a flat rectangle of tint. Soft, because at 32px tall the full sheen
+     would read as a highlight rather than an edge. Accent and danger inherit it
+     — a lighter top edge on a filled button is the Fluent signature — and the
+     `subtle` variant switches it off below, having no surface to light. */
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
   transition: background var(--fx-fast) var(--fx-ease-out), border-color var(--fx-fast);
 }
 .fx-btn:hover:not(:disabled) {
@@ -634,9 +722,13 @@
 .fx-btn[data-variant='subtle'] {
   background: transparent;
   border-color: transparent;
+  /* No surface, so no lit edge — a sheen here is a white line floating above the
+     label. It comes back on hover, where there is a fill to light. */
+  box-shadow: none;
 }
 .fx-btn[data-variant='subtle']:hover:not(:disabled) {
   background: var(--fx-subtle-hover);
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
 }
 .fx-btn[data-variant='danger'] {
   background: var(--fx-danger-bg);
@@ -699,9 +791,11 @@
 .fx-input:hover:not(:disabled) {
   background: var(--fx-control-hover);
 }
-/* Fluent accent underline on focus */
+/* Fluent accent underline on focus. The fill goes to thick glass rather than a
+   solid: a field being typed into should read as the most opaque thing on the
+   pane without dropping out of the material. */
 .fx-input:focus {
-  background: var(--fx-solid-alt);
+  background: var(--fx-glass-thick);
   border-bottom: 2px solid var(--fx-accent);
   padding-bottom: 4px;
   outline: none;
@@ -784,7 +878,10 @@
   height: 20px;
   border-radius: 999px;
   background: var(--fx-accent);
-  border: 4px solid var(--fx-solid);
+  /* The ring is a real 4px border, not a gap, so it cannot be transparent
+     without the accent dot smearing into the track. Thick glass hue-matches it
+     to the pane instead — same geometry, no opaque grey donut on the material. */
+  border: 4px solid var(--fx-glass-thick);
   box-shadow: 0 0 0 1px var(--fx-stroke-strong);
   cursor: pointer;
 }
@@ -960,29 +1057,42 @@
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
+/*
+ * Badge tones. Each carries a hairline in its own hue, as an inset shadow rather
+ * than a border: a 14%-alpha wash over glass has no edge of its own, and once the
+ * pane beneath it is translucent an edgeless pill reads as a smudge. Inset,
+ * because a real border would add 2px per axis to every badge in every table and
+ * the fold sweeps measure that geometry.
+ */
 .fx-badge[data-tone='neutral'] {
   background: var(--fx-control);
   color: var(--fx-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--fx-stroke-card);
 }
 .fx-badge[data-tone='success'] {
   background: var(--fx-success-bg);
   color: var(--fx-success);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-success) 32%, transparent);
 }
 .fx-badge[data-tone='warning'] {
   background: var(--fx-warning-bg);
   color: var(--fx-warning);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-warning) 32%, transparent);
 }
 .fx-badge[data-tone='danger'] {
   background: var(--fx-danger-bg);
   color: var(--fx-danger);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-danger) 32%, transparent);
 }
 .fx-badge[data-tone='info'] {
   background: var(--fx-info-bg);
   color: var(--fx-info);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-info) 32%, transparent);
 }
 .fx-badge[data-tone='accent'] {
   background: color-mix(in srgb, var(--fx-accent) 20%, transparent);
   color: var(--fx-accent-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fx-accent) 32%, transparent);
 }
 
 /* progress */
@@ -1031,8 +1141,10 @@
   padding: 5px 8px;
   border-radius: var(--fx-radius-control);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* The shallowest blur: a tooltip is two words wide, so a wide sample would
+     average to flat grey and cost more than the surface is worth. */
+  backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
   border: 1px solid var(--fx-stroke);
   box-shadow: var(--fx-shadow-flyout);
   font-size: var(--fx-caption);
@@ -1064,7 +1176,15 @@
   width: min(460px, calc(100% - 48px));
   border-radius: var(--fx-radius-window);
   border: 1px solid var(--fx-stroke-strong);
-  background: var(--fx-solid);
+  /*
+   * Thick glass, and deliberately no blur — on neither this pane nor the smoke
+   * above it. `backdrop-filter` makes an element the containing block of its
+   * fixed-positioned descendants, and a dialog hosts app content that can raise
+   * a `position: fixed` tooltip. Blurring here would re-anchor that tooltip to
+   * the dialog's padding box. The thick tint carries the hue of the glass around
+   * it without the side effect, and the sheen still arrives with the lift.
+   */
+  background: var(--fx-glass-thick);
   box-shadow: var(--fx-shadow-window-focus);
   overflow: hidden;
   animation: fx-dialog-in var(--fx-normal) var(--fx-ease-out);
@@ -1154,8 +1274,8 @@
   border-radius: var(--fx-radius-flyout);
   border: 1px solid var(--fx-stroke);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(30px) saturate(125%);
-  -webkit-backdrop-filter: blur(30px) saturate(125%);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   box-shadow: var(--fx-shadow-flyout);
   animation: fx-toast-in var(--fx-slow) var(--fx-ease-out);
 }
@@ -1244,8 +1364,8 @@
   border-radius: var(--fx-radius-flyout);
   border: 1px solid var(--fx-stroke);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   box-shadow: var(--fx-shadow-flyout);
   animation: fx-flyout-in-top var(--fx-fast) var(--fx-ease-out);
 }
@@ -1294,8 +1414,8 @@
   border-radius: 12px;
   border: 1px solid var(--fx-stroke);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(40px) saturate(130%);
-  -webkit-backdrop-filter: blur(40px) saturate(130%);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   box-shadow: var(--fx-shadow-flyout);
   animation: fx-start-in var(--fx-slow) var(--fx-ease-out);
   overflow: hidden;
@@ -1392,8 +1512,11 @@
   inset: 0;
   z-index: 1120;
   background: var(--fx-acrylic-thin);
-  backdrop-filter: blur(40px) saturate(120%);
-  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  /* The widest depth in the system. Task View replaces every window at once, so
+     the wallpaper behind it should be present as colour and unreadable as
+     detail — that is what "step back from everything" looks like. */
+  backdrop-filter: blur(var(--fx-glass-blur-xl)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-xl)) saturate(var(--fx-glass-sat));
   display: flex;
   flex-direction: column;
   animation: fx-fade var(--fx-normal) var(--fx-ease-out);
@@ -1618,8 +1741,8 @@
   gap: 8px;
   border-radius: var(--fx-radius-flyout);
   background: var(--fx-acrylic);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-lg)) saturate(var(--fx-glass-sat));
   border: 1px solid var(--fx-stroke);
   box-shadow: var(--fx-shadow-flyout);
 }
@@ -1757,10 +1880,18 @@
   gap: 10px;
   padding: 24px 32px;
   border-radius: 12px;
+  /*
+   * The lock screen sits on the wallpaper photograph, not on a theme surface, so
+   * this card keeps its own literals — white text over dark glass reads the same
+   * in either theme, and a theme-swapped sheen would flip a lit edge to a dark
+   * one over the same photo. Only the blur is tokenised, to the inline depth it
+   * already used.
+   */
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
+  -webkit-backdrop-filter: blur(var(--fx-glass-blur-sm)) saturate(var(--fx-glass-sat));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
   text-align: center;
 }
 .fx-lock-card .fx-caption-text {
@@ -1921,6 +2052,11 @@
  * "Reduce transparency". Redefining the material tokens is enough — every rule
  * in this file draws its surface from them — and the blur is switched off so the
  * compositor stops sampling the layers underneath.
+ *
+ * `--fx-control` and `--fx-subtle-hover` are deliberately left alone. They are
+ * 4–10% washes whose entire job is to tint whatever is behind them, and once
+ * that is an opaque surface they are opaque too; pinning them to a solid would
+ * erase the hover state instead of un-glassing it.
  */
 .fos[data-transparency='false'] {
   --fx-mica: var(--fx-solid);
@@ -1928,11 +2064,58 @@
   --fx-acrylic: var(--fx-solid);
   --fx-acrylic-thin: var(--fx-solid);
   --fx-layer: var(--fx-solid-alt);
+  --fx-layer-alt: var(--fx-solid-alt);
   --fx-card: var(--fx-solid-alt);
+  --fx-card-secondary: var(--fx-solid-alt);
+  --fx-glass-thick: var(--fx-solid);
 }
 .fos[data-transparency='false'] * {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+/* The lock card is over a photograph rather than a theme surface, so it carries
+   its own fill and cannot be reached by redefining a token. */
+.fos[data-transparency='false'] .fx-lock-card {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+/*
+ * No `backdrop-filter` at all — older Safari and Firefox with the pref off. The
+ * tints above are built to be read *through*, so on their own they would leave
+ * text on a raw photograph. Opaque materials instead, which is the same answer
+ * as reduced transparency arrived at from the other direction.
+ *
+ * Shorter than the block above, and deliberately: this is a capability fallback,
+ * not a preference. Only the surfaces that would otherwise composite straight
+ * onto the wallpaper need to go opaque. `--fx-layer`, `--fx-card` and their
+ * siblings sit inside a window whose own fill is solid by the time they paint,
+ * so they are already reading against an opaque backdrop and can keep their
+ * depth. Reduced transparency pins them too because there the user asked for
+ * less transparency everywhere, not for legibility in one place.
+ *
+ * All three theme selectors are named because `@supports` contributes no
+ * specificity of its own: a bare `.fos` here (0,1,0) would lose to
+ * `.fos[data-theme='light']` (0,2,0) and the fallback would silently do nothing
+ * in light mode.
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .fos,
+  .fos[data-theme='dark'],
+  .fos[data-theme='light'] {
+    --fx-mica: var(--fx-solid);
+    --fx-mica-alt: var(--fx-solid-alt);
+    --fx-acrylic: var(--fx-solid);
+    --fx-acrylic-thin: var(--fx-solid);
+    --fx-glass-thick: var(--fx-solid);
+  }
+
+  /* Its fill is a literal, so no token above reaches it, and it is the one card
+     in the OS that sits on the photograph itself. At 28% black with the blur
+     gone, white text lands on whatever the wallpaper happens to be — bright snow
+     included. This is the same value reduced transparency gives it. */
+  .fos .fx-lock-card {
+    background: rgba(0, 0, 0, 0.72);
+  }
 }
 
 /* "Animation effects" off — the same contract as `prefers-reduced-motion`. */
@@ -2028,6 +2211,7 @@
   border-radius: var(--fx-radius-card);
   border: 1px solid var(--fx-stroke);
   background: var(--fx-card);
+  box-shadow: var(--fx-shadow-card);
   overflow: hidden;
   transition: border-color var(--fx-fast), background var(--fx-fast);
 }
@@ -2345,6 +2529,9 @@
   background: var(--fx-control);
   color: var(--fx-text-primary);
   text-align: start;
+  /* Same lit lip as the buttons — a quick tile is a control, and the `on` state
+     inherits it so the accent fill reads as the same chip lit from inside. */
+  box-shadow: inset 0 1px 0 var(--fx-sheen-soft);
   transition: background var(--fx-fast) var(--fx-ease-out), border-color var(--fx-fast);
 }
 .fx-quick-tile:hover {
@@ -2477,6 +2664,7 @@
   border-radius: var(--fx-radius-card);
   border: 1px solid var(--fx-stroke-card);
   background: var(--fx-card);
+  box-shadow: var(--fx-shadow-card);
   overflow: hidden;
   transition: background var(--fx-fast) var(--fx-ease-out);
 }
@@ -2632,6 +2820,7 @@
   border-radius: var(--fx-radius-card);
   border: 1px solid var(--fx-stroke-card);
   background: var(--fx-card);
+  box-shadow: var(--fx-shadow-card);
   overflow: hidden;
 }
 .fx-widget-head {
@@ -3341,7 +3530,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--fx-solid);
+  /* Thick glass, no blur of its own — this sheet hosts the same app content a
+     window does, `backdrop-filter` here would become its fixed descendants'
+     containing block. */
+  background: var(--fx-glass-thick);
   box-shadow: var(--fx-shadow-flyout);
   animation: fx-flyout-in var(--fx-normal) var(--fx-ease-out);
 }
