@@ -54,6 +54,7 @@ import {
   SlidersHorizontal,
   Table2,
   Target,
+  Users,
   Wallet,
   Wifi,
   XCircle,
@@ -99,6 +100,13 @@ export const APP_GLYPHS: Readonly<Record<string, LucideIcon>> = {
   sliders: SlidersHorizontal,
   table: Table2,
   target: Target,
+  // The commercial pipeline's mark. A CRM is people before it is anything else --
+  // the lead, the customer, the person who has not called back -- and the spare
+  // artwork on disk is `database`, which would have put a picture of a table on
+  // the one app in the suite whose subject is not one. There is no `users.png`
+  // yet, so the app paints a category-tinted glyph plate; dropping that file into
+  // `logos/` later is the whole of the change needed to give it a logo.
+  users: Users,
   wallet: Wallet,
   wifi: Wifi,
   'x-circle': XCircle,

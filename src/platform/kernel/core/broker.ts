@@ -483,6 +483,241 @@ const SOURCES: { readonly [K in DatasetName]: DatasetSource } = {
     order: { column: 'tested_at', ascending: false },
     capability: 'ledger.read',
   },
+
+  /* ---------------------------------------------------------------- *
+   * The commercial pipeline
+   * ---------------------------------------------------------------- */
+
+  /**
+   * Leads, newest first.
+   *
+   * The column list is `CrmLeadRow` in `@/types/crm`, which the migration's own
+   * header says it mirrors. Writing it out rather than selecting `*` is the same
+   * discipline as everywhere above: a projection is a contract, and a column
+   * added to the table later should reach an app because someone decided it
+   * should, not because a wildcard swept it up.
+   *
+   * `created_at` descending is the order the legacy workspace used, and it is the
+   * right one for a queue nobody has triaged yet: the newest enquiry is the one
+   * whose answer is still worth something.
+   */
+  crmLeads: {
+    kind: 'table',
+    table: 'crm_leads',
+    select:
+      'id,agency_id,branch_id,first_name,last_name,phone,email,source,status,priority,notes,score,next_action_at,assigned_to,customer_id,campaign_id,lost_reason,qualified_at,converted_at,created_at,updated_at',
+    order: { column: 'created_at', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * Customers, most recently active first.
+   *
+   * `last_activity_at` rather than `created_at`, because a customer list is a
+   * worklist: the account somebody spoke to this morning is the one they are
+   * about to speak to again, and the account created first is only interesting
+   * to a report.
+   */
+  crmCustomers: {
+    kind: 'table',
+    table: 'crm_customers',
+    select:
+      'id,agency_id,branch_id,code,pilgrim_id,lead_id,campaign_id,full_name,full_name_ar,customer_type,status,phone,email,wilaya,address,source,owner_id,tags,notes,first_won_at,last_activity_at,created_at,updated_at',
+    order: { column: 'last_activity_at', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * Opportunities, largest expected value first.
+   *
+   * Not by date. A pipeline is read to decide where the next hour goes, and the
+   * answer to that is the biggest open deal, not the most recent one. The generic
+   * `where` reaches `stage` and `customer_id`, which is how the board renders one
+   * column and how Customer 360 finds a customer's deals.
+   */
+  crmOpportunities: {
+    kind: 'table',
+    table: 'crm_opportunities',
+    select:
+      'id,agency_id,branch_id,reference,customer_id,lead_id,package_id,campaign_id,booking_id,title,stage,probability,travelers,expected_value_dzd,expected_close_date,owner_id,won_at,lost_at,lost_reason,notes,created_at,updated_at',
+    order: { column: 'expected_value_dzd', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * Quotes, newest first. `where` reaches `opportunity_id`, `customer_id` and
+   * `status`, which covers the three ways a quote is looked for: from the deal it
+   * belongs to, from the customer it was sent to, and from the queue of ones
+   * awaiting a reply.
+   */
+  crmQuotes: {
+    kind: 'table',
+    table: 'crm_quotes',
+    select:
+      'id,agency_id,branch_id,quote_number,opportunity_id,customer_id,package_id,booking_id,status,currency_code,subtotal,discount_amount,total_amount,travelers,valid_until,terms,notes,sent_at,accepted_at,declined_at,declined_reason,created_at,updated_at',
+    order: { column: 'created_at', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * A quote's lines in the order the quote presents them, filtered by `quote_id`.
+   *
+   * `line_total` is GENERATED ALWAYS in the database and is projected read-only
+   * here for exactly that reason: the app renders the total the database computed
+   * instead of multiplying quantity by price itself and disagreeing with the
+   * quote the customer received.
+   */
+  crmQuoteLines: {
+    kind: 'table',
+    table: 'crm_quote_lines',
+    select:
+      'id,agency_id,branch_id,quote_id,package_id,description,quantity,unit_price,line_total,sort_order,created_at,updated_at',
+    order: { column: 'sort_order', ascending: true },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * The communication log, newest first. `where` reaches `activity_type`,
+   * `customer_id`, `lead_id`, `opportunity_id` and `quote_id`, so the same
+   * dataset serves the global timeline and the four per-entity ones without a
+   * second projection.
+   *
+   * Ordered by `occurred_at`, not `created_at`: a call logged on Monday for a
+   * conversation that happened on Friday belongs on Friday.
+   */
+  crmActivities: {
+    kind: 'table',
+    table: 'crm_activities',
+    select:
+      'id,agency_id,branch_id,customer_id,lead_id,opportunity_id,quote_id,activity_type,direction,subject,body,outcome,duration_minutes,occurred_at,created_by,created_at,updated_at',
+    order: { column: 'occurred_at', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * Follow-ups, soonest due first -- ascending, unlike everything else here,
+   * because this is the only CRM dataset that is a diary rather than a history.
+   * The overdue task is the first row, which is where an overdue task belongs.
+   */
+  crmFollowups: {
+    kind: 'table',
+    table: 'crm_followups',
+    select:
+      'id,agency_id,branch_id,lead_id,customer_id,opportunity_id,title,due_at,priority,status,assigned_to,completed_at,notes,created_at,updated_at',
+    order: { column: 'due_at', ascending: true },
+    capability: 'ledger.read',
+  },
+
+  /** Campaigns, newest first. Budget and spend are projected so ROI can be read
+   *  against the leads the campaign is stamped on. */
+  crmCampaigns: {
+    kind: 'table',
+    table: 'crm_campaigns',
+    select:
+      'id,agency_id,branch_id,code,name,channel,status,start_date,end_date,budget_dzd,spend_dzd,target_segment,notes,created_at,updated_at',
+    order: { column: 'created_at', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * Every stage an opportunity has been through, newest first, filtered by
+   * `opportunity_id`.
+   *
+   * This is the audit trail of the pipeline, and it is a separate dataset rather
+   * than a nested field on the opportunity because it is read on demand: a board
+   * showing two hundred deals would otherwise fetch two hundred histories nobody
+   * has opened.
+   */
+  crmStageHistory: {
+    kind: 'table',
+    table: 'crm_stage_history',
+    select:
+      'id,agency_id,branch_id,opportunity_id,from_stage,to_stage,probability,note,changed_by,changed_at,created_at',
+    order: { column: 'changed_at', ascending: false },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * The package catalogue, by code.
+   *
+   * Named for the entity and not for the app that reads it, the way `groups`
+   * already is. CRM reads it to price a quote and to name what a deal is for;
+   * operations owns the table. The next app that needs a package list must find
+   * this entry rather than add `crmPackages` beside it.
+   *
+   * Both prices are projected because a quote carries `currency_code` and may be
+   * written in either, and `seats_available` because a quote for a package with
+   * no seats left is a promise the agency cannot keep.
+   */
+  packages: {
+    kind: 'table',
+    table: 'packages',
+    select: 'id,code,name,name_ar,price_dzd,price_sar,seats_available,status',
+    order: { column: 'code', ascending: true },
+    capability: 'ledger.read',
+  },
+
+  /**
+   * The funnel: one row per stage with its count, its value and its weighted
+   * value.
+   *
+   * Derived rather than fetched, for the reason `trialBalance` is. A funnel is a
+   * *fold* of the opportunities the caller may already read, so computing it here
+   * means the board and the list beside it cannot disagree -- a second server
+   * function would be a second answer to "what is in the pipeline", and the two
+   * would drift the first time one of them learned about a filter.
+   *
+   * All six stages are emitted even when empty. A column that vanishes when it
+   * empties reads as "this stage does not exist" rather than "nothing is here",
+   * and an empty NEGOTIATION column is the most informative thing on the board.
+   *
+   * The order is the migration's `sort_order` and the transitions in
+   * `@/types/crm` depend on the same sequence; it is written out rather than
+   * imported because the kernel does not read the app layer's types, and a stage
+   * list is six words.
+   */
+  crmPipeline: {
+    kind: 'derived',
+    capability: 'ledger.read',
+    dependsOn: ['crmOpportunities'],
+    compute: async (load) => {
+      const opportunities = await load('crmOpportunities', { limit: DERIVE_ROWS });
+      if (!opportunities.ok) return opportunities;
+
+      const stages = ['NEW', 'QUALIFYING', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST'] as const;
+      const buckets = new Map<string, { count: number; value: number; weighted: number; travelers: number }>();
+      for (const stage of stages) buckets.set(stage, { count: 0, value: 0, weighted: 0, travelers: 0 });
+
+      for (const row of opportunities.value.rows) {
+        const stage = (asString(row.stage) ?? '').toUpperCase();
+        // An unknown stage is dropped rather than given a column of its own: the
+        // CHECK constraint makes it impossible, and inventing a seventh column
+        // from a value that cannot exist would hide the fact that it does.
+        const bucket = buckets.get(stage);
+        if (bucket === undefined) continue;
+        const value = asNumber(row.expected_value_dzd) ?? 0;
+        const probability = asNumber(row.probability) ?? 0;
+        bucket.count += 1;
+        bucket.value += value;
+        bucket.weighted += (value * probability) / 100;
+        bucket.travelers += asNumber(row.travelers) ?? 0;
+      }
+
+      return succeed(
+        stages.map((stage, index) => {
+          const bucket = buckets.get(stage) ?? { count: 0, value: 0, weighted: 0, travelers: 0 };
+          return {
+            stage,
+            sort_order: index + 1,
+            opportunity_count: bucket.count,
+            value_dzd: round2(bucket.value),
+            weighted_dzd: round2(bucket.weighted),
+            travelers: bucket.travelers,
+          };
+        }),
+      );
+    },
+  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -499,10 +734,111 @@ interface CommandBinding {
 }
 
 /**
+ * The three bindings a CRM record type shares.
+ *
+ * Seven of the commercial pipeline's entities are plain records the migration
+ * exposes the same way -- `create_x_command(p_payload)`,
+ * `update_x_command(p_id, p_payload)`, `delete_x_command(p_id)` -- which is
+ * twenty-one bindings differing only in a function name. Written out longhand
+ * that is two hundred lines whose twentieth copy has a typo nobody notices, so
+ * the validation is written once here and the names are passed in.
+ *
+ * The names are passed in *whole*, not assembled from a stem. `create_crm_lead_command`
+ * appears in this file as those characters in that order, because the way anyone
+ * ever checks that the kernel calls a function the migration actually defines is
+ * to grep for the name -- and a name built by interpolation is a name a grep
+ * cannot find. That is the same reason every other binding below spells its `rpc`
+ * out.
+ *
+ * The factory decides nothing at call time: each of the twenty-one still names
+ * exactly one server function and declares its own invalidation set.
+ */
+function crmCrud(
+  createRpc: string,
+  updateRpc: string,
+  deleteRpc: string,
+  invalidates: readonly DatasetName[],
+): { readonly create: CommandBinding; readonly update: CommandBinding; readonly remove: CommandBinding } {
+  return {
+    create: {
+      rpc: createRpc,
+      args: (payload) => {
+        const values = requireObject(payload.values, 'values');
+        return values.ok ? succeed({ p_payload: values.value }) : values;
+      },
+      invalidates,
+    },
+    update: {
+      rpc: updateRpc,
+      args: (payload) => {
+        const id = requireString(payload.id, 'id');
+        if (!id.ok) return id;
+        const values = requireObject(payload.values, 'values');
+        if (!values.ok) return values;
+        return succeed({ p_id: id.value, p_payload: values.value });
+      },
+      invalidates,
+    },
+    remove: {
+      rpc: deleteRpc,
+      args: (payload) => {
+        const id = requireString(payload.id, 'id');
+        return id.ok ? succeed({ p_id: id.value }) : id;
+      },
+      invalidates,
+    },
+  };
+}
+
+/* The seven, each with the pages its writes make stale. Over-invalidating is
+ * safe and under-invalidating shows a user a number that is no longer true, so
+ * where a write plausibly touches a neighbour the neighbour is listed: a quote
+ * carries its lines, an opportunity carries its stage history and the funnel
+ * folded from it, and an activity stamps the customer's `last_activity_at`,
+ * which is the column the customer list is ordered by. */
+const CRM_LEAD = crmCrud(
+  'create_crm_lead_command', 'update_crm_lead_command', 'delete_crm_lead_command',
+  ['crmLeads'],
+);
+const CRM_CUSTOMER = crmCrud(
+  'create_crm_customer_command', 'update_crm_customer_command', 'delete_crm_customer_command',
+  ['crmCustomers'],
+);
+const CRM_OPPORTUNITY = crmCrud(
+  'create_crm_opportunity_command', 'update_crm_opportunity_command', 'delete_crm_opportunity_command',
+  ['crmOpportunities', 'crmPipeline', 'crmStageHistory'],
+);
+const CRM_QUOTE = crmCrud(
+  'create_crm_quote_command', 'update_crm_quote_command', 'delete_crm_quote_command',
+  ['crmQuotes', 'crmQuoteLines'],
+);
+const CRM_QUOTE_LINE = crmCrud(
+  'create_crm_quote_line_command', 'update_crm_quote_line_command', 'delete_crm_quote_line_command',
+  ['crmQuoteLines', 'crmQuotes'],
+);
+// `update` is deliberately unexposed: the ABI lets an activity be logged and
+// removed but not edited, because a communication log whose entries can be
+// rewritten is not a log. The name is still passed so the seven read alike and
+// so a future `crm.activity.update` has one place to bind.
+const CRM_ACTIVITY = crmCrud(
+  'create_crm_activity_command', 'update_crm_activity_command', 'delete_crm_activity_command',
+  ['crmActivities', 'crmCustomers'],
+);
+const CRM_FOLLOWUP = crmCrud(
+  'create_crm_followup_command', 'update_crm_followup_command', 'delete_crm_followup_command',
+  ['crmFollowups'],
+);
+const CRM_CAMPAIGN = crmCrud(
+  'create_crm_campaign_command', 'update_crm_campaign_command', 'delete_crm_campaign_command',
+  ['crmCampaigns'],
+);
+
+/**
  * Every command the ABI carries, bound to the function that performs it.
  *
- * The mapped type is over `DataCommandName`, so the ledger's eleven and the
- * modelling fourteen are bound in one table and neither can be declared in
+ * The mapped type is over `DataCommandName`, so every family the ABI declares --
+ * the ledger's, the modelling ones, the spine's, the controls' and the commercial
+ * pipeline's thirty -- is bound in one table, and none of them can be declared in
  * `abi.ts` without being bound here. Argument names are the one thing in this file
  * the compiler cannot check: PostgREST matches by name, so a typo becomes
  * `PGRST202` in front of a user rather than a red squiggle. They were transcribed
@@ -1242,6 +1578,228 @@ const BINDINGS: { readonly [K in DataCommandName]: CommandBinding } = {
     },
     invalidates: ['financialControls', 'auditTrail'],
   },
+
+  /* ---------------------------------------------------------------- *
+   * The commercial pipeline
+   * ---------------------------------------------------------------- */
+
+  'crm.lead.create': CRM_LEAD.create,
+  'crm.lead.update': CRM_LEAD.update,
+  'crm.lead.delete': CRM_LEAD.remove,
+  'crm.customer.create': CRM_CUSTOMER.create,
+  'crm.customer.update': CRM_CUSTOMER.update,
+  'crm.customer.delete': CRM_CUSTOMER.remove,
+  'crm.opportunity.create': CRM_OPPORTUNITY.create,
+  'crm.opportunity.update': CRM_OPPORTUNITY.update,
+  'crm.opportunity.delete': CRM_OPPORTUNITY.remove,
+  'crm.quote.create': CRM_QUOTE.create,
+  'crm.quote.update': CRM_QUOTE.update,
+  'crm.quote.delete': CRM_QUOTE.remove,
+  'crm.quoteLine.create': CRM_QUOTE_LINE.create,
+  'crm.quoteLine.update': CRM_QUOTE_LINE.update,
+  'crm.quoteLine.delete': CRM_QUOTE_LINE.remove,
+  'crm.activity.log': CRM_ACTIVITY.create,
+  'crm.activity.delete': CRM_ACTIVITY.remove,
+  'crm.followup.create': CRM_FOLLOWUP.create,
+  'crm.followup.update': CRM_FOLLOWUP.update,
+  'crm.followup.delete': CRM_FOLLOWUP.remove,
+  'crm.campaign.create': CRM_CAMPAIGN.create,
+  'crm.campaign.update': CRM_CAMPAIGN.update,
+  'crm.campaign.delete': CRM_CAMPAIGN.remove,
+
+  /**
+   * A lead becomes a customer and an opportunity in one transaction.
+   *
+   * Only the lead is required. Everything else is what a salesperson knows at the
+   * moment of qualification and may not know yet -- which package, how many
+   * travellers, what it is worth, when it closes -- and a conversion refused for
+   * want of an expected close date is a conversion that happens in somebody's
+   * head instead of in the database.
+   */
+  'crm.lead.convert': {
+    rpc: 'convert_crm_lead_command',
+    args: (payload) => {
+      const leadId = requireString(payload.leadId, 'leadId');
+      if (!leadId.ok) return leadId;
+      const args: Record<string, unknown> = { p_lead_id: leadId.value };
+      const packageId = asString(payload.packageId);
+      if (packageId !== null) args.p_package_id = packageId;
+      const travelers = asNumber(payload.travelers);
+      if (travelers !== null) args.p_travelers = travelers;
+      const value = asNumber(payload.expectedValueDzd);
+      if (value !== null) args.p_expected_value_dzd = value;
+      const closeDate = asString(payload.expectedCloseDate);
+      if (closeDate !== null) args.p_expected_close_date = closeDate;
+      const title = asString(payload.title);
+      if (title !== null) args.p_title = title;
+      return succeed(args);
+    },
+    invalidates: ['crmLeads', 'crmCustomers', 'crmOpportunities', 'crmPipeline', 'crmActivities'],
+  },
+
+  /**
+   * The whole tag set, replaced.
+   *
+   * `tags` is `text[]`, and a jsonb `p_payload` cannot carry a Postgres array, so
+   * this is its own function rather than a field in `crm.customer.update`.
+   * `stringList` treats absent as empty, which is right: clearing every tag is a
+   * thing a person means to do, and refusing it would leave the last tag
+   * un-removable.
+   */
+  'crm.customer.tags': {
+    rpc: 'set_crm_customer_tags_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const tags = stringList(payload.tags, 'tags');
+      if (!tags.ok) return tags;
+      return succeed({ p_id: id.value, p_tags: tags.value });
+    },
+    invalidates: ['crmCustomers'],
+  },
+
+  /**
+   * A stage transition, which the server refuses if it is illegal.
+   *
+   * The legal moves live in the migration and are mirrored in
+   * `CRM_STAGE_TRANSITIONS` for the app's benefit; this binding does not re-check
+   * them. The kernel would be guessing at a rule it does not own, and a
+   * client-side copy that agreed with the server would be dead code while one
+   * that disagreed would be a bug hiding the server's answer.
+   *
+   * `WON` is not reachable here. An opportunity is won by accepting its quote,
+   * which is the path that writes the booking, the payment and the journal entry;
+   * a "mark as won" would produce a won deal with no money behind it.
+   */
+  'crm.opportunity.stage': {
+    rpc: 'transition_crm_opportunity_stage',
+    args: (payload) => {
+      const id = requireString(payload.opportunityId, 'opportunityId');
+      if (!id.ok) return id;
+      const stage = requireString(payload.toStage, 'toStage');
+      if (!stage.ok) return stage;
+      const args: Record<string, unknown> = {
+        p_opportunity_id: id.value,
+        p_to_stage: stage.value.toUpperCase(),
+      };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      const lostReason = asString(payload.lostReason);
+      if (lostReason !== null) args.p_lost_reason = lostReason;
+      return succeed(args);
+    },
+    invalidates: ['crmOpportunities', 'crmStageHistory', 'crmPipeline', 'crmActivities'],
+  },
+
+  /**
+   * Sending a quote stamps a validity window from the day it is sent, which is
+   * why the window is a count of days and not a date: "fourteen days" is the
+   * promise, and computing the date here would put the customer's deadline on the
+   * client's clock.
+   */
+  'crm.quote.send': {
+    rpc: 'send_crm_quote_command',
+    args: (payload) => {
+      const id = requireString(payload.quoteId, 'quoteId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_quote_id: id.value };
+      const validDays = asNumber(payload.validDays);
+      if (validDays !== null) args.p_valid_days = validDays;
+      return succeed(args);
+    },
+    invalidates: ['crmQuotes', 'crmActivities'],
+  },
+
+  /**
+   * A decline carries a required reason. The sentence explaining why a customer
+   * said no is the most valuable thing that happens to a lost quote, and a field
+   * that may be skipped is a field that is skipped.
+   */
+  'crm.quote.decline': {
+    rpc: 'decline_crm_quote_command',
+    args: (payload) => {
+      const id = requireString(payload.quoteId, 'quoteId');
+      if (!id.ok) return id;
+      const reason = requireString(payload.reason, 'reason');
+      if (!reason.ok) return reason;
+      return succeed({ p_quote_id: id.value, p_reason: reason.value });
+    },
+    invalidates: ['crmQuotes', 'crmOpportunities', 'crmPipeline', 'crmActivities'],
+  },
+
+  /**
+   * Completing a follow-up stamps who closed it and when, which an `update` of
+   * the status column would not. The diary's value is in knowing somebody
+   * actually made the call, not in a row that now reads DONE.
+   */
+  'crm.followup.complete': {
+    rpc: 'complete_crm_followup_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_id: id.value };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['crmFollowups', 'crmActivities'],
+  },
+
+  /**
+   * Accepting a quote is the act that books the sale.
+   *
+   * One call writes a pilgrim, a booking, an invoice, a payment and a journal
+   * entry and moves the opportunity to `WON` -- `CrmQuoteAcceptedResult` names
+   * every one of them. That is why this is the single CRM command costing
+   * `ledger.post` rather than `crm.write`, and why the invalidation list below
+   * looks excessive and is not: each page named is a page that became wrong the
+   * instant this returned.
+   *
+   * Only the quote is required. A deposit of zero is a legitimate acceptance --
+   * the booking exists and the money is owed -- so the amounts cannot be checked
+   * for presence; they are forwarded when given and left to the function's own
+   * defaults when not.
+   *
+   * `bookings` and `documents` are missing from the list because they are not
+   * datasets. The booking created here is read through `groups` and the ledger
+   * pages; when a `bookings` dataset exists it belongs in this array, and this
+   * paragraph is the reminder.
+   */
+  'crm.quote.accept': {
+    rpc: 'accept_crm_quote_command',
+    args: (payload) => {
+      const id = requireString(payload.quoteId, 'quoteId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_quote_id: id.value };
+      const dzd = asNumber(payload.paymentAmountDzd);
+      if (dzd !== null) args.p_payment_amount_dzd = dzd;
+      const sar = asNumber(payload.paymentAmountSar);
+      if (sar !== null) args.p_payment_amount_sar = sar;
+      const method = asString(payload.paymentMethod);
+      if (method !== null) args.p_payment_method = method;
+      const groupId = asString(payload.groupId);
+      if (groupId !== null) args.p_group_id = groupId;
+      const passport = asString(payload.passportNumber);
+      if (passport !== null) args.p_passport_number = passport;
+      const notes = asString(payload.notes);
+      if (notes !== null) args.p_notes = notes;
+      return succeed(args);
+    },
+    invalidates: [
+      'crmQuotes',
+      'crmOpportunities',
+      'crmPipeline',
+      'crmActivities',
+      'crmCustomers',
+      'groups',
+      'invoices',
+      'payments',
+      'journalEntries',
+      'journalLines',
+      'trialBalance',
+      'auditTrail',
+    ],
+  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -1748,6 +2306,24 @@ function asBoolean(value: unknown): boolean | null {
 function requireString(value: unknown, field: string): AbiResult<string> {
   const parsed = asString(value);
   return parsed === null ? fail('INVALID_ARGUMENT', `${field} is required`) : succeed(parsed);
+}
+
+/**
+ * A required jsonb object.
+ *
+ * The generic CRUD commands hand Postgres a whole record as one `p_payload`
+ * argument, and jsonb accepts an array or a bare number as happily as it accepts
+ * an object -- so `[{...}]` would insert successfully and produce a row whose
+ * columns are all null, which reads as data loss rather than as a rejected call.
+ * Arrays and null are refused here for the same reason `asRow` refuses them one
+ * layer down: the shape has to be decided before it crosses the wire, not
+ * discovered afterwards by whoever opens the record.
+ */
+function requireObject(value: unknown, field: string): AbiResult<Record<string, unknown>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return fail('INVALID_ARGUMENT', `${field} must be an object`);
+  }
+  return succeed(value as Record<string, unknown>);
 }
 
 /**

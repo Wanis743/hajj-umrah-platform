@@ -8,13 +8,16 @@
  * launched and never before; a cold desktop pays for chrome only.
  *
  * Order is the order Start's "All apps" lists them, which is why the system tools
- * come first and the finance suite follows in the order a month is worked:
- * record, reconcile, close, then plan and report on it.
+ * come first, the customer desk follows them, and the finance suite comes last in
+ * the order a month is worked: record, reconcile, close, then plan and report on
+ * it. The customer desk sits between the two halves because that is where the
+ * money the finance suite argues about is first promised to somebody.
  */
 import type { AppPackage } from '@/platform/sdk';
 import { budgetsManifest } from './budgets/manifest';
 import { calculatorManifest } from './calculator/manifest';
 import { closeManifest } from './close/manifest';
+import { crmManifest } from './crm/manifest';
 import { dashboardManifest } from './dashboard/manifest';
 import { eventViewerManifest } from './eventviewer/manifest';
 import { inboxManifest } from './inbox/manifest';
@@ -35,6 +38,10 @@ export const APP_PACKAGES: readonly AppPackage[] = [
   { manifest: notepadManifest, load: () => import('./notepad/App') },
   { manifest: calculatorManifest, load: () => import('./calculator/App') },
   { manifest: sheetsManifest, load: () => import('./sheets/App') },
+  // Before the book, the desk the book is written from: a lead becomes a customer, a quote
+  // becomes a booking, and the booking is what everything below this line later records.
+  // Nothing in the finance suite has anything to post until this window has been worked.
+  { manifest: crmManifest, load: () => import('./crm/App') },
   // The first window of the morning, and the one every other finance app is opened
   // from: it reads the whole book and hands the work to whichever app owns it.
   { manifest: dashboardManifest, load: () => import('./dashboard/App') },

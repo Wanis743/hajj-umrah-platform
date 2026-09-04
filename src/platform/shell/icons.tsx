@@ -3,7 +3,7 @@
  *
  * Two shapes, one component. An app with no artwork gets the Windows treatment
  * of a rounded gradient plate behind a glyph — that plate is what makes a Start
- * menu of 16 apps read as one system without anyone drawing anything. An app
+ * menu of 17 apps read as one system without anyone drawing anything. An app
  * that ships a logo gets the logo alone, full bleed, because a real mark *is*
  * the identity and a tile behind it only dilutes it.
  *

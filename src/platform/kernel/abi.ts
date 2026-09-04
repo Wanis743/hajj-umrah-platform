@@ -90,6 +90,15 @@ export const CAPABILITIES = [
   // the Inbox -- an app whose entire job is to show you other people's requests --
   // an app that holds the right to write to the book.
   'spine.handoff',
+  // Selling is not accounting. A lead, a customer record, a pipeline stage and a
+  // quote are all commercial intent: they commit nothing, and the same argument
+  // that keeps `model.write` out of `ledger.post` keeps them out of it too. What
+  // this capability deliberately does *not* cover is accepting a quote, because
+  // `accept_crm_quote_command` posts a booking, a payment and a journal entry --
+  // that one costs `ledger.post` and prompts for consent like any other posting.
+  // So a CRM that only ever edits the pipeline never sees a UAC dialog, and the
+  // single act that reaches the book still does.
+  'crm.write',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -547,6 +556,38 @@ export const DATASETS = [
   // whole body is a select the table's own policy already scopes correctly.
   'financialControls',
   'controlTests',
+  // The commercial pipeline. Nine table projections and one derivation, and the
+  // split is the same one the rest of this list makes: a table projection is what
+  // the database can already scope correctly on its own, and a derivation is a
+  // shape no table holds.
+  //
+  // All nine are scoped by `public.row_in_staff_scope(agency_id, branch_id)` in
+  // 20260830120000_crm_vertical_slice.sql, so there is no ordering rule or nesting
+  // for a SECURITY DEFINER function to own here and no read RPC worth writing:
+  // its whole body would be the select the policy already restricts. The generic
+  // `where` reaches `quote_id`, `opportunity_id`, `status` and `activity_type`,
+  // which is every filter the pipeline actually asks for.
+  //
+  // `crmPipeline` is the derivation: one row per stage with its count and weighted
+  // value. It is computed in the kernel rather than fetched because a funnel is a
+  // *fold* of the opportunities the caller may already read -- a second RPC would
+  // be a second answer to "what is in the pipeline", able to disagree with the list
+  // sitting next to it on screen.
+  'crmLeads',
+  'crmCustomers',
+  'crmOpportunities',
+  'crmQuotes',
+  'crmQuoteLines',
+  'crmActivities',
+  'crmFollowups',
+  'crmCampaigns',
+  'crmStageHistory',
+  'crmPipeline',
+  // Packages are read by CRM to price a quote, and they are *not* a CRM table:
+  // operations owns them. The dataset is named for the thing rather than for the
+  // app that reads it, the way `groups` already is, because the next app to need a
+  // package list must find this entry instead of adding `crmPackages` beside it.
+  'packages',
 ] as const;
 
 export type DatasetName = (typeof DATASETS)[number];
@@ -682,19 +723,92 @@ export const CONTROL_COMMANDS = [
 
 export type ControlCommandName = (typeof CONTROL_COMMANDS)[number];
 
+/**
+ * The commercial pipeline's commands.
+ *
+ * Thirty, and the shape of the list is the lifecycle. Seven things can be
+ * created, edited and deleted -- lead, customer, opportunity, quote, quote line,
+ * follow-up, campaign -- an activity can be logged and removed, and seven acts
+ * move one of those things from one state to the next.
+ *
+ * The seven transitions are separate commands rather than an `update` that sets
+ * a status column, because not one of them is only a status change:
+ * `crm.lead.convert` writes a customer and an opportunity and points the lead at
+ * both, `crm.opportunity.stage` appends to `crm_stage_history` in the same
+ * transaction, `crm.quote.send` stamps a validity window from the day it is
+ * sent, `crm.quote.accept` posts a booking, a payment and a journal entry,
+ * `crm.customer.tags` writes a Postgres array a jsonb patch cannot carry, and
+ * `crm.followup.complete` stamps who closed the task and when. A client that
+ * could patch the column directly could skip all of that.
+ *
+ * `create` and `update` are separate names rather than one `upsert` because a
+ * binding names exactly one server function, and the migration exposes two:
+ * `create_crm_lead_command(p_payload)` and
+ * `update_crm_lead_command(p_id, p_payload)`. A single `upsert` would have to
+ * choose between them by looking for an id in the payload, which puts a routing
+ * decision in the caller's data -- a payload that lost its id would silently
+ * insert a duplicate instead of failing. `account.create` and `account.update`
+ * are two names over one function for the mirror-image reason; the rule in both
+ * directions is that a command name means one act performed by one function.
+ *
+ * There is no `crm.quote.total`. A quote's value is the sum of its lines, and
+ * the only way to change it is to change a line, which is why
+ * `crm.quoteLine.*` invalidate the quote list as well as their own.
+ *
+ * `crm.quote.decline` carries a required reason, the way the spine's decline
+ * does, and for the same reason: the sentence explaining why a customer said no
+ * is the most valuable thing that happens to a lost quote.
+ */
+export const CRM_COMMANDS = [
+  'crm.lead.create',
+  'crm.lead.update',
+  'crm.lead.delete',
+  'crm.lead.convert',
+  'crm.customer.create',
+  'crm.customer.update',
+  'crm.customer.delete',
+  'crm.customer.tags',
+  'crm.opportunity.create',
+  'crm.opportunity.update',
+  'crm.opportunity.delete',
+  'crm.opportunity.stage',
+  'crm.quote.create',
+  'crm.quote.update',
+  'crm.quote.delete',
+  'crm.quote.send',
+  'crm.quote.accept',
+  'crm.quote.decline',
+  'crm.quoteLine.create',
+  'crm.quoteLine.update',
+  'crm.quoteLine.delete',
+  'crm.activity.log',
+  'crm.activity.delete',
+  'crm.followup.create',
+  'crm.followup.update',
+  'crm.followup.delete',
+  'crm.followup.complete',
+  'crm.campaign.create',
+  'crm.campaign.update',
+  'crm.campaign.delete',
+] as const;
+
+export type CrmCommandName = (typeof CRM_COMMANDS)[number];
+
 /** Every command `data.command` will carry, whatever subsystem answers it. */
 export const DATA_COMMANDS = [
   ...LEDGER_COMMANDS,
   ...MODEL_COMMANDS,
   ...SPINE_COMMANDS,
   ...CONTROL_COMMANDS,
+  ...CRM_COMMANDS,
 ] as const;
 
 export type DataCommandName =
   | LedgerCommandName
   | ModelCommandName
   | SpineCommandName
-  | ControlCommandName;
+  | ControlCommandName
+  | CrmCommandName;
 
 export interface CommandInvocation {
   readonly command: DataCommandName;
@@ -1027,6 +1141,46 @@ export const COMMAND_CAPABILITY: { readonly [K in DataCommandName]: Capability }
   'controls.upsert': 'ledger.close',
   'controls.test': 'ledger.close',
   'controls.retire': 'ledger.close',
+  // Twenty-nine of the thirty CRM commands cost `crm.write`, which is not
+  // privileged: naming a lead, moving a stage and editing a quote line commit
+  // nothing, and a pipeline that raised a consent dialog on every drag would
+  // teach its users to dismiss consent dialogs.
+  'crm.lead.create': 'crm.write',
+  'crm.lead.update': 'crm.write',
+  'crm.lead.delete': 'crm.write',
+  'crm.lead.convert': 'crm.write',
+  'crm.customer.create': 'crm.write',
+  'crm.customer.update': 'crm.write',
+  'crm.customer.delete': 'crm.write',
+  'crm.customer.tags': 'crm.write',
+  'crm.opportunity.create': 'crm.write',
+  'crm.opportunity.update': 'crm.write',
+  'crm.opportunity.delete': 'crm.write',
+  'crm.opportunity.stage': 'crm.write',
+  'crm.quote.create': 'crm.write',
+  'crm.quote.update': 'crm.write',
+  'crm.quote.delete': 'crm.write',
+  'crm.quote.send': 'crm.write',
+  // The thirtieth. `accept_crm_quote_command` posts a booking, a payment and a
+  // journal entry, so it costs exactly what posting a journal entry costs and
+  // raises the same consent. This single line is the reason `crm.write` was worth
+  // adding: without it every one of the twenty-nine others would have had to ask
+  // for `ledger.post`, and the prompt shown when a salesperson renamed a lead
+  // would have been asking for the right to write to the book.
+  'crm.quote.accept': 'ledger.post',
+  'crm.quote.decline': 'crm.write',
+  'crm.quoteLine.create': 'crm.write',
+  'crm.quoteLine.update': 'crm.write',
+  'crm.quoteLine.delete': 'crm.write',
+  'crm.activity.log': 'crm.write',
+  'crm.activity.delete': 'crm.write',
+  'crm.followup.create': 'crm.write',
+  'crm.followup.update': 'crm.write',
+  'crm.followup.delete': 'crm.write',
+  'crm.followup.complete': 'crm.write',
+  'crm.campaign.create': 'crm.write',
+  'crm.campaign.update': 'crm.write',
+  'crm.campaign.delete': 'crm.write',
 };
 
 /* ------------------------------------------------------------------ *
@@ -1143,6 +1297,7 @@ export const APP_IDS = {
   statements: appId('com.financeos.statements'),
   profitability: appId('com.financeos.profitability'),
   treasury: appId('com.financeos.treasury'),
+  crm: appId('com.financeos.crm'),
 } as const;
 
 /** Kernel-owned pseudo app id used by system processes. */

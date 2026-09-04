@@ -48,6 +48,15 @@ const LABELS: Readonly<Record<Capability, Localized>> = {
     fr: 'Transmettre du travail entre services',
     en: 'Hand work to another department',
   },
+  // Says "customers and quotes" rather than "write CRM data", because the noun a
+  // person recognises is the one they are being asked about. It stops short of the
+  // word "sale": accepting a quote is the act that books one, and that act costs
+  // `ledger.post` and is labelled above.
+  'crm.write': {
+    ar: 'إدارة العملاء وعروض الأسعار',
+    fr: 'Gérer les clients et les devis',
+    en: 'Manage customers and quotes',
+  },
 };
 
 const isCapability = (value: string): value is Capability =>
