@@ -23,13 +23,15 @@ export default defineConfig({
          * downloads the set once and serves it from cache for every screen after,
          * instead of delivering it in fragments that overlap.
          *
-         * The CRM and DMS panels are tabs of one workspace, each reached through a
-         * single dynamic import in AdminDashboard, and nothing else in the tree
-         * imports into either folder. So merging a folder's tabs costs no round
-         * trip a visitor was not already making -- opening the workspace fetches
-         * the folder instead of the first tab, and switching tabs then fetches
-         * nothing -- while recovering the per-chunk overhead and the shared table
-         * markup that thirteen chunks were each compressing alone.
+         * The DMS panels are tabs of one workspace, reached through a single dynamic
+         * import in AdminDashboard, and nothing else in the tree imports into that
+         * folder. So merging a folder's tabs costs no round trip a visitor was not
+         * already making -- opening the workspace fetches the folder instead of the
+         * first tab, and switching tabs then fetches nothing -- while recovering the
+         * per-chunk overhead and the shared table markup that thirteen chunks were
+         * each compressing alone. The CRM had the same rule until it became an OS app
+         * (`src/apps/crm`); with nothing importing the old folder there is no chunk
+         * left to group, and the rule went with it.
          *
          * Narrow on purpose. Grouping all of node_modules, or the App-* route
          * chunks, or the BI studio's ten panels, each buys a smaller total with a
@@ -39,7 +41,6 @@ export default defineConfig({
         manualChunks: (id: string) => {
           const file = id.replace(/\\/g, '/');
           if (file.includes('node_modules/lucide-react')) return 'vendor-icons';
-          if (file.includes('/src/components/admin/crm/')) return 'crm-workspace';
           if (file.includes('/src/components/admin/dms/')) return 'dms-workspace';
           return undefined;
         },

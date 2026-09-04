@@ -8,6 +8,19 @@
  * Reads that are plain row lists (leads, customers, activities, stage history)
  * go through useSupabaseData against the RLS-protected tables instead. This file
  * exists for the composed payloads only.
+ *
+ * NOTHING IMPORTS THIS FILE TODAY, and that is a debt rather than a cleanup. Its
+ * only callers were the panels under `src/components/admin/crm/`, deleted when the
+ * customer desk became an OS app (`src/apps/crm`). An app may reach the database
+ * only through a kernel dataset, and every CRM dataset in the broker is a table
+ * read or a `kind: 'derived'` JS computation -- there is no RPC-backed dataset
+ * kind, so `customerProfitability` and `campaignRoi` have no path to a screen and
+ * the OS app ships seven views where the old workspace had eight tabs.
+ *
+ * It is kept because the row types below exist nowhere else and the alternative --
+ * recomputing a per-customer margin in the browser -- is the one thing the head
+ * paragraph above says this layer exists to prevent. Deleting it is not the fix;
+ * an RPC-backed dataset kind in the broker is.
  */
 import { supabase } from '@/lib/supabase';
 import { normalizeError } from '@/lib/errors';

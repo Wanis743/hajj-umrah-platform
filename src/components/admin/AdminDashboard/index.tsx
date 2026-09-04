@@ -2,7 +2,7 @@ import { SettingsTab } from './SettingsTab';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   LayoutDashboard, BarChart3, BrainCircuit, Users, CalendarCheck, Settings, Bell,
-  UsersRound, BadgeCheck, FileText, Plane, PlaneTakeoff, Hotel, BedDouble, Bus, UserCheck, Target,
+  UsersRound, BadgeCheck, FileText, Plane, PlaneTakeoff, Hotel, BedDouble, Bus, UserCheck,
   Truck, Package, LifeBuoy, AlertTriangle, Siren, Zap, FileBarChart, DatabaseZap, ScrollText, Tent,
   Landmark, Wallet, BookOpenCheck, Gauge, Briefcase, ShieldCheck, Settings2, Compass, ExternalLink, TrendingUp,
   FileStack, Layers,
@@ -54,7 +54,8 @@ const LazyImportCenter = lazy(() => import('@/components/admin/ImportCenter').th
 const LazyFinanceOS = lazy(() => import('@/components/admin/FinanceOS'));
 const LazyOperationsOS = lazy(() => import('@/components/admin/OperationsOS').then(m => ({ default: m.OperationsOS })));
 const LazyExportCenter = lazy(() => import('@/components/admin/ExportCenter').then(m => ({ default: m.ExportCenter ?? m.default })));
-const LazyCrmWorkspace = lazy(() => import('@/components/admin/crm').then(m => ({ default: m.CrmWorkspace })));
+// The CRM is no longer one of these. It is an OS app (`src/apps/crm`), launched
+// from Start like every other app, and this dashboard no longer has a tab for it.
 const LazyDmsWorkspace = lazy(() => import('@/components/admin/dms').then(m => ({ default: m.DmsWorkspace })));
 const LazyBiWorkspace = lazy(() => import('@/components/admin/bi').then(m => ({ default: m.BiWorkspace })));
 
@@ -186,7 +187,6 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
     {
       id: 'business', label: t('التجارة والمالية', 'Commercial & Finance', 'Commerce & Finance'), icon: Briefcase, items: [
         { id: 'packages', ar: 'الباقات', fr: 'Forfaits', en: 'Packages', icon: Package, badge: count(packages.length), descAr: 'برامج الحج والعمرة', descFr: 'Programmes Hajj/Omra', descEn: 'Hajj & Umrah programs' },
-        { id: 'crm', ar: 'المبيعات والعملاء', fr: 'Ventes & CRM', en: 'Sales & CRM', icon: Target, badge: count(leads.length), descAr: 'العملاء المحتملون', descFr: 'Prospects', descEn: 'Leads pipeline' },
         { id: 'finance_os', ar: 'المالية', fr: 'Finance', en: 'Finance', icon: Wallet, descAr: 'المقبوضات والمدفوعات', descFr: 'Encaissements & dépenses', descEn: 'Revenue & expenses' },
         { id: 'ledger', ar: 'دفتر القيود', fr: 'Grand livre', en: 'Ledger', icon: BookOpenCheck, descAr: 'القيد المزدوج', descFr: 'Comptabilité en partie double', descEn: 'Double-entry accounting' },
         { id: 'suppliers', ar: 'الموردون', fr: 'Fournisseurs', en: 'Suppliers', icon: Truck, badge: count(suppliers.length), descAr: 'العقود والمستحقات', descFr: 'Contrats & dus', descEn: 'Contracts & payables' },
@@ -218,7 +218,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
       ],
     },
      
-  ], [t, pilgrims.length, bookings.length, groups.length, documents.length, flights.length, buses.length, hotels.length, camps.length, guides.length, packages.length, leads.length, suppliers.length, actions.length, alerts.length, openIncidents, pendingVisas]);
+  ], [t, pilgrims.length, bookings.length, groups.length, documents.length, flights.length, buses.length, hotels.length, camps.length, guides.length, packages.length, suppliers.length, actions.length, alerts.length, openIncidents, pendingVisas]);
 
 
   const flatItems = useMemo(() => navSections.flatMap((s) => s.items.map((i) => ({ ...i, sectionLabel: s.label }))), [navSections]);
@@ -455,7 +455,7 @@ export default function AdminDashboardView(props: AdminDashboardViewProps) {
                   {activeTab === 'pilgrims' && <PilgrimManager pilgrims={pilgrims as never} onOpenNewReservationModal={() => setIsNewModalOpen(true)} />}
                   {activeTab === 'bookings' && <LazyBookingManager />} {activeTab === 'groups' && <GroupManager />} {activeTab === 'visas' && <VisaProcessor />} {activeTab === 'documents' && <DocumentCenter documents={documents as never} />}
                   {activeTab === 'flights' && <FlightManager flights={flights as never} />} {activeTab === 'flight_logistics' && <FlightLogisticsManager />} {activeTab === 'hotels' && <HotelManager hotels={hotels} />} {activeTab === 'housing' && <HotelHousingManager />} {activeTab === 'transport' && <TransportManager vehicles={buses as never} />} {activeTab === 'hajj_ops' && <HajjOperations camps={camps as never} />} {activeTab === 'holy_sites' && <HolySitesManager />} {activeTab === 'guides' && <MutawwifManager guides={guides as never} />}
-                  {activeTab === 'crm' && <LazyCrmWorkspace />} {activeTab === 'ledger' && <FinancialLedgerManager />} {activeTab === 'suppliers' && <SupplierManager suppliers={suppliers} />} {activeTab === 'packages' && <PackageManager packages={packages as never} />}
+                  {activeTab === 'ledger' && <FinancialLedgerManager />} {activeTab === 'suppliers' && <SupplierManager suppliers={suppliers} />} {activeTab === 'packages' && <PackageManager packages={packages as never} />}
                   {activeTab === 'tickets' && <IncidentManager incidents={incidents as never} tickets={[]} />} {activeTab === 'incidents' && <IncidentManager incidents={incidents as never} tickets={[]} />} {activeTab === 'sos' && <EmergencySosManager />} {activeTab === 'actions' && <ActionCenter actions={actions as never} />}
                   {activeTab === 'alerts' && <AlertDashboard alerts={alerts as never} />} {activeTab === 'reports' && <LazyReportBuilder />} {activeTab === 'data_quality' && <DataQualityDashboard />} {activeTab === 'audit' && <AuditLog />}
                   {activeTab === 'dms' && <LazyDmsWorkspace />}

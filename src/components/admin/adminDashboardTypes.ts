@@ -2,7 +2,7 @@ export type ExtendedAdminTab =
   | 'command_center' | 'kpi_universe' | 'data_insights'
   | 'pilgrims' | 'bookings' | 'groups' | 'visas' | 'documents'
   | 'flights' | 'flight_logistics' | 'hotels' | 'housing' | 'transport' | 'hajj_ops' | 'holy_sites' | 'guides'
-  | 'crm' | 'financials' | 'ledger' | 'suppliers' | 'packages'
+  | 'financials' | 'ledger' | 'suppliers' | 'packages'
   | 'tickets' | 'incidents' | 'sos' | 'actions'
   | 'alerts' | 'reports' | 'data_quality' | 'audit' | 'settings'
   | 'dms' | 'bi'

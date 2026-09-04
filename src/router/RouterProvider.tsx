@@ -20,7 +20,10 @@ function getRouteFromHash(): Route {
   if (hash === 'reserve') return 'reserve';
   if (hash === 'admin' || hash.startsWith('admin/')) return 'admin';
   
-  const adminTabs = ['command_center', 'kpi_universe', 'data_insights', 'pilgrims', 'bookings', 'groups', 'visas', 'documents', 'flights', 'flight_logistics', 'hotels', 'housing', 'transport', 'hajj_ops', 'holy_sites', 'guides', 'crm', 'financials', 'ledger', 'suppliers', 'packages', 'tickets', 'incidents', 'sos', 'actions', 'alerts', 'reports', 'data_quality', 'audit', 'group_ops', 'external_ops', 'import_center', 'export_center', 'settings', 'finance_os', 'launcher'];
+  // Hashes that name an admin tab. `crm` is deliberately absent: the customer desk is an OS
+  // app (`src/apps/crm`) rather than a dashboard tab, so `#crm` no longer resolves to one and
+  // `ExtendedAdminTab` no longer carries it.
+  const adminTabs = ['command_center', 'kpi_universe', 'data_insights', 'pilgrims', 'bookings', 'groups', 'visas', 'documents', 'flights', 'flight_logistics', 'hotels', 'housing', 'transport', 'hajj_ops', 'holy_sites', 'guides', 'financials', 'ledger', 'suppliers', 'packages', 'tickets', 'incidents', 'sos', 'actions', 'alerts', 'reports', 'data_quality', 'audit', 'group_ops', 'external_ops', 'import_center', 'export_center', 'settings', 'finance_os', 'launcher'];
   if (adminTabs.includes(hash)) {
     return 'admin';
   }
