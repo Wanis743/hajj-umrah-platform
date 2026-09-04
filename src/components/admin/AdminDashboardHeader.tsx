@@ -39,10 +39,6 @@ interface Props {
   onOpenFinanceOS?: () => void;
 }
 
-// Dashboard staff UI ships in formal Arabic, French and English only —
-// the Darija ("dz") option stays on the public site.
-const dashboardLanguages = languages.filter((l) => l.code !== 'dz');
-
 export default function AdminDashboardHeader(props: Props) {
   const {
     isAr, t, lang, setLang, theme, toggleTheme, activeTitle,
@@ -72,9 +68,6 @@ export default function AdminDashboardHeader(props: Props) {
     setNotifOpen(which === 'notif' ? (v: boolean) => !v : false);
     setLangOpen(which === 'lang' ? (v: boolean) => !v : false);
   };
-
-  // Darija is a public-site language only; fall back to formal Arabic in the dashboard.
-  useEffect(() => { if (lang === 'dz') setLang('ar'); }, [lang, setLang]);
 
   return (
     <header ref={barRef} className="tb shrink-0">
@@ -133,7 +126,7 @@ export default function AdminDashboardHeader(props: Props) {
             </button>
             {langOpen && (
               <div className="glass-pop tb-pop absolute top-full z-50 mt-2 w-44 p-1.5" style={{ [end]: 0 }}>
-                {dashboardLanguages.map((l) => (
+                {languages.map((l) => (
                   <button
                     key={l.code}
                     onClick={() => { setLang(l.code as Lang); setLangOpen(false); }}

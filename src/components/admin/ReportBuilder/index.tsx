@@ -103,7 +103,7 @@ const REPORT_TYPES: Array<{ id: ReportType; ar: string; fr: string; en: string; 
 
 export default function ReportBuilder() {
   const { lang } = useI18n();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = (ar: string, fr: string, en: string) => (isAr ? ar : isFr ? fr : en);
   const colLabel = (c: ColumnDef) => isAr ? c.labelAr : isFr ? c.labelFr : c.labelEn;

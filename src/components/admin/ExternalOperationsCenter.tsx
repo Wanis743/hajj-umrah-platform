@@ -89,7 +89,7 @@ const EMPTY_FORM: FormState = {
 
 export function ExternalOperationsCenter() {
   const { lang } = useI18n();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = (ar: string, fr: string, en: string) => isAr ? ar : isFr ? fr : en;
   const confirmDialog = useConfirmDialog();

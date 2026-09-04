@@ -32,7 +32,7 @@ import type {
 import { IPC_CHANNELS } from '../kernel/abi';
 
 /** Language codes the shell can be running in. */
-export type AppLang = 'ar' | 'dz' | 'fr' | 'en';
+export type AppLang = 'ar' | 'fr' | 'en';
 
 export interface AppLocale {
   readonly lang: AppLang;

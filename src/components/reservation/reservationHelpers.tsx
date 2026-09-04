@@ -70,10 +70,10 @@ export function isEmailValid(email: string): boolean {
 }
 
 export const pkgNames: Record<string, Record<string, string>> = {
-  'umrah-ramadan': { ar: 'عمرة رمضان', fr: 'Omra Ramadan', en: 'Ramadan Umrah', dz: 'عمرة رمضان' },
-  'hajj-premium': { ar: 'باقة الحج المتميزة', fr: 'Forfait Hajj Premium', en: 'Premium Hajj Package', dz: 'باقة الحج المتميزة' },
-  'umrah-economy': { ar: 'عمرة اقتصادية', fr: 'Omra Économique', en: 'Economy Umrah', dz: 'عمرة اقتصادية' },
-  'vip-package': { ar: 'باقة VIP', fr: 'Forfait VIP', en: 'VIP Package', dz: 'باقة VIP' },
+  'umrah-ramadan': { ar: 'عمرة رمضان', fr: 'Omra Ramadan', en: 'Ramadan Umrah' },
+  'hajj-premium': { ar: 'باقة الحج المتميزة', fr: 'Forfait Hajj Premium', en: 'Premium Hajj Package' },
+  'umrah-economy': { ar: 'عمرة اقتصادية', fr: 'Omra Économique', en: 'Economy Umrah' },
+  'vip-package': { ar: 'باقة VIP', fr: 'Forfait VIP', en: 'VIP Package' },
 };
 
 export function SummaryRow({ label, value }: { label: string; value: string }) {

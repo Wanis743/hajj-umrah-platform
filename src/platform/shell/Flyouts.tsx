@@ -71,7 +71,6 @@ const START_ANCHOR = 'start';
 
 const LANGS: readonly { readonly id: ShellLang; readonly label: string }[] = [
   { id: 'ar', label: 'العربية' },
-  { id: 'dz', label: 'الدارجة' },
   { id: 'fr', label: 'Français' },
   { id: 'en', label: 'English' },
 ];

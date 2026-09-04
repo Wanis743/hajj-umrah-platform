@@ -1,8 +1,7 @@
-export type Lang = 'ar' | 'fr' | 'en' | 'dz';
+export type Lang = 'ar' | 'fr' | 'en';
 
 export const languages: { code: Lang; label: string; flag: string; dir: 'rtl' | 'ltr' }[] = [
   { code: 'ar', label: 'العربية', flag: '🇩🇿', dir: 'rtl' },
-  { code: 'dz', label: 'الدارجة', flag: '🇩🇿', dir: 'rtl' },
   { code: 'fr', label: 'Français', flag: '🇫🇷', dir: 'ltr' },
   { code: 'en', label: 'English', flag: '🇬🇧', dir: 'ltr' },
 ];

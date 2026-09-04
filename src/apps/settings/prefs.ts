@@ -30,7 +30,7 @@ export const KEYS = {
 
 export type ThemeName = 'dark' | 'light';
 export type IconSize = 'small' | 'medium' | 'large';
-export type LangCode = 'ar' | 'dz' | 'fr' | 'en';
+export type LangCode = 'ar' | 'fr' | 'en';
 
 export interface Choice<T extends string> {
   readonly value: T;
@@ -50,7 +50,6 @@ export const ICON_SIZE_CHOICES: readonly Choice<IconSize>[] = [
 
 export const LANG_CHOICES: readonly Choice<LangCode>[] = [
   { value: 'ar', label: { ar: 'العربية', fr: 'Arabe', en: 'Arabic' } },
-  { value: 'dz', label: { ar: 'الدارجة', fr: 'Derja', en: 'Derja' } },
   { value: 'fr', label: { ar: 'الفرنسية', fr: 'Français', en: 'French' } },
   { value: 'en', label: { ar: 'الإنجليزية', fr: 'Anglais', en: 'English' } },
 ];

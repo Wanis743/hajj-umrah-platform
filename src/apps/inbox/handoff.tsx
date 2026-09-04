@@ -114,9 +114,10 @@ function Route({ from, to, glyph }: RouteProps) {
  * The Arabic title when there is one and the reader is reading right to left, else the
  * Latin one.
  *
- * Keyed on `rtl` rather than on `lang === 'ar'` because `dz` is written right to left
- * too, and a Darja reader handed the Latin title while the Arabic one sits unused in
- * the row is a bug that only ever shows up on somebody else's screen.
+ * Keyed on `rtl` rather than on `lang === 'ar'` because reading direction, not one
+ * particular language code, is what decides which of the two titles is the useful one.
+ * A right-to-left reader handed the Latin title while the Arabic one sits unused in the
+ * row is a bug that only ever shows up on somebody else's screen.
  */
 function titleFor(rtl: boolean, arabic: string | null, latin: string): string {
   return rtl && arabic !== null && arabic !== '' ? arabic : latin;

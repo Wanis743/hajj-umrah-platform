@@ -26,22 +26,21 @@ type Text = Record<string, Record<Lang, string>>;
 type List = Record<string, Record<Lang, readonly string[]>>;
 
 const NAMES: Text = {
-  'umrah-ramadan': { ar: 'عمرة رمضان', fr: 'Omra Ramadan', en: 'Ramadan Umrah', dz: 'عمرة رمضان' },
+  'umrah-ramadan': { ar: 'عمرة رمضان', fr: 'Omra Ramadan', en: 'Ramadan Umrah' },
   'hajj-premium': {
     ar: 'باقة الحج المتميزة',
     fr: 'Forfait Hajj Premium',
     en: 'Premium Hajj Package',
-    dz: 'باقة الحج المتميزة',
   },
-  'umrah-economy': { ar: 'عمرة اقتصادية', fr: 'Omra Économique', en: 'Economy Umrah', dz: 'عمرة اقتصادية' },
-  'vip-package': { ar: 'باقة VIP', fr: 'Forfait VIP', en: 'VIP Package', dz: 'باقة VIP' },
+  'umrah-economy': { ar: 'عمرة اقتصادية', fr: 'Omra Économique', en: 'Economy Umrah' },
+  'vip-package': { ar: 'باقة VIP', fr: 'Forfait VIP', en: 'VIP Package' },
 };
 
 const DURATIONS: Text = {
-  'umrah-ramadan': { ar: '١٠ أيام', fr: '10 jours', en: '10 days', dz: '١٠ أيام' },
-  'hajj-premium': { ar: '١٥ يومًا', fr: '15 jours', en: '15 days', dz: '١٥ يوم' },
-  'umrah-economy': { ar: '٧ أيام', fr: '7 jours', en: '7 days', dz: '٧ أيام' },
-  'vip-package': { ar: '٨ أيام', fr: '8 jours', en: '8 days', dz: '٨ أيام' },
+  'umrah-ramadan': { ar: '١٠ أيام', fr: '10 jours', en: '10 days' },
+  'hajj-premium': { ar: '١٥ يومًا', fr: '15 jours', en: '15 days' },
+  'umrah-economy': { ar: '٧ أيام', fr: '7 jours', en: '7 days' },
+  'vip-package': { ar: '٨ أيام', fr: '8 jours', en: '8 days' },
 };
 
 const TAGLINES: Text = {
@@ -49,25 +48,21 @@ const TAGLINES: Text = {
     ar: 'أداء العمرة في أفضل ليالي السنة براحة وطمأنينة',
     fr: "Accomplir l'Omra durant les meilleures nuits de l'année en toute sérénité",
     en: 'Perform Umrah during the best nights of the year with comfort and peace',
-    dz: 'أداء العمرة في أحسن ليالي السنة براحة وطمأنينة',
   },
   'hajj-premium': {
     ar: 'رحلة حج متكاملة بإشراف ديني وخبرة سنوات',
     fr: "Un voyage de Hajj complet avec encadrement religieux et des années d'expérience",
     en: 'A complete Hajj journey with religious supervision and years of experience',
-    dz: 'رحلة حج كاملة بإشراف ديني وخبرة سنين',
   },
   'umrah-economy': {
     ar: 'أداء العمرة بميزانية مناسبة دون التفريط في الراحة',
     fr: "Accomplir l'Omra avec un budget adapté sans sacrifier le confort",
     en: 'Perform Umrah with a suitable budget without sacrificing comfort',
-    dz: 'أداء العمرة بميزانية مناسبة من غير ما تفرط في الراحة',
   },
   'vip-package': {
     ar: 'تجربة فاخرة مع خدمات حصرية ونقل خاص طوال الرحلة',
     fr: 'Une expérience luxueuse avec services exclusifs et transport privé tout au long du voyage',
     en: 'A luxurious experience with exclusive services and private transport throughout',
-    dz: 'تجربة فاخرة مع خدمات حصرية ونقل خاص طول الرحلة',
   },
 };
 
@@ -76,25 +71,21 @@ const INCLUDES: List = {
     ar: ['تأشيرة عمرة كاملة', 'إقامة ٤ ليالٍ في مكة (فندق ٤★)', 'إقامة ٤ ليالٍ في المدينة (فندق ٤★)', 'نقل خاص بين المدينتين', 'مرشد ديني مرافق', 'وجبتي إفطار وسحور'],
     fr: ['Visa Omra complet', '4 nuits à La Mecque (hôtel 4★)', '4 nuits à Médine (hôtel 4★)', 'Transport privé entre les deux villes', 'Guide religieux accompagnant', 'Petit-déjeuner et Sahur'],
     en: ['Full Umrah visa', '4 nights in Mecca (4★ hotel)', '4 nights in Medina (4★ hotel)', 'Private transport between cities', 'Accompanying religious guide', 'Breakfast and Sahur meals'],
-    dz: ['تأشيرة عمرة كاملة', '٤ ليالي في مكة (فندق ٤★)', '٤ ليالي في المدينة (فندق ٤★)', 'نقل خاص بين المدينتين', 'مرشد ديني مرافق', 'وجبتي إفطار وسحور'],
   },
   'hajj-premium': {
     ar: ['تأشيرة حج مع جميع التصاريح', 'إقامة في مكة قرب الحرم (فندق ٥★)', 'مخيمات منى وعرفات بمستوى عالٍ', 'نقل حافلات مكيفة ومريحة', 'مرشد ديني وطباخ متخصص', 'وجبات كاملة طوال الرحلة'],
     fr: ['Visa Hajj avec toutes les autorisations', 'Hébergement à La Mecque près du Haram (hôtel 5★)', 'Tentes de Mina et Arafat haut de gamme', 'Transport en bus climatisé confortable', 'Guide religieux et cuisinier spécialisé', 'Repas complets tout au long du voyage'],
     en: ['Hajj visa with all permits', 'Accommodation in Mecca near Haram (5★ hotel)', 'High-quality Mina and Arafat tents', 'Air-conditioned comfortable bus transport', 'Religious guide and specialized cook', 'Full meals throughout the journey'],
-    dz: ['تأشيرة حج مع كل التصاريح', 'إقامة في مكة قرب الحرم (فندق ٥★)', 'مخيمات منى وعرفات بمستوى عالي', 'نقل حافلات مكيفة ومريحة', 'مرشد ديني وطباخ مختص', 'وجبات كاملة طول الرحلة'],
   },
   'umrah-economy': {
     ar: ['تأشيرة عمرة', 'إقامة ٣ ليالٍ في مكة (فندق ٣★)', 'إقامة ٣ ليالٍ في المدينة (فندق ٣★)', 'نقل جماعي بين المدينتين', 'مرشد ديني', 'وجبة إفطار'],
     fr: ['Visa Omra', '3 nuits à La Mecque (hôtel 3★)', '3 nuits à Médine (hôtel 3★)', 'Transport collectif entre les villes', 'Guide religieux', 'Petit-déjeuner'],
     en: ['Umrah visa', '3 nights in Mecca (3★ hotel)', '3 nights in Medina (3★ hotel)', 'Group transport between cities', 'Religious guide', 'Breakfast'],
-    dz: ['تأشيرة عمرة', '٣ ليالي في مكة (فندق ٣★)', '٣ ليالي في المدينة (فندق ٣★)', 'نقل جماعي بين المدينتين', 'مرشد ديني', 'وجبة إفطار'],
   },
   'vip-package': {
     ar: ['تأشيرة عمرة سريعة', 'إقامة فاخرة ٥★ قرب الحرمين', 'سيارة خاصة بسائق مخصص', 'مرشد ديني خاص', 'وجبات كاملة (بوفيه مفتوح)', 'جولات زيارات في مكة والمدينة'],
     fr: ['Visa Omra rapide', 'Hébergement luxueux 5★ près des deux Harams', 'Voiture privée avec chauffeur dédié', 'Guide religieux privé', 'Repas complets (buffet à volonté)', 'Visites guidées à La Mecque et Médine'],
     en: ['Express Umrah visa', 'Luxury 5★ accommodation near both Harams', 'Private car with dedicated driver', 'Private religious guide', 'Full meals (open buffet)', 'Sightseeing tours in Mecca and Medina'],
-    dz: ['تأشيرة عمرة سريعة', 'إقامة فاخرة ٥★ قرب الحرمين', 'سيارة خاصة بسائق مخصص', 'مرشد ديني خاص', 'وجبات كاملة (بوفيه مفتوح)', 'جولات زيارات في مكة والمدينة'],
   },
 };
 

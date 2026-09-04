@@ -27,7 +27,7 @@ const FALLBACK_IMAGE =
 
 function localizedName(row: PublicPackageRow, lang: string) {
   if (lang === 'fr' && row.name_fr) return row.name_fr;
-  if ((lang === 'ar' || lang === 'dz') && row.name_ar) return row.name_ar;
+  if ((lang === 'ar') && row.name_ar) return row.name_ar;
   return row.name;
 }
 

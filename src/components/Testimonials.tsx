@@ -9,11 +9,6 @@ const reviewsByLang = {
     { name: 'فاطمة الزهراء', origin: 'وهران', text: 'تعاملت مع وكالات كثيرة لكن بوسالم مختلفة. اهتمامهم بكل تفصيل ومرافقتهم لنا خطوة بخطوة جعل الرحلة روحانية لا تُنسى.' },
     { name: 'محمد العربي', origin: 'قسنطينة', text: 'باقة الحج المتميزة فاقت توقعاتي. المخيمات في منى وعرفات كانت مريحة والوجبات ممتازة. شكرًا لكل طاقم بوسالم.' },
   ],
-  dz: [
-    { name: 'أحمد بن سعيد', origin: 'الجزائر العاصمة', text: 'رحلة منظمة من البداية حتى النهاية. المرشد كان متعاون والفنادق قريبة من الحرم. أدّيت عمرة بطمأنينة كاملة بفضل وكالة بوسالم.' },
-    { name: 'فاطمة الزهراء', origin: 'وهران', text: 'تعاملت مع وكالات بزاف ولكن بوسالم مختلفة. اهتمامهم بكل تفصيل ومرافقتهم لنا خطوة بخطوة خلّو الرحلة روحانية ما تتنساش.' },
-    { name: 'محمد العربي', origin: 'قسنطينة', text: 'باقة الحج المتميزة فاقت توقعاتي. المخيمات في منى وعرفات كانت مريحة والوجبات ممتازة. شكرًا لكل طاقم بوسالم.' },
-  ],
   fr: [
     { name: 'Ahmed Ben Saïd', origin: 'Alger', text: 'Un voyage organisé du début à la fin. Le guide était coopératif et les hôtels proches du Haram. J\'ai accompli l\'Omra en toute sérénité grâce à l\'agence BouSalem.' },
     { name: 'Fatima Zahra', origin: 'Oran', text: 'J\'ai traité avec de nombreuses agences mais BouSalem est différente. Leur attention à chaque détail et leur accompagnement étape par étape ont rendu le voyage inoubliable.' },

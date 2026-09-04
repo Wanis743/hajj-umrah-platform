@@ -177,7 +177,7 @@ function KC({label,value,sub,icon,grad,scope,trend}:{label:string;value:string;s
 // ProAccountingWorkspace is imported from ./ProAccountingWorkspace.tsx
 export default function AdvancedAnalytics({ filters, snapshot }: Props){
   const{lang}=useI18n();
-  const isAr=lang==='ar'||lang==='dz';
+  const isAr=lang==='ar';
   const fmt=(x:number)=>new Intl.NumberFormat('fr-FR').format(Math.round(x));
   const fmtDay=(d:Date)=>new Intl.DateTimeFormat(isAr?'ar-DZ':'fr-FR',{day:'numeric',month:'short'}).format(d);
   const[data,setData]=useState<AData|null>(null);

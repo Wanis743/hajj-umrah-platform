@@ -25,7 +25,7 @@ const inputCls = 'input';
 const labelCls = 'block text-xs font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] mb-1';
 export function FlightManager({ flights }: { flights?: FlightRow[] }) {
   const { lang } = useI18n();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = (ar: string, fr: string, en: string) => (isAr ? ar : isFr ? fr : en);
   const { data, loading, error } = useSupabaseData<FlightRow>({

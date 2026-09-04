@@ -15,7 +15,7 @@ interface NewReservationModalProps {
 
 export default function NewReservationModal({ isOpen, onClose, onAdded }: NewReservationModalProps) {
   const { lang } = useI18n();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');

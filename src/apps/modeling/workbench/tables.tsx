@@ -98,9 +98,10 @@ const MUTED: CSSProperties = { color: 'var(--fx-text-tertiary)' };
 /**
  * The Arabic name when there is one and the reader is reading right to left, else the Latin one.
  *
- * Keyed on `rtl` rather than on `lang === 'ar'` because `dz` is also written right to left, and a
- * Darja reader handed the French label while the Arabic one sits unused in the row is a bug that
- * only ever shows up on somebody else's screen.
+ * Keyed on `rtl` rather than on `lang === 'ar'` because reading direction, not one particular
+ * language code, is what decides which of the two names is the useful one. A right-to-left reader
+ * handed the French label while the Arabic one sits unused in the row is a bug that only ever
+ * shows up on somebody else's screen.
  */
 function nameFor(rtl: boolean, arabic: string, latin: string): string {
   return rtl && arabic !== '' ? arabic : latin;

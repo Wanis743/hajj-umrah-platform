@@ -37,7 +37,12 @@ export default function Hero() {
       id="home"
       className="gl-screen-h gl-stack flex items-center justify-center overflow-hidden pt-24 pb-16 sm:pt-28"
     >
-      <div className="absolute inset-0 -z-10">
+      {/* `animate-cam-settle` is on this wrapper rather than on the image,
+          because a Tailwind `animate-*` utility sets the whole `animation`
+          property -- two of them on the image would mean the second one wins
+          and `slow-zoom` would be lost. The wrapper settles the focus once;
+          the image keeps its own 22-second drift underneath. */}
+      <div className="animate-cam-settle absolute inset-0 -z-10">
         <img
           src={`${PHOTO}&w=1920`}
           srcSet={`${PHOTO}&w=640 640w, ${PHOTO}&w=1024 1024w, ${PHOTO}&w=1600 1600w, ${PHOTO}&w=1920 1920w`}
@@ -54,17 +59,17 @@ export default function Hero() {
       </div>
 
       <div className="mx-auto w-full max-w-4xl px-4 text-center sm:px-6">
-        <p className="gl-chip gl-chip-onimage animate-fade-in mb-5 px-4 py-2 text-xs font-medium sm:text-sm">
+        <p className="gl-chip gl-chip-onimage animate-fade-in-blur mb-5 px-4 py-2 text-xs font-medium sm:text-sm">
           {t.hero.badge}
         </p>
-        <h1 className="animate-fade-up font-serif text-fluid-display font-bold text-white text-balance [animation-delay:80ms]">
+        <h1 className="animate-fade-up-blur font-serif text-fluid-display font-bold text-white text-balance [animation-delay:80ms]">
           {t.hero.title}
         </h1>
-        <p className="animate-fade-up mx-auto mt-5 max-w-2xl text-fluid-lead text-sand-100 text-balance [animation-delay:180ms]">
+        <p className="animate-fade-up-blur mx-auto mt-5 max-w-2xl text-fluid-lead text-sand-100 text-balance [animation-delay:180ms]">
           {t.hero.subtitle}
         </p>
 
-        <div className="animate-fade-up mt-8 flex flex-col items-stretch justify-center gap-3 [animation-delay:280ms] sm:flex-row sm:items-center">
+        <div className="animate-fade-up-blur mt-8 flex flex-col items-stretch justify-center gap-3 [animation-delay:280ms] sm:flex-row sm:items-center">
           <button
             onClick={() => navigate('reserve')}
             className="gl-btn gl-btn-primary group w-full px-7 text-base sm:w-auto"
@@ -81,7 +86,7 @@ export default function Hero() {
         {/* Trust row. Three glass tiles on a phone (a 3-up grid that stays
             readable at 320px) and one inline row from `sm` up, where the
             tiles drop their frame and become plain text. */}
-        <ul className="animate-fade-up mt-10 grid grid-cols-3 gap-2 text-sand-100 [animation-delay:380ms] sm:mt-12 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 sm:gap-y-3">
+        <ul className="animate-fade-up-blur mt-10 grid grid-cols-3 gap-2 text-sand-100 [animation-delay:380ms] sm:mt-12 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 sm:gap-y-3">
           {TRUST.map((row) => (
             <li
               key={row.value}

@@ -14,8 +14,8 @@ export type ThemeName = 'dark' | 'light';
 export type IconSize = 'small' | 'medium' | 'large';
 export type TaskbarAlignment = 'center' | 'start';
 
-/** Language the shell chrome renders in. `dz` shares Arabic strings. */
-export type ShellLang = 'ar' | 'dz' | 'fr' | 'en';
+/** Language the shell chrome renders in. */
+export type ShellLang = 'ar' | 'fr' | 'en';
 
 export interface Appearance {
   readonly theme: ThemeName;
@@ -236,7 +236,7 @@ export function accentVariables(hex: string): Readonly<Record<string, string>> {
  * ------------------------------------------------------------------ */
 
 const THEMES: readonly ThemeName[] = ['dark', 'light'];
-const LANGS: readonly ShellLang[] = ['ar', 'dz', 'fr', 'en'];
+const LANGS: readonly ShellLang[] = ['ar', 'fr', 'en'];
 const ICON_SIZES: readonly IconSize[] = ['small', 'medium', 'large'];
 
 const oneOf = <T extends string>(value: string, allowed: readonly T[], fallback: T): T =>

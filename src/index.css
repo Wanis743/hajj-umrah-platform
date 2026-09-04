@@ -23,6 +23,39 @@
     font-weight: 700;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'liga', 'calt';
   }
+
+  /* Latin typographic detail, and only where the document is Latin-script.
+     The stacks in tailwind.config.js already put Manrope and Lora in front of
+     Tajawal and Amiri, so a French or English page now renders a Latin design
+     and an Arabic page still falls through per character. What is left is the
+     detail a Latin face wants and an Arabic one must not be given: real
+     kerning and contextual alternates, and a hair of negative tracking on
+     headings, which tightens a Latin line and would crowd an Arabic one.
+
+     Scoped to `html[lang]`, which I18nProvider writes on every language
+     change, so `ar` keeps exactly the rendering it had. */
+  html[lang='fr'],
+  html[lang='en'] {
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
+  }
+  html[lang='fr'] h1,
+  html[lang='fr'] h2,
+  html[lang='fr'] h3,
+  html[lang='en'] h1,
+  html[lang='en'] h2,
+  html[lang='en'] h3 {
+    letter-spacing: -0.018em;
+  }
+  /* Digits that change in place must not reflow the box around them. The
+     countdown ticks once a second and Manrope's proportional `1` is narrower
+     than its `0`, so without tabular figures the whole row twitches. */
+  html[lang='fr'] .tabular-nums,
+  html[lang='en'] .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
 }
 
 @layer components {
@@ -67,6 +100,12 @@
   --gl-blur: 18px;
   --gl-blur-lg: 26px;
   --gl-blur-xl: 40px;
+  /* Motion blur, a different job from the three above: those are the standing
+     `backdrop-filter` radii of the glass, these are the radius an element
+     *travels* under and then loses. Tunable here because the right amount is
+     the largest one that still reads as speed rather than as a smudge. */
+  --gl-motion-blur: 6px;
+  --gl-motion-blur-strong: 9px;
   --gl-sat: 170%;
 
   /* Fill: three depths. Soft floats over imagery, plain is the
@@ -614,24 +653,45 @@ body.gl-locked {
  * ------------------------------------------------------------ */
 
 .reveal {
+  filter: blur(var(--gl-motion-blur));
   transition:
     opacity 0.8s var(--gl-ease),
-    transform 0.8s var(--gl-ease);
+    transform 0.8s var(--gl-ease),
+    filter 0.8s var(--gl-ease);
+}
+/* `none`, not `blur(0)`. Any non-`none` filter makes the element a backdrop
+   root, and every section here wraps glass whose `backdrop-filter` would then
+   sample inside the filtered subtree instead of the page behind it -- for
+   good, since the reveal only runs once. `blur(Npx)` interpolates to `none`
+   (the shorter filter list is padded with the identity value), so this costs
+   nothing in smoothness and leaves a genuinely unfiltered section at rest. */
+.reveal.is-visible {
+  filter: none;
 }
 /* `translate` rather than `transform`, deliberately: a revealed card is very
    often also a `.gl-lift`, and a wrapper-scoped `transform: none` would be
    more specific than `.gl-lift:hover`'s and silently kill the hover lift.
-   The independent transform properties compose instead of overwriting. */
+   The independent transform properties compose instead of overwriting --
+   which is also why the stretch below is `scale` and not `transform: scaleY`.
+   That stretch is what makes an isotropic blur read as *directional*: the
+   card squashes along its axis of travel, so the blur looks like speed
+   rather than like a lens left out of focus. */
 .reveal .reveal-item {
   opacity: 0;
   translate: 0 22px;
+  scale: 1 1.035;
+  filter: blur(var(--gl-motion-blur-strong));
   transition:
     opacity 0.7s var(--gl-ease),
-    translate 0.7s var(--gl-ease);
+    translate 0.7s var(--gl-ease),
+    scale 0.7s var(--gl-ease),
+    filter 0.7s var(--gl-ease);
 }
 .reveal.is-visible .reveal-item {
   opacity: 1;
   translate: 0 0;
+  scale: 1;
+  filter: none;
 }
 .reveal-d1 { transition-delay: 0.08s; }
 .reveal-d2 { transition-delay: 0.16s; }
@@ -699,7 +759,10 @@ body.gl-locked {
   .animate-fade-in,
   .animate-pop,
   .animate-bounce,
-  .animate-pulse {
+  .animate-pulse,
+  .animate-fade-up-blur,
+  .animate-fade-in-blur,
+  .animate-cam-settle {
     animation: none !important;
   }
   .gl-sheen::after {
@@ -724,9 +787,18 @@ body.gl-locked {
   .reveal-d5 {
     transition-delay: 0s;
   }
+  /* The blur is a base-state declaration, not an animation, so killing the
+     transition is not enough: without these an unrevealed section would stay
+     blurred until its observer fired, and a card would stay blurred and
+     stretched forever if it never scrolled into view at all. */
+  .reveal {
+    filter: none;
+  }
   .reveal .reveal-item {
     opacity: 1;
     translate: none;
+    scale: none;
+    filter: none;
     transition: none;
   }
 }

@@ -157,7 +157,7 @@ export function useAppearance(): Appearance {
  * ------------------------------------------------------------------ */
 
 /** Arabic and Algerian Arabic share strings and direction. */
-const isRtl = (lang: ShellLang): boolean => lang === 'ar' || lang === 'dz';
+const isRtl = (lang: ShellLang): boolean => lang === 'ar';
 
 const pick = (text: Localized, lang: ShellLang): string =>
   lang === 'fr' ? text.fr : lang === 'en' ? text.en : text.ar;

@@ -17,10 +17,21 @@ export default {
       '2xl': '1536px',
     },
     extend: {
+      // Latin-first, Arabic-second, and the ordering *is* the fix. Tajawal and
+      // Amiri both ship Latin glyphs, so with them in front every French and
+      // English word on the site rendered in an Arabic face's Latin design --
+      // and `Inter` was named here but never loaded by `index.html`, so it
+      // never got a turn. A real Latin face in front gives Latin runs a Latin
+      // design while Arabic codepoints fall through per character to Tajawal
+      // and Amiri, still the only faces in these stacks that carry them. So
+      // Arabic rendering is unchanged by construction: Manrope and Lora have
+      // no Arabic coverage to win with.
       fontFamily: {
-        sans: ['Tajawal', 'Inter', 'system-ui', 'sans-serif'],
-        serif: ['Amiri', 'Georgia', 'serif'],
+        sans: ['Manrope', 'Tajawal', 'system-ui', 'sans-serif'],
+        serif: ['Lora', 'Amiri', 'Georgia', 'serif'],
         mono: ['SF Mono', 'Fira Code', 'Consolas', 'monospace'],
+        // Arabic on purpose: this one is named where a screen wants Arabic
+        // whatever the interface language is, so nothing Latin goes in front.
         arabic: ['Tajawal', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
@@ -97,6 +108,43 @@ export default {
         'float': { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-9px)' } },
         'sheen': { '0%': { transform: 'translateX(-120%)' }, '100%': { transform: 'translateX(220%)' } },
         'pop': { '0%': { opacity: '0', transform: 'scale(0.94) translateY(8px)' }, '100%': { opacity: '1', transform: 'scale(1) translateY(0)' } },
+        /* Motion blur, entrance only. These are separate names rather than a
+           blur term added to `fade-up`/`fade-in`, because those two are also
+           worn by AdminLogin, the reservation wizard and a dashboard panel,
+           and the ask was the landing page.
+
+           Every one of them ends on `filter: none`, never `blur(0)`: any
+           non-`none` filter makes the element a backdrop root, and the things
+           that animate here sit above `.gl-tile` / `.gl-btn-onimage` /
+           `.gl-card`, whose `backdrop-filter` would then sample the wrong
+           stack for good once the animation finished. `blur(Npx)` to `none`
+           still interpolates -- the shorter filter list is padded with the
+           identity value -- so the travel is smooth. Writing `none` in the
+           keyframe is not enough on its own, though: a forwards fill holds the
+           interpolated value and hands the element `blur(0px)`. The fill mode
+           below is `backwards` for exactly that reason.
+
+           The vertical `scaleY` stretch is what makes an isotropic blur read
+           as *directional*: squash-and-stretch along the axis of travel. */
+        'fade-up-blur': {
+          '0%': { opacity: '0', transform: 'translateY(26px) scaleY(1.045)', filter: 'blur(11px)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scaleY(1)', filter: 'none' },
+        },
+        'fade-in-blur': {
+          '0%': { opacity: '0', filter: 'blur(9px)' },
+          '100%': { opacity: '1', filter: 'none' },
+        },
+        // The camera settling on the hero photograph. Finite on purpose: a
+        // blur that rode the 22s infinite `slow-zoom` would be a full-bleed
+        // filter pass on every frame for as long as the tab lived. No opacity
+        // term either -- that photograph is the page's LCP element, and an
+        // element at `opacity: 0` does not count as painted, so fading it in
+        // would trade a Core Web Vital for an effect. A blurred paint still
+        // counts, so it can arrive soft and sharpen without costing anything.
+        'cam-settle': {
+          '0%': { filter: 'blur(18px)', transform: 'scale(1.035)' },
+          '100%': { filter: 'none', transform: 'scale(1)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.5s cubic-bezier(0.22,1,0.36,1) both',
@@ -106,6 +154,18 @@ export default {
         'slide-in': 'slide-in 0.3s cubic-bezier(0.22,1,0.36,1) both',
         'float': 'float 7s cubic-bezier(0.45,0,0.55,1) infinite',
         'pop': 'pop 0.28s cubic-bezier(0.34,1.4,0.64,1) both',
+        // Slower than their unblurred twins by design: a blur that resolves in
+        // 0.75s reads as a glitch, one that resolves in ~1s reads as focus.
+        // `backwards`, not `both`. A forwards fill holds the *interpolated* end
+        // value, which for `blur(Npx)` to `none` is `blur(0px)` -- and a zero
+        // radius is still a filter, so it still makes the element a backdrop
+        // root and still flattens the glass that sits on it. Filling backwards
+        // covers the pre-animation frame, which is the only frame that needed
+        // covering, and lets every one of these land back on the element's own
+        // unfiltered style. Each 100% keyframe already matches that style.
+        'fade-up-blur': 'fade-up-blur 1.05s cubic-bezier(0.22,1,0.36,1) backwards',
+        'fade-in-blur': 'fade-in-blur 0.95s cubic-bezier(0.22,1,0.36,1) backwards',
+        'cam-settle': 'cam-settle 1.6s cubic-bezier(0.22,1,0.36,1) backwards',
       },
     },
   },

@@ -9,7 +9,7 @@ import { formatMoney, toMinorUnits, type CurrencyCode } from '@/lib/money';
 import type { AppLang } from './types';
 
 export const intlLocaleFor = (lang: AppLang): string =>
-  lang === 'ar' || lang === 'dz' ? 'ar-DZ' : lang === 'fr' ? 'fr-FR' : 'en-GB';
+  lang === 'ar' ? 'ar-DZ' : lang === 'fr' ? 'fr-FR' : 'en-GB';
 
 /** Currency with symbol, e.g. `1 250,00 DA`. Accepts numbers or decimal text. */
 export function money(value: number | string, currency: CurrencyCode = 'DZD', lang: AppLang = 'fr'): string {
@@ -118,7 +118,7 @@ export function duration(ms: number, lang: AppLang = 'fr'): string {
   const minutes = Math.floor((totalSec % 3600) / 60);
   const seconds = totalSec % 60;
   const unit = (n: number, ar: string, fr: string, en: string) =>
-    `${n}${lang === 'ar' || lang === 'dz' ? ar : lang === 'fr' ? fr : en}`;
+    `${n}${lang === 'ar' ? ar : lang === 'fr' ? fr : en}`;
   if (days > 0) return `${unit(days, 'ي', 'j', 'd')} ${unit(hours, 'س', 'h', 'h')}`;
   if (hours > 0) return `${unit(hours, 'س', 'h', 'h')} ${unit(minutes, 'د', 'min', 'm')}`;
   if (minutes > 0) return `${unit(minutes, 'د', 'min', 'm')} ${unit(seconds, 'ث', 's', 's')}`;

@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const { navigate } = useRouter();
   const { session } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = (ar: string, fr: string, en: string) => (isAr ? ar : isFr ? fr : en);
   const currentLang = languages.find((l) => l.code === lang);

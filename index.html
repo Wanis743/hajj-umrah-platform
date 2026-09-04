@@ -24,7 +24,19 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+    <!--
+      One request, four families, alphabetical because that is the form Google
+      caches. Tajawal and Amiri are unchanged and still carry Arabic. Manrope
+      and Lora are new and carry only Latin, which is the point: the Tailwind
+      `sans`/`serif` stacks put them first, so French and English get a Latin
+      design instead of Tajawal's Latin, and Arabic still falls through to the
+      Arabic faces per character. Weight ranges are what the app actually asks
+      for -- 300 (`font-light`) through 800 (the two 800-weight badge rules in
+      index.css) for sans, 400-700 for the display serif, which is every
+      `font-serif` weight in use. Variable ranges are one file per subset, and
+      the browser only fetches the subsets a page's codepoints need.
+    -->
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Lora:wght@400..700&family=Manrope:wght@300..800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
 
   </head>
   <body>

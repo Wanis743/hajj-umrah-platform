@@ -15,10 +15,10 @@ import type {
   DmsLinkEntityType, DmsLinkRelation, DmsPackageStatus, DmsReviewStatus, DmsUploadState,
 } from '@/types/dms';
 
-/** ar/dz -> Arabic, fr -> French, everything else English. */
+/** ar -> Arabic, fr -> French, everything else English. */
 export function useDmsI18n() {
   const { lang } = useI18n();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = useCallback(
     (ar: string, fr: string, en: string) => (isAr ? ar : isFr ? fr : en),

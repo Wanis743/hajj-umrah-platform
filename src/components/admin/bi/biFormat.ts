@@ -19,10 +19,10 @@ import type {
   BiQueryOutcome, BiResultColumn, BiScalar, BiStatus, BiTimeGrain,
 } from '@/types/bi';
 
-/** ar/dz -> Arabic, fr -> French, everything else English. */
+/** ar -> Arabic, fr -> French, everything else English. */
 export function useBiI18n() {
   const { lang } = useI18n();
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = useCallback(
     (ar: string, fr: string, en: string) => (isAr ? ar : isFr ? fr : en),

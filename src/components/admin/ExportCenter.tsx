@@ -18,7 +18,7 @@ export function ExportCenter() {
   const canExportPII = hasPermission(staffProfile?.role as Role, 'exports.pii');
   const canExport = hasPermission(staffProfile?.role as Role, 'exports.create');
 
-  const isAr = lang === 'ar' || lang === 'dz';
+  const isAr = lang === 'ar';
   const isFr = lang === 'fr';
   const t = (ar: string, fr: string, en: string) => (isAr ? ar : isFr ? fr : en);
 

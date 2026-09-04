@@ -15,7 +15,7 @@ export interface AgencyNames {
 }
 
 export function agencyNames(lang: string): AgencyNames {
-  const arabic = lang === 'ar' || lang === 'dz';
+  const arabic = lang === 'ar';
   const fallback = arabic ? 'وكالة بوسالم' : lang === 'fr' ? 'Agence BouSalem' : 'BouSalem Agency';
   return {
     name: agencyConfig.name || fallback,

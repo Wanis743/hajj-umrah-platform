@@ -11,7 +11,7 @@ import { useI18n } from '@/i18n/I18nProvider';
  */
 export function useCommandRunner() {
   const { lang } = useI18n();
-  const commandLang: CommandLang = lang === 'ar' || lang === 'dz' ? 'ar' : lang === 'fr' ? 'fr' : 'en';
+  const commandLang: CommandLang = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr' : 'en';
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
