@@ -6,10 +6,17 @@
  * explicit column list, a bounded row count and a required capability. Arbitrary
  * SQL is not expressible across the ABI, so an app cannot widen its own reach.
  *
- * Mutation is equally narrow. Every write is a named command bound to a
- * server-side RPC that enforces its own authorization; the broker adds the
- * capability check, the elevation check, idempotency, cache invalidation and the
- * audit record. There is deliberately no generic "update this table" path.
+ * Mutation is equally narrow, but it is narrow in two different ways. Most writes
+ * are a named command bound to a server-side RPC that enforces its own
+ * authorization. Twenty-one of them -- the BI studio's definition writes -- are a
+ * named command bound to one table and one operation, because those tables carry
+ * BEFORE triggers that validate every expression they are handed, so the trigger
+ * is already the authorization and an RPC in front of it would be a second copy of
+ * that rule. Either way the broker adds the capability check, the elevation check,
+ * idempotency, cache invalidation and the audit record, and either way the target
+ * is written in this file rather than passed in: there is deliberately no generic
+ * "update this table" path, only "create a metric", which happens to mean
+ * `bi_metrics`.
  *
  * A dataset resolves one of three ways. A `table` source is a column projection.
  * A `derived` source is an aggregate the broker computes from other datasets. An
@@ -842,13 +849,212 @@ const SOURCES: { readonly [K in DatasetName]: DatasetSource } = {
     args: (_query, limit) => succeed({ p_limit: limit }),
     rows: asRows,
   },
+
+  /**
+   * The semantic layer. Ten reads and not one `table` projection, which is the
+   * fact worth stating plainly: `bi_datasets`, `bi_metrics` and the rest are
+   * selectable rows, so a projection would have *worked* -- and would have handed
+   * an app the catalog as stored rather than the catalog as governed. Every entry
+   * below is a SECURITY DEFINER function that folds in the two things storage does
+   * not carry: whether this caller may read a given dataset at all, and what a
+   * definition resolves to once its lineage is walked.
+   *
+   * `biCatalog` returning `readable_by_me` on each dataset is the whole difference
+   * between a catalog and a list of rows that will each refuse you later. A
+   * projection cannot compute that column, because the answer depends on the
+   * caller.
+   *
+   * Six answer with one object and four with an array. The same trap as
+   * `dmsDashboard`: an object read by `asRows` is an empty page, and an empty
+   * catalog looks like a workspace nobody has set up yet rather than like a broken
+   * read.
+   */
+  biOverview: {
+    kind: 'rpc',
+    rpc: 'get_bi_studio_overview',
+    capability: 'ledger.read',
+    args: () => succeed({}),
+    rows: asDocumentRows,
+  },
+  biCatalog: {
+    kind: 'rpc',
+    rpc: 'get_bi_catalog',
+    capability: 'ledger.read',
+    args: () => succeed({}),
+    rows: asDocumentRows,
+  },
+
+  /**
+   * One dataset with its dimensions, metrics and the source columns an expression
+   * may name. That last list is also the allowlist the write-time trigger
+   * enforces, so a builder fed by this read can only offer what a write will be
+   * allowed to say.
+   */
+  biDatasetDetail: {
+    kind: 'rpc',
+    rpc: 'get_bi_dataset_detail',
+    capability: 'ledger.read',
+    args: (query) => {
+      const id = requireWhereString(query, 'datasetId');
+      return id.ok ? succeed({ p_dataset_id: id.value }) : id;
+    },
+    rows: asDocumentRows,
+  },
+
+  /** The ordered hierarchy under one dimension, walked in SQL because the cycle
+   *  guard has to live somewhere a screen cannot skip it. */
+  biDrillPath: {
+    kind: 'rpc',
+    rpc: 'get_bi_drill_path',
+    capability: 'ledger.read',
+    args: (query) => {
+      const id = requireWhereString(query, 'datasetId');
+      if (!id.ok) return id;
+      const key = requireWhereString(query, 'dimensionKey');
+      if (!key.ok) return key;
+      return succeed({ p_dataset_id: id.value, p_dimension_key: key.value });
+    },
+    rows: asDocumentRows,
+  },
+
+  /**
+   * Upstream to physical columns, downstream to analyses and dashboards, plus the
+   * impact counts an editor should see before saving rather than after.
+   *
+   * Its `p_kind` is the only enum-valued argument in this table, and the three
+   * values are checked here rather than left to the function. An unrecognised kind
+   * comes back from Postgres as a raised exception, which reaches the app as an
+   * IO_ERROR carrying a database sentence; what actually happened is that a caller
+   * asked about something this dataset does not describe. That is an
+   * INVALID_ARGUMENT, and saying so costs three comparisons.
+   */
+  biLineage: {
+    kind: 'rpc',
+    rpc: 'get_bi_lineage',
+    capability: 'ledger.read',
+    args: (query) => {
+      const kind = requireWhereString(query, 'kind');
+      if (!kind.ok) return kind;
+      if (kind.value !== 'DATASET' && kind.value !== 'DIMENSION' && kind.value !== 'METRIC') {
+        return fail('INVALID_ARGUMENT', 'kind must be DATASET, DIMENSION or METRIC');
+      }
+      const id = requireWhereString(query, 'id');
+      if (!id.ok) return id;
+      return succeed({ p_kind: kind.value, p_id: id.value });
+    },
+    rows: asDocumentRows,
+  },
+
+  /** Names and tile counts only. `fully_readable_by_me` rides on each row because
+   *  a dashboard is all-or-nothing to a viewer: a grid with two of its six tiles
+   *  refused is not a smaller dashboard, it is a misleading one. */
+  biDashboards: {
+    kind: 'rpc',
+    rpc: 'get_bi_dashboards',
+    capability: 'ledger.read',
+    args: () => succeed({}),
+    rows: asRows,
+  },
+
+  /**
+   * One dashboard's grid and each tile's definition, carrying no tile data at all.
+   * The tiles fetch their own numbers through `bi.visualization.run`, so each one
+   * is separately authorized and separately logged -- which is why this is a
+   * dataset and the numbers are a command.
+   */
+  biDashboard: {
+    kind: 'rpc',
+    rpc: 'get_bi_dashboard',
+    capability: 'ledger.read',
+    args: (query) => {
+      const id = requireWhereString(query, 'dashboardId');
+      return id.ok ? succeed({ p_dashboard_id: id.value }) : id;
+    },
+    rows: asDocumentRows,
+  },
+
+  /** Reports with their analyses nested. A report is a document and a dashboard is
+   *  a grid; they are separate reads because they are separate things. */
+  biReports: {
+    kind: 'rpc',
+    rpc: 'get_bi_reports',
+    capability: 'ledger.read',
+    args: () => succeed({}),
+    rows: asRows,
+  },
+
+  /**
+   * The query ledger, with the compiled SQL of every attempt including the refused
+   * ones. `p_outcome` is nullable and null means every outcome; it travels through
+   * `where` so a filtered view and an unfiltered one cannot collide in the cache.
+   *
+   * The server gates this read on `bi_query_log.read` separately from everything
+   * else here, so a principal who may draw dashboards is not thereby a principal
+   * who may read what everyone else has asked.
+   */
+  biQueryLog: {
+    kind: 'rpc',
+    rpc: 'get_bi_query_log',
+    capability: 'ledger.read',
+    args: (query, limit) => succeed({
+      p_limit: limit,
+      p_outcome: asString(query.where?.outcome),
+    }),
+    rows: asRows,
+  },
+
+  /** Every status transition of every definition, with who and when. Both filters
+   *  are optional: absent means the whole studio's history. */
+  biEvents: {
+    kind: 'rpc',
+    rpc: 'get_bi_events',
+    capability: 'ledger.read',
+    args: (query, limit) => succeed({
+      p_entity_kind: asString(query.where?.entityKind),
+      p_entity_id: asString(query.where?.entityId),
+      p_limit: limit,
+    }),
+    rows: asRows,
+  },
 };
 
 /* ------------------------------------------------------------------ *
  * Command bindings
  * ------------------------------------------------------------------ */
 
-interface CommandBinding {
+/**
+ * What the kernel does when an app names a command.
+ *
+ * Almost every binding is the first variant: a server-side function, called with
+ * arguments this file builds and validates. Authorization lives in the function.
+ *
+ * The other three exist because of the BI studio, and they are not a shortcut
+ * around the first. Every BI definition -- a dataset, a dimension, a metric, a
+ * tile -- has its expression validated by a BEFORE trigger in
+ * `20260901120000_bi_studio_vertical_slice.sql`. The trigger is the
+ * authorization, so it fires on `INSERT ... bi_metrics` no matter who sent it: a
+ * command, a hand-written PATCH, a psql session. Wrapping those tables in RPCs
+ * would put a second copy of that validation in front of a door that is already
+ * locked, and a second copy is a second thing to drift.
+ *
+ * So the table variants say what they mean. What the kernel still owns, and what
+ * an app therefore still cannot skip, is everything around the write: the
+ * capability check, elevation, the idempotency record, cache invalidation, the
+ * event-log line and the IPC publish. The table name is not a parameter -- it is
+ * written here, once per command, chosen from a closed union of seven. An app
+ * cannot ask the kernel to write a table; it can only ask it to create a metric.
+ *
+ * The variants are split three ways rather than carried as one shape with an
+ * optional `id` and an optional `values` because a single shape admits states
+ * that cannot exist -- a delete with values, an insert with an id -- and would
+ * force the dispatch to re-check at runtime what the type could have settled.
+ * `rpc` is the discriminant between the first variant and the rest, and the
+ * table variants declare `rpc?: undefined` so that the hundred-odd RPC bindings
+ * below needed no change when this became a union.
+ */
+type CommandBinding = RpcBinding | TableInsertBinding | TableUpdateBinding | TableDeleteBinding;
+
+interface RpcBinding {
   /** Server-side function. Authorization lives there; this is not a shortcut. */
   readonly rpc: string;
   /** Translates the app's payload into RPC arguments, rejecting bad input. */
@@ -856,6 +1062,73 @@ interface CommandBinding {
   /** Datasets whose cached pages are no longer trustworthy after this command. */
   readonly invalidates: readonly DatasetName[];
 }
+
+/**
+ * The only tables a command may write directly. Spelled out rather than typed as
+ * `string` so that the claim made in `abi.ts` -- that the table bindings are an
+ * allowlist of twenty-one (command, table, operation) triples and nothing else --
+ * is enforced by the compiler instead of by anyone's care.
+ *
+ * These names are absent from the generated `Database` type, so the calls below
+ * carry `as never` casts, exactly as `src/services/domainCommands.ts` does. That
+ * is a wart, not a design: it means the compiler checks the table *name* against
+ * this union and checks nothing about the columns. Regenerating the database types
+ * would remove the casts and buy back the column checking.
+ */
+type BiTableName =
+  | 'bi_datasets'
+  | 'bi_dimensions'
+  | 'bi_metrics'
+  | 'bi_reports'
+  | 'bi_visualizations'
+  | 'bi_dashboards'
+  | 'bi_dashboard_tiles';
+
+interface TableInsertBinding {
+  readonly rpc?: undefined;
+  readonly operation: 'insert';
+  readonly table: BiTableName;
+  /** The row to write. The trigger decides whether it is allowed to exist. */
+  readonly args: (payload: Readonly<Record<string, unknown>>) => AbiResult<Record<string, unknown>>;
+  readonly invalidates: readonly DatasetName[];
+}
+
+interface TableUpdateBinding {
+  readonly rpc?: undefined;
+  readonly operation: 'update';
+  readonly table: BiTableName;
+  readonly args: (payload: Readonly<Record<string, unknown>>) => AbiResult<TableTarget>;
+  readonly invalidates: readonly DatasetName[];
+}
+
+interface TableDeleteBinding {
+  readonly rpc?: undefined;
+  readonly operation: 'delete';
+  readonly table: BiTableName;
+  readonly args: (payload: Readonly<Record<string, unknown>>) => AbiResult<{ readonly id: string }>;
+  readonly invalidates: readonly DatasetName[];
+}
+
+/** One row, addressed by primary key, and the columns to set on it. */
+interface TableTarget {
+  readonly id: string;
+  readonly values: Record<string, unknown>;
+}
+
+/**
+ * A binding plus a payload, resolved to the one statement the kernel will send.
+ *
+ * This exists because narrowing does not travel between two variables: knowing
+ * `binding` is a `TableUpdateBinding` does not tell the compiler that the result
+ * of `binding.args(payload)` is a {@link TableTarget}. Resolving both at once, in
+ * {@link prepareWrite}, keeps that knowledge inside one function and hands the
+ * dispatch a value it can send without asking any further questions.
+ */
+type PreparedWrite =
+  | { readonly kind: 'rpc'; readonly rpc: string; readonly args: Record<string, unknown> }
+  | { readonly kind: 'insert'; readonly table: BiTableName; readonly values: Record<string, unknown> }
+  | { readonly kind: 'update'; readonly table: BiTableName; readonly target: TableTarget }
+  | { readonly kind: 'delete'; readonly table: BiTableName; readonly id: string };
 
 /**
  * The three bindings a CRM record type shares.
@@ -991,6 +1264,95 @@ function dmsReviewStep(rpc: string): CommandBinding {
     invalidates: DMS_REVIEW_PAGES,
   };
 }
+
+/**
+ * The three table bindings a BI definition kind shares.
+ *
+ * The same argument as {@link crmCrud} -- twenty-one bindings differing in one
+ * word are written once -- with one difference in what gets passed in. `crmCrud`
+ * takes three function names because PostgREST resolves a function by name and a
+ * missing one is a runtime `PGRST202`. This takes one table name, and the table
+ * name is checked by the compiler against {@link BiTableName}, so the failure
+ * mode `crmCrud` guards against by writing names whole cannot happen here.
+ *
+ * What can still happen is a column name that no longer exists, because the `as
+ * never` casts at the send site mean nothing about `values` is checked. That is a
+ * runtime error carrying a Postgres sentence, and it is the reason the app's
+ * dialogs build their payloads from the column list `biDatasetDetail` returns
+ * rather than from anyone's memory of the schema.
+ */
+function biTableCrud(
+  table: BiTableName,
+  invalidates: readonly DatasetName[],
+): {
+  readonly create: TableInsertBinding;
+  readonly update: TableUpdateBinding;
+  readonly remove: TableDeleteBinding;
+} {
+  return {
+    create: {
+      operation: 'insert',
+      table,
+      args: (payload) => {
+        const values = requireObject(payload.values, 'values');
+        return values.ok ? succeed(values.value) : values;
+      },
+      invalidates,
+    },
+    update: {
+      operation: 'update',
+      table,
+      args: (payload) => {
+        const id = requireString(payload.id, 'id');
+        if (!id.ok) return id;
+        const values = requireObject(payload.values, 'values');
+        if (!values.ok) return values;
+        return succeed({ id: id.value, values: values.value });
+      },
+      invalidates,
+    },
+    remove: {
+      operation: 'delete',
+      table,
+      args: (payload) => {
+        const id = requireString(payload.id, 'id');
+        return id.ok ? succeed({ id: id.value }) : id;
+      },
+      invalidates,
+    },
+  };
+}
+
+/**
+ * The pages a change to a dataset, a dimension or a metric can falsify.
+ *
+ * Wider than it strictly needs to be, on the same reasoning the CRM sets are:
+ * over-invalidating costs a refetch and under-invalidating shows a chart drawn
+ * from a definition that no longer says what it says. `biEvents` is listed because
+ * the migration may or may not append an event row for a plain edit -- it
+ * certainly does for a status change -- and a stale history is worse than a
+ * redundant read of one.
+ */
+const BI_DEFINITION_PAGES: readonly DatasetName[] = [
+  'biCatalog', 'biDatasetDetail', 'biLineage', 'biOverview', 'biEvents',
+];
+
+const BI_DATASET = biTableCrud('bi_datasets', BI_DEFINITION_PAGES);
+/* A dimension carries its own hierarchy, so the drill path is stale too. */
+const BI_DIMENSION = biTableCrud('bi_dimensions', [...BI_DEFINITION_PAGES, 'biDrillPath']);
+const BI_METRIC = biTableCrud('bi_metrics', BI_DEFINITION_PAGES);
+/* A saved analysis is what a tile draws and what a report nests, so both the
+ * grid and the document go stale when one changes. */
+const BI_VISUALIZATION = biTableCrud('bi_visualizations', [
+  'biOverview', 'biLineage', 'biReports', 'biDashboard', 'biDashboards', 'biEvents',
+]);
+const BI_DASHBOARD = biTableCrud('bi_dashboards', [
+  'biDashboards', 'biDashboard', 'biOverview', 'biEvents',
+]);
+/* A tile move changes the grid and the summary's tile count, and nothing else:
+ * no definition has changed meaning, so the catalog and the lineage stand. */
+const BI_TILE = biTableCrud('bi_dashboard_tiles', ['biDashboard', 'biDashboards', 'biOverview']);
+const BI_REPORT = biTableCrud('bi_reports', ['biReports', 'biOverview', 'biEvents']);
 
 /**
  * Every command the ABI carries, bound to the function that performs it.
@@ -2382,6 +2744,160 @@ const BINDINGS: { readonly [K in DataCommandName]: CommandBinding } = {
     },
     invalidates: ['dmsPackages', 'dmsDocument360'],
   },
+
+  /* ---------------------------------------------------------------- *
+   * BI studio. Five functions and twenty-one table writes.
+   * ---------------------------------------------------------------- */
+
+  /**
+   * An ad-hoc query from the analysis builder.
+   *
+   * A command rather than a dataset for two reasons, and only the second is about
+   * caching. `run_bi_query_command` writes a `bi_query_log` row on every call
+   * including the ones it refuses, which makes it a write; and its result is
+   * defined by nine arguments rather than by a `where` clause, which is more than
+   * the cache key was built to carry.
+   *
+   * It invalidates the ledger it just appended to, and the overview, whose
+   * seven-day usage figure it just changed. Not the catalog: running a query does
+   * not change what a metric means.
+   *
+   * The four defaults here restate the server's own -- 500 rows, descending, no
+   * grain, no saved analysis -- so that a builder which has not yet been touched
+   * sends a complete request rather than relying on Postgres to fill the gaps.
+   */
+  'bi.query.run': {
+    rpc: 'run_bi_query_command',
+    args: (payload) => {
+      const dataset = requireString(payload.datasetId, 'datasetId');
+      if (!dataset.ok) return dataset;
+      const dimensions = stringList(payload.dimensions, 'dimensions');
+      if (!dimensions.ok) return dimensions;
+      const metrics = stringList(payload.metrics, 'metrics');
+      if (!metrics.ok) return metrics;
+      const filters = objectList(payload.filters, 'filters');
+      if (!filters.ok) return filters;
+      return succeed({
+        p_dataset_id: dataset.value,
+        p_dimensions: dimensions.value,
+        p_metrics: metrics.value,
+        p_filters: filters.value,
+        p_time_grain: asString(payload.timeGrain),
+        p_order_by: asString(payload.orderBy),
+        p_order_desc: asBoolean(payload.orderDesc) ?? true,
+        p_limit: asNumber(payload.limit) ?? 500,
+        p_visualization_id: asString(payload.visualizationId),
+      });
+    },
+    invalidates: ['biQueryLog', 'biOverview'],
+  },
+
+  /** A saved analysis, run: the numbers and the chart metadata in one round trip,
+   *  so a tile is separately authorized and separately logged from its neighbours
+   *  on the same dashboard. */
+  'bi.visualization.run': {
+    rpc: 'run_bi_visualization_command',
+    args: (payload) => {
+      const id = requireString(payload.visualizationId, 'visualizationId');
+      return id.ok ? succeed({ p_visualization_id: id.value }) : id;
+    },
+    invalidates: ['biQueryLog', 'biOverview'],
+  },
+
+  /**
+   * One cell, opened. Returns entity ids rather than records, because the screen
+   * that shows a booking already exists and already guards itself; returning rows
+   * here would be a second read path around the first.
+   *
+   * `p_value` is whatever was in the cell, which is a string, a number, a boolean
+   * or null and never an object -- a drill-through on a structure is not a
+   * question this dataset can answer, so it is refused here as an
+   * INVALID_ARGUMENT rather than sent for Postgres to reject.
+   */
+  'bi.drillThrough.run': {
+    rpc: 'run_bi_drill_through_command',
+    args: (payload) => {
+      const dataset = requireString(payload.datasetId, 'datasetId');
+      if (!dataset.ok) return dataset;
+      const key = requireString(payload.dimensionKey, 'dimensionKey');
+      if (!key.ok) return key;
+      const value = requireScalar(payload.value, 'value');
+      if (!value.ok) return value;
+      const filters = objectList(payload.filters, 'filters');
+      if (!filters.ok) return filters;
+      return succeed({
+        p_dataset_id: dataset.value,
+        p_dimension_key: key.value,
+        p_value: value.value,
+        p_filters: filters.value,
+        p_limit: asNumber(payload.limit) ?? 200,
+      });
+    },
+    invalidates: ['biQueryLog'],
+  },
+
+  /**
+   * The single status machine for all six definition kinds. `p_kind` and
+   * `p_status` are passed through as strings rather than checked against a list
+   * here: the transition table lives in the migration, and a second copy in this
+   * file would be a second answer to which moves are legal.
+   *
+   * It invalidates every definition read plus the dashboard and report lists,
+   * because publishing a dataset changes which dashboards are fully readable.
+   */
+  'bi.status.set': {
+    rpc: 'set_bi_status_command',
+    args: (payload) => {
+      const kind = requireString(payload.kind, 'kind');
+      if (!kind.ok) return kind;
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const status = requireString(payload.status, 'status');
+      if (!status.ok) return status;
+      return succeed({
+        p_kind: kind.value,
+        p_id: id.value,
+        p_status: status.value,
+        p_note: asString(payload.note),
+      });
+    },
+    invalidates: [...BI_DEFINITION_PAGES, 'biDashboards', 'biDashboard', 'biReports'],
+  },
+
+  /** Re-measures the registered sources against `information_schema`. ADMIN only,
+   *  and the only write path to `bi_sources` there is: a relation that has
+   *  vanished is deactivated rather than deleted, so the datasets bound to it keep
+   *  their definitions and get a sentence instead of a missing-table error. */
+  'bi.sources.sync': {
+    rpc: 'sync_bi_sources_command',
+    args: () => succeed({}),
+    invalidates: ['biCatalog', 'biDatasetDetail', 'biOverview', 'biEvents'],
+  },
+
+  /* The twenty-one. Each names one table and one operation, and the pair is fixed
+   * here rather than chosen by the caller: an app asks to create a metric, and
+   * `bi_metrics` is this file's answer to what that means. */
+  'bi.dataset.create': BI_DATASET.create,
+  'bi.dataset.update': BI_DATASET.update,
+  'bi.dataset.delete': BI_DATASET.remove,
+  'bi.dimension.create': BI_DIMENSION.create,
+  'bi.dimension.update': BI_DIMENSION.update,
+  'bi.dimension.delete': BI_DIMENSION.remove,
+  'bi.metric.create': BI_METRIC.create,
+  'bi.metric.update': BI_METRIC.update,
+  'bi.metric.delete': BI_METRIC.remove,
+  'bi.visualization.create': BI_VISUALIZATION.create,
+  'bi.visualization.update': BI_VISUALIZATION.update,
+  'bi.visualization.delete': BI_VISUALIZATION.remove,
+  'bi.dashboard.create': BI_DASHBOARD.create,
+  'bi.dashboard.update': BI_DASHBOARD.update,
+  'bi.dashboard.delete': BI_DASHBOARD.remove,
+  'bi.tile.create': BI_TILE.create,
+  'bi.tile.update': BI_TILE.update,
+  'bi.tile.delete': BI_TILE.remove,
+  'bi.report.create': BI_REPORT.create,
+  'bi.report.update': BI_REPORT.update,
+  'bi.report.delete': BI_REPORT.remove,
 };
 
 /* ------------------------------------------------------------------ *
@@ -2500,28 +3016,36 @@ class Broker implements DataBrokerSubsystem {
       if (previous !== undefined) return succeed(previous);
     }
 
-    const args = binding.args(invocation.payload);
-    if (!args.ok) return fail<CommandOutcome>(args.error.code, args.error.message, args.error.details);
+    // Refusing a malformed payload before the configuration check keeps the two
+    // failures distinguishable: a caller that sent the wrong shape hears about the
+    // shape whether or not this browser has a backend to send it to.
+    const prepared = prepareWrite(binding, invocation.payload);
+    if (!prepared.ok) {
+      return fail<CommandOutcome>(prepared.error.code, prepared.error.message, prepared.error.details);
+    }
+    // What the log calls this write. A function name for the hundred-odd RPC
+    // commands, `insert bi_metrics` for the twenty-one table commands.
+    const label = bindingLabel(binding);
 
     if (!isSupabaseConfigured) {
       return fail<CommandOutcome>('IO_ERROR', 'The finance backend is not configured');
     }
 
     try {
-      const { data, error } = await supabase.rpc(binding.rpc, args.value);
+      const { data, error } = await sendWrite(prepared.value);
       if (error !== null) {
-        const code = error.code === 'PGRST202' ? 'NOT_SUPPORTED' : 'IO_ERROR';
+        const code = error.code === 'PGRST202' || error.code === 'PGRST205' ? 'NOT_SUPPORTED' : 'IO_ERROR';
         this.log.write(
           'Application',
           'error',
           EVENT_IDS.ledgerCommandFailed,
           'DataBroker',
           `${invocation.command} failed: ${error.message}`,
-          { command: invocation.command, rpc: binding.rpc, code: error.code ?? '' },
+          { command: invocation.command, write: label, code: error.code ?? '' },
           pid,
         );
-        return fail<CommandOutcome>(code, humanizeRpcError(error.message, binding.rpc), {
-          rpc: binding.rpc,
+        return fail<CommandOutcome>(code, humanizeRpcError(error.message, label), {
+          write: label,
           dbCode: error.code ?? '',
         });
       }
@@ -2542,7 +3066,7 @@ class Broker implements DataBrokerSubsystem {
         EVENT_IDS.ledgerCommand,
         'DataBroker',
         `${invocation.command} succeeded`,
-        { command: invocation.command, rpc: binding.rpc, invalidated: invalidated.join(',') },
+        { command: invocation.command, write: label, invalidated: invalidated.join(',') },
         pid,
       );
       this.bus.publish(this.systemPid, IPC_CHANNELS.ledgerCommand, { command: invocation.command, ok: true });
@@ -2559,10 +3083,10 @@ class Broker implements DataBrokerSubsystem {
         EVENT_IDS.ledgerCommandFailed,
         'DataBroker',
         `${invocation.command} threw: ${message}`,
-        { command: invocation.command, rpc: binding.rpc },
+        { command: invocation.command, write: label },
         pid,
       );
-      return fail<CommandOutcome>('IO_ERROR', message, { rpc: binding.rpc });
+      return fail<CommandOutcome>('IO_ERROR', message, { write: label });
     }
   }
 
@@ -2809,13 +3333,100 @@ function estimateBytes(rows: readonly DatasetRow[]): number {
 
 /** Turns a Postgrest error string into something a finance user can act on. */
 function humanizeRpcError(message: string, rpc: string): string {
-  if (/could not find the function/i.test(message)) {
+  if (/could not find the (function|table)/i.test(message)) {
     return `The server does not expose ${rpc}. Apply the pending database migrations.`;
   }
   if (/unauthorized|42501/i.test(message)) return 'Your account is not authorised for this operation.';
   if (/debit and credit must be equal/i.test(message)) return message;
   if (/aal2|assurance/i.test(message)) return 'This operation requires re-authentication with two factors.';
   return message;
+}
+
+/* ---------------- the write path ---------------- */
+
+/**
+ * What a command addressed, for the log and for the error a user reads.
+ *
+ * Two shapes on purpose. A function name is already a whole identifier, so
+ * `post_journal_entry_command` stands alone; a table write is a verb and a noun,
+ * so `insert bi_metrics` says which of the three things happened to it. Both end
+ * up in {@link humanizeRpcError}'s "the server does not expose X" sentence, which
+ * is why neither is quoted or bracketed here -- the sentence supplies the frame.
+ */
+function bindingLabel(binding: CommandBinding): string {
+  return binding.rpc !== undefined ? binding.rpc : `${binding.operation} ${binding.table}`;
+}
+
+/**
+ * A binding plus a payload, resolved into exactly what will be sent.
+ *
+ * This exists because narrowing does not travel between variables: inside the
+ * `update` branch the compiler knows `binding` is a {@link TableUpdateBinding},
+ * but `binding.args(payload)` returns `AbiResult<TableTarget>` only if it is
+ * *called* there. So each branch calls its own `args` and tags the result, and
+ * {@link sendWrite} then switches on the tag with nothing left to re-check.
+ *
+ * The RPC branch is first and tests `rpc !== undefined` rather than switching on
+ * `operation`, because that is the discriminant declared on the three table
+ * variants and the hundred-odd RPC bindings never had to grow a field to say what
+ * they already were.
+ */
+function prepareWrite(
+  binding: CommandBinding,
+  payload: Readonly<Record<string, unknown>>,
+): AbiResult<PreparedWrite> {
+  if (binding.rpc !== undefined) {
+    const args = binding.args(payload);
+    return args.ok ? succeed({ kind: 'rpc', rpc: binding.rpc, args: args.value }) : args;
+  }
+  switch (binding.operation) {
+    case 'insert': {
+      const values = binding.args(payload);
+      return values.ok ? succeed({ kind: 'insert', table: binding.table, values: values.value }) : values;
+    }
+    case 'update': {
+      const target = binding.args(payload);
+      return target.ok ? succeed({ kind: 'update', table: binding.table, target: target.value }) : target;
+    }
+    case 'delete': {
+      const target = binding.args(payload);
+      return target.ok ? succeed({ kind: 'delete', table: binding.table, id: target.value.id }) : target;
+    }
+  }
+}
+
+/**
+ * The one place in the kernel that talks to PostgREST with a table name.
+ *
+ * The `as never` casts are the wart named in {@link BiTableName}'s note: the
+ * `bi_*` tables are missing from the generated `Database` type, so the compiler
+ * checks the *name* against that union and checks nothing about the columns.
+ * `src/services/domainCommands.ts` does the same thing for the same reason.
+ * Regenerating the database types deletes all four casts and buys back the column
+ * checking; nothing else here would change.
+ *
+ * Insert and update ask for the id back so a caller can navigate to what it just
+ * created. Delete does not, because there is nothing left to select -- which is
+ * why {@link CommandOutcome}'s `result` has always been nullable.
+ */
+async function sendWrite(
+  write: PreparedWrite,
+): Promise<{ readonly data: unknown; readonly error: { readonly message: string; readonly code?: string } | null }> {
+  switch (write.kind) {
+    case 'rpc':
+      return await supabase.rpc(write.rpc, write.args);
+    case 'insert':
+      return await supabase.from(write.table as never).insert(write.values as never).select('id').single();
+    case 'update':
+      return await supabase
+        .from(write.table as never)
+        .update(write.target.values as never)
+        .eq('id', write.target.id)
+        .select('id')
+        .single();
+    case 'delete':
+      return await supabase.from(write.table as never).delete().eq('id', write.id);
+  }
 }
 
 /* ---------------- value narrowing ---------------- */
@@ -2945,6 +3556,48 @@ function numberList(value: readonly unknown[], field: string): AbiResult<readonl
 function requireNumber(value: unknown, field: string): AbiResult<number> {
   const parsed = asNumber(value);
   return parsed === null ? fail('INVALID_ARGUMENT', `${field} must be a number`) : succeed(parsed);
+}
+
+/**
+ * A list of jsonb objects, absent meaning empty.
+ *
+ * Written for the BI compiler's `p_filters`, whose members are
+ * `{column, operator, value}` records. The sibling of {@link stringList} rather
+ * than of {@link requireObject}: absent is empty, because a query with no filters
+ * is the ordinary case and should not have to send `[]` to say so.
+ *
+ * A member that is an array or null is refused for the same reason
+ * {@link requireObject} refuses them -- jsonb would accept `[[]]` and the
+ * compiler would then read `column` off an array and find nothing, producing a
+ * query with one filter silently dropped. A dropped filter widens a result set,
+ * and a widened result set is the one failure mode a BI layer must not have.
+ */
+function objectList(value: unknown, field: string): AbiResult<readonly Record<string, unknown>[]> {
+  if (value === undefined || value === null) return succeed([]);
+  if (!Array.isArray(value)) return fail('INVALID_ARGUMENT', `${field} must be a list`);
+  const items: Record<string, unknown>[] = [];
+  for (const entry of value as readonly unknown[]) {
+    const parsed = requireObject(entry, `${field} entry`);
+    if (!parsed.ok) return parsed;
+    items.push(parsed.value);
+  }
+  return succeed(items);
+}
+
+/**
+ * One jsonb scalar: text, a number, a boolean, or SQL null.
+ *
+ * The type a cell in a BI result holds, and therefore the type a drill-through
+ * carries back. `null` is a value here and not an absence -- "the rows where
+ * agency is unset" is a real question and the compiler answers it with `IS NULL`
+ * -- so this accepts `null` and refuses only `undefined`, which is the shape a
+ * caller sends when it forgot the field.
+ */
+function requireScalar(value: unknown, field: string): AbiResult<string | number | boolean | null> {
+  if (value === null) return succeed(null);
+  if (typeof value === 'string' || typeof value === 'boolean') return succeed(value);
+  if (typeof value === 'number' && Number.isFinite(value)) return succeed(value);
+  return fail('INVALID_ARGUMENT', `${field} must be text, a number, a boolean or null`);
 }
 
 function round2(value: number): number {

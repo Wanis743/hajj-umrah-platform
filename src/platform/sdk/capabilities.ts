@@ -68,6 +68,15 @@ const LABELS: Readonly<Record<Capability, Localized>> = {
     fr: 'Classer et approuver des documents',
     en: 'File and approve documents',
   },
+  /* Deliberately about definitions and not about reading. Running a query costs
+   * `ledger.read`, because a query answers with the numbers the ledger already
+   * holds; this is the right to change what a number *means* for everyone who
+   * reads it afterwards, which is a different and larger thing to consent to. */
+  'bi.write': {
+    ar: 'تعديل تعريفات ذكاء الأعمال',
+    fr: 'Modifier les définitions décisionnelles',
+    en: 'Change analytics definitions',
+  },
 };
 
 const isCapability = (value: string): value is Capability =>

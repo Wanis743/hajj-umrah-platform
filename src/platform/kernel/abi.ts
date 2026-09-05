@@ -108,6 +108,22 @@ export const CAPABILITIES = [
   // and a document that is approved are the same act of asserting something into
   // the record, and an app trusted with one is trusted with the other.
   'dms.write',
+  // Defining a metric is not reading one. Everything the BI studio *reads* costs
+  // `ledger.read` -- running a query included, because a query returns numbers the
+  // caller was already entitled to see and the compiler refuses the rest. What
+  // this capability covers is the vocabulary: what "revenue" means, which column
+  // it comes from, which dashboard publishes it. That is a different act from
+  // consulting it, and a larger one -- a published metric is the sentence every
+  // downstream tile, report and export repeats -- so an app that only draws
+  // dashboards never holds it.
+  //
+  // It is deliberately not privileged. Drafting a definition prompts for nothing,
+  // exactly as `model.write` does not; the act that settles meaning for everybody
+  // is publishing, and the server refuses that to every role but ADMIN on its own
+  // authority. A consent dialog in front of a draft is a dialog people learn to
+  // dismiss, and the one place it would have mattered is the one place the
+  // database does not accept "yes" from the client as an answer.
+  'bi.write',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -621,6 +637,30 @@ export const DATASETS = [
   'dmsExpiry',
   'dmsExtractionQuality',
   'dmsPackages',
+  // The semantic layer. Ten reads and not one table projection, which is the
+  // fact worth stating: `bi_datasets`, `bi_metrics` and the rest are readable
+  // rows, so a projection would have *worked* -- and would have handed an app the
+  // catalog as stored rather than the catalog as governed. Every entry below is a
+  // SECURITY DEFINER function that folds in the two things storage does not
+  // carry: whether this caller may read a given dataset at all, and what the
+  // definition resolves to once its lineage is walked. `biCatalog` returning
+  // `readable_by_me` per dataset is the whole difference between a catalog and a
+  // list of rows that will each refuse you later.
+  //
+  // Six answer with one object and four with an array -- `asDocumentRows` versus
+  // `asRows`, and the same trap as `dmsDashboard`: an object read as an array is
+  // an empty page, and an empty catalog looks like a workspace nobody has set up
+  // yet rather than like a broken read.
+  'biOverview',
+  'biCatalog',
+  'biDatasetDetail',
+  'biDrillPath',
+  'biLineage',
+  'biDashboards',
+  'biDashboard',
+  'biReports',
+  'biQueryLog',
+  'biEvents',
 ] as const;
 
 export type DatasetName = (typeof DATASETS)[number];
@@ -888,6 +928,77 @@ export const DMS_COMMANDS = [
 
 export type DmsCommandName = (typeof DMS_COMMANDS)[number];
 
+/**
+ * The BI studio. Twenty-six commands, and unlike every block above this one they
+ * do not all reach a function: five are RPCs and twenty-one are writes to a named
+ * table. That is not a shortcut taken here, it is the shape of the subsystem.
+ *
+ * Every BI expression is validated by a BEFORE trigger in
+ * 20260901120000_bi_studio_vertical_slice.sql -- a metric may only name a column
+ * on its dataset's source, a published definition's structural columns are frozen,
+ * a dimension may not close a cycle. Wrapping those tables in
+ * `create_bi_metric_command(p_payload)` would put a second copy of that check in
+ * front of a door that is already locked, and the copy would be the one that
+ * drifts. So the trigger is the authorization and the write is the command. See
+ * the `table` variant of CommandBinding in the broker, which is an allowlist of
+ * exactly these twenty-one (command -> table, operation) pairs and nothing else:
+ * an app cannot ask the kernel to write a table, it can only ask it to create a
+ * metric.
+ *
+ * Three of the five RPCs are reads wearing a command's clothes -- running a query,
+ * running a saved analysis, opening one cell -- and they are commands because each
+ * writes a `bi_query_log` row *including when it refuses*. A `raise` would roll
+ * that row back, so they return failure as data, which is why the app's read layer
+ * has to unwrap `ok: false` instead of trusting an error. A denied query is exactly
+ * the attempt worth keeping.
+ *
+ * Deliberately absent: a relayout. Dragging tiles moves several rows, and there is
+ * no server function that moves them together, so a `bi.tile.relayout` command
+ * would be one name over a loop that can stop halfway -- atomic-looking and not
+ * atomic. The app issues one `bi.tile.update` per moved tile instead, so each row's
+ * write is separately authorized, separately logged and separately undone.
+ */
+export const BI_COMMANDS = [
+  // Compiling and running. The compiler is in SQL; nothing on the client builds a
+  // predicate, which is the one rule that keeps "revenue" from having two answers.
+  'bi.query.run',
+  'bi.visualization.run',
+  'bi.drillThrough.run',
+  // Governance. `bi.status.set` is the single status machine for datasets,
+  // dimensions, metrics and dashboards; publishing is ADMIN-only by omission,
+  // because no role is granted `publish` on a dataset or a metric at all.
+  'bi.status.set',
+  // Re-measures the source allowlist against information_schema. The only write
+  // path to `bi_sources` that exists, and ADMIN-only on the server's own say-so.
+  'bi.sources.sync',
+  // The definitions, in the order a semantic layer is built: a source becomes a
+  // dataset, a dataset grows dimensions and metrics, and the two are drawn by a
+  // visualization that a dashboard tiles or a report narrates.
+  'bi.dataset.create',
+  'bi.dataset.update',
+  'bi.dataset.delete',
+  'bi.dimension.create',
+  'bi.dimension.update',
+  'bi.dimension.delete',
+  'bi.metric.create',
+  'bi.metric.update',
+  'bi.metric.delete',
+  'bi.visualization.create',
+  'bi.visualization.update',
+  'bi.visualization.delete',
+  'bi.dashboard.create',
+  'bi.dashboard.update',
+  'bi.dashboard.delete',
+  'bi.tile.create',
+  'bi.tile.update',
+  'bi.tile.delete',
+  'bi.report.create',
+  'bi.report.update',
+  'bi.report.delete',
+] as const;
+
+export type BiCommandName = (typeof BI_COMMANDS)[number];
+
 /** Every command `data.command` will carry, whatever subsystem answers it. */
 export const DATA_COMMANDS = [
   ...LEDGER_COMMANDS,
@@ -896,6 +1007,7 @@ export const DATA_COMMANDS = [
   ...CONTROL_COMMANDS,
   ...CRM_COMMANDS,
   ...DMS_COMMANDS,
+  ...BI_COMMANDS,
 ] as const;
 
 export type DataCommandName =
@@ -904,7 +1016,8 @@ export type DataCommandName =
   | SpineCommandName
   | ControlCommandName
   | CrmCommandName
-  | DmsCommandName;
+  | DmsCommandName
+  | BiCommandName;
 
 export interface CommandInvocation {
   readonly command: DataCommandName;
@@ -1417,6 +1530,48 @@ export const COMMAND_CAPABILITY: { readonly [K in DataCommandName]: Capability }
   'dms.package.verify': 'ledger.read',
   'dms.package.void': 'dms.write',
   'dms.package.delete': 'dms.write',
+
+  // BI splits along the line between consulting the vocabulary and setting it.
+  //
+  // The three query runs cost `ledger.read`, which looks generous for something
+  // called a command and is not. The compiler resolves a request against the
+  // caller's own grants and refuses what it may not aggregate, so a query returns
+  // numbers this principal could already have read one row at a time; what makes
+  // it a command is the `bi_query_log` row, and charging write capability for
+  // being audited would mean the only people who could be audited are the people
+  // who can change the definitions.
+  'bi.query.run': 'ledger.read',
+  'bi.visualization.run': 'ledger.read',
+  'bi.drillThrough.run': 'ledger.read',
+  // Everything that changes what a word means costs `bi.write`. `bi.status.set`
+  // included, and it is the sharpest of them: publishing a metric is the act that
+  // makes one definition the answer for every dashboard downstream. The server
+  // still decides whether this principal may publish -- no role holds `publish` on
+  // a dataset or a metric, so ADMIN is the only answer there -- and this entry
+  // decides whether the *app* was ever trusted to ask.
+  'bi.status.set': 'bi.write',
+  'bi.sources.sync': 'bi.write',
+  'bi.dataset.create': 'bi.write',
+  'bi.dataset.update': 'bi.write',
+  'bi.dataset.delete': 'bi.write',
+  'bi.dimension.create': 'bi.write',
+  'bi.dimension.update': 'bi.write',
+  'bi.dimension.delete': 'bi.write',
+  'bi.metric.create': 'bi.write',
+  'bi.metric.update': 'bi.write',
+  'bi.metric.delete': 'bi.write',
+  'bi.visualization.create': 'bi.write',
+  'bi.visualization.update': 'bi.write',
+  'bi.visualization.delete': 'bi.write',
+  'bi.dashboard.create': 'bi.write',
+  'bi.dashboard.update': 'bi.write',
+  'bi.dashboard.delete': 'bi.write',
+  'bi.tile.create': 'bi.write',
+  'bi.tile.update': 'bi.write',
+  'bi.tile.delete': 'bi.write',
+  'bi.report.create': 'bi.write',
+  'bi.report.update': 'bi.write',
+  'bi.report.delete': 'bi.write',
 };
 
 /* ------------------------------------------------------------------ *
@@ -1535,6 +1690,7 @@ export const APP_IDS = {
   treasury: appId('com.financeos.treasury'),
   crm: appId('com.financeos.crm'),
   dms: appId('com.financeos.dms'),
+  bi: appId('com.financeos.bi'),
 } as const;
 
 /** Kernel-owned pseudo app id used by system processes. */
