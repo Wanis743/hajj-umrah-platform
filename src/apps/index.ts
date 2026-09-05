@@ -19,6 +19,7 @@ import { calculatorManifest } from './calculator/manifest';
 import { closeManifest } from './close/manifest';
 import { crmManifest } from './crm/manifest';
 import { dashboardManifest } from './dashboard/manifest';
+import { dmsManifest } from './dms/manifest';
 import { eventViewerManifest } from './eventviewer/manifest';
 import { inboxManifest } from './inbox/manifest';
 import { journalManifest } from './journal/manifest';
@@ -42,6 +43,10 @@ export const APP_PACKAGES: readonly AppPackage[] = [
   // becomes a booking, and the booking is what everything below this line later records.
   // Nothing in the finance suite has anything to post until this window has been worked.
   { manifest: crmManifest, load: () => import('./crm/App') },
+  // And beside the desk, the filing cabinet both halves cite: a passport scan is attached to a
+  // pilgrim on this side of the line and produced as evidence on the other, which is why the
+  // library sits between them rather than with the tools it resembles.
+  { manifest: dmsManifest, load: () => import('./dms/App') },
   // The first window of the morning, and the one every other finance app is opened
   // from: it reads the whole book and hands the work to whichever app owns it.
   { manifest: dashboardManifest, load: () => import('./dashboard/App') },

@@ -5,7 +5,7 @@
  * a second implementation in the browser would be a second answer to "what does
  * revenue mean".
  *
- * This file carries one thing dmsAnalytics.ts did not need. The three query
+ * This file carries one thing its sibling read layers do not need. The three query
  * functions return failure as data -- `{ok: false, error_code, error_message}` --
  * because a denied query is exactly the attempt worth auditing and `raise` would
  * roll back the bi_query_log row recording it. `unwrapQuery` is where that becomes

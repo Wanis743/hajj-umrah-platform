@@ -41,7 +41,6 @@ export default defineConfig({
         manualChunks: (id: string) => {
           const file = id.replace(/\\/g, '/');
           if (file.includes('node_modules/lucide-react')) return 'vendor-icons';
-          if (file.includes('/src/components/admin/dms/')) return 'dms-workspace';
           return undefined;
         },
         /**
