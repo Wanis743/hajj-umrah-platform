@@ -44,6 +44,7 @@ import type {
   AppRegistrySubsystem,
   BusSubsystem,
   DataBrokerSubsystem,
+  DocumentSubsystem,
   EventLogSubsystem,
   HandleTable,
   Kernel,
@@ -60,6 +61,7 @@ import { createAppRegistry } from './core/appregistry';
 import { createBroker } from './core/broker';
 import { createBus } from './core/bus';
 import { createClock } from './core/clock';
+import { createDocumentStore } from './core/documents';
 import { EVENT_IDS, createEventLog } from './core/eventlog';
 import { createHandleTable } from './core/handles';
 import { createMetrics, type MetricsHandle } from './core/metrics';
@@ -160,6 +162,17 @@ class KernelImpl implements Kernel {
   readonly services: ServiceHostHandle;
 
   private readonly storage: KernelStorage;
+  /**
+   * Deliberately private, where `data` is public.
+   *
+   * The broker is on the `Kernel` facade because things outside the syscall path
+   * legitimately read it — Task Manager's dataset counters, the metrics sampler.
+   * The document store has no observable state at all: no list, no subscribe,
+   * nothing to render. The only thing a holder could do with it is call it, with
+   * a pid of their choosing, which is precisely what the dispatcher's capability
+   * gate exists to stand in front of. So it is reachable through one door only.
+   */
+  private readonly documents: DocumentSubsystem;
   /** Kernel-attributed work (ticks, projections, broker fan-out) runs as this. */
   private readonly systemPid: Pid;
   /** The ledger projection, republished by the indexer service. */
@@ -204,6 +217,9 @@ class KernelImpl implements Kernel {
     this.ledgerVolume = createProjectionVolume('L', VOLUME_LABELS.L, QUOTA_LEDGER, this.clock);
     this.wm = createWm(this.eventLog);
     this.data = createBroker(this.clock, this.eventLog, this.bus, this.processes, this.security, this.systemPid);
+    // After the broker: issuing a signed link records the access through it, and
+    // an upload invalidates the six datasets a new version changes.
+    this.documents = createDocumentStore(this.clock, this.eventLog, this.data);
     this.metrics = createMetrics(
       this.clock,
       this.processes,
@@ -240,6 +256,7 @@ class KernelImpl implements Kernel {
       metrics: this.metrics,
       wm: this.wm,
       data: this.data,
+      documents: this.documents,
       notifications: this.notifications,
       apps: this.apps,
       host: () => this.shell,

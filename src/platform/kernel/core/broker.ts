@@ -718,6 +718,130 @@ const SOURCES: { readonly [K in DatasetName]: DatasetSource } = {
       );
     },
   },
+
+  /**
+   * The document library. One plain table read, and it is the only DMS dataset
+   * that can be one: `dms_documents_staff_select` already restricts the table to
+   * `has_permission('dms_documents','read')` AND `row_in_staff_scope(agency_id,
+   * branch_id)`, so the policy is the projection and there is nothing left for a
+   * function to fold.
+   *
+   * Ordered by `updated_at` descending because a document library is opened to
+   * find the thing somebody just touched, not the thing filed first. Review
+   * status arrives as a `where` equality from the app; the text search the legacy
+   * panel did with ILIKE happens in the app's model over the page, the same way
+   * CRM's lists filter -- a table source forwards equality, never a predicate.
+   */
+  dmsDocuments: {
+    kind: 'table',
+    table: 'dms_documents',
+    select:
+      'id,document_number,title,description,document_type,status,review_status,confidentiality,tags,' +
+      'current_version_id,version_count,submitted_at,reviewer_id,reviewed_at,review_notes,approved_at,' +
+      'rejection_reason,issued_on,expires_on,expiry_notice_days,archived_at,workspace_id,created_at,updated_at',
+    order: { column: 'updated_at', ascending: false },
+    capability: 'ledger.read',
+  },
+  /**
+   * The DMS dashboard. `get_dms_dashboard` returns one OBJECT -- counts by review
+   * status, by type, by confidentiality, the expiry horizon and the extraction
+   * backlog all in one row -- so it is `asDocumentRows`, not `asRows`. That
+   * distinction is not cosmetic: `asRows` handed an object yields an empty page,
+   * and an empty page renders as a dashboard of zeroes that looks like a quiet
+   * week rather than like a broken read.
+   *
+   * `p_days` is a window, and passing it through `where` is deliberate: `where`
+   * is part of `cacheKey`, so a 7-day view and a 30-day view cannot collide in
+   * the cache. The server clamps the value; the default here matches the
+   * service layer's so the app and the legacy panel agree on what "recent" is.
+   */
+  dmsDashboard: {
+    kind: 'rpc',
+    rpc: 'get_dms_dashboard',
+    capability: 'ledger.read',
+    args: (query) => succeed({ p_days: asNumber(query.where?.days) ?? 30 }),
+    rows: asDocumentRows,
+  },
+
+  /**
+   * Everything about one document: the row, its version chain, its links, its
+   * related documents, its extraction fields and its access log. Another object,
+   * so `asDocumentRows` again.
+   *
+   * `requireWhereString` and not a default: a 360 view with no document id is not
+   * a smaller 360 view, it is a caller bug, and the dataset refuses rather than
+   * returning the first document it can see.
+   */
+  dmsDocument360: {
+    kind: 'rpc',
+    rpc: 'get_dms_document_360',
+    capability: 'ledger.read',
+    args: (query) => {
+      const id = requireWhereString(query, 'documentId');
+      if (!id.ok) return id;
+      return succeed({ p_document_id: id.value });
+    },
+    rows: asDocumentRows,
+  },
+  /**
+   * The review queue: submitted and under-review documents, oldest wait first.
+   * A real array from the server, so `asRows`.
+   */
+  dmsReviewQueue: {
+    kind: 'rpc',
+    rpc: 'get_dms_review_queue',
+    capability: 'ledger.read',
+    args: (_query, limit) => succeed({ p_limit: limit }),
+    rows: asRows,
+  },
+
+  /**
+   * The expiry report. Its window argument is `p_horizon_days`, NOT `p_days` --
+   * the two dashboards next to each other in this file take differently named
+   * windows, and the compiler cannot tell them apart because every RPC argument
+   * object is `Record<string, unknown>`. A wrong name here does not fail: Postgres
+   * applies the function's own default and returns a plausible report for the
+   * wrong horizon. Transcribed from `get_dms_expiry_report`'s signature.
+   *
+   * Ninety days by default, and an object result, so `asDocumentRows`: the
+   * function buckets into expired / this week / this month / this horizon, and a
+   * caller wants all four buckets at once or none of them.
+   */
+  dmsExpiry: {
+    kind: 'rpc',
+    rpc: 'get_dms_expiry_report',
+    capability: 'ledger.read',
+    args: (query) => succeed({ p_horizon_days: asNumber(query.where?.horizonDays) ?? 90 }),
+    rows: asDocumentRows,
+  },
+  /**
+   * How well the extraction engine is doing: accepted, corrected and rejected
+   * field counts, per engine and per document type, over a window. Object result,
+   * `asDocumentRows`, and `p_days` here really is `p_days` -- compare `dmsExpiry`
+   * two entries up.
+   */
+  dmsExtractionQuality: {
+    kind: 'rpc',
+    rpc: 'get_dms_extraction_quality',
+    capability: 'ledger.read',
+    args: (query) => succeed({ p_days: asNumber(query.where?.days) ?? 30 }),
+    rows: asDocumentRows,
+  },
+
+  /**
+   * Evidence packages, newest first, with their member counts and seal state. An
+   * array, so `asRows`. Reading a package is `ledger.read` like everything else
+   * here; it is `dms.package.verify` -- also a read, also `ledger.read`, but a
+   * COMMAND because recomputing the digest needs SECURITY DEFINER over tables no
+   * app may select from -- that answers whether the seal still holds.
+   */
+  dmsPackages: {
+    kind: 'rpc',
+    rpc: 'get_dms_evidence_packages',
+    capability: 'ledger.read',
+    args: (_query, limit) => succeed({ p_limit: limit }),
+    rows: asRows,
+  },
 };
 
 /* ------------------------------------------------------------------ *
@@ -832,6 +956,41 @@ const CRM_CAMPAIGN = crmCrud(
   'create_crm_campaign_command', 'update_crm_campaign_command', 'delete_crm_campaign_command',
   ['crmCampaigns'],
 );
+
+/* The pages a document's review state makes stale. A state change moves the
+ * document between queues, so the queue, the library and the dashboard's status
+ * counts are all wrong the instant it returns; `dmsDocument360` is listed because
+ * every one of these appends to the document's own event ledger, which is the
+ * timeline that view renders. */
+const DMS_REVIEW_PAGES: readonly DatasetName[] = [
+  'dmsDocuments', 'dmsDocument360', 'dmsReviewQueue', 'dmsDashboard',
+];
+
+/**
+ * The four review steps that take a document and an optional note.
+ *
+ * `submit`, `startReview`, `approve` and `reopen` differ only in the function
+ * they call. `reject` and `requestChanges` look like they belong here and do not:
+ * each has a required text argument, and folding them in would have made the
+ * requirement optional, which is the one thing about them that matters.
+ *
+ * Names passed in whole, for the reason `crmCrud` gives: a name assembled from a
+ * stem is a name grep cannot find.
+ */
+function dmsReviewStep(rpc: string): CommandBinding {
+  return {
+    rpc,
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_document_id: id.value };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: DMS_REVIEW_PAGES,
+  };
+}
 
 /**
  * Every command the ABI carries, bound to the function that performs it.
@@ -1799,6 +1958,429 @@ const BINDINGS: { readonly [K in DataCommandName]: CommandBinding } = {
       'trialBalance',
       'auditTrail',
     ],
+  },
+
+  /* ---- documents ---------------------------------------------------- *
+   * Twenty-six bindings. Note the argument names before copying any of them:
+   * the review commands take `p_document_id` and the metadata, tag and delete
+   * commands take a bare `p_id`, and the packages split the same way --
+   * `p_package_id` for create/setDocument/seal/verify, `p_id` for
+   * update/void/delete. That is the migration's own inconsistency, not a
+   * transcription slip, and PostgREST matches by name, so normalising it here
+   * would produce `PGRST202` in front of a user. Each was read off the signature
+   * in `domainCommands.ts`. */
+  'dms.document.submit': dmsReviewStep('submit_dms_document_command'),
+  'dms.document.startReview': dmsReviewStep('start_dms_review_command'),
+  'dms.document.approve': dmsReviewStep('approve_dms_document_command'),
+  'dms.document.reopen': dmsReviewStep('reopen_dms_document_command'),
+
+  /** A rejection's reason is required, and it is `p_reason`, not `p_note`. */
+  'dms.document.reject': {
+    rpc: 'reject_dms_document_command',
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const reason = requireString(payload.reason, 'reason');
+      if (!reason.ok) return reason;
+      return succeed({ p_document_id: id.value, p_reason: reason.value });
+    },
+    invalidates: DMS_REVIEW_PAGES,
+  },
+
+  /**
+   * Changes requested. The note is required here although the identically-shaped
+   * `p_note` on `submit` and `approve` is optional: "please redo this" without
+   * saying what to redo sends the document back with no instruction attached.
+   */
+  'dms.document.requestChanges': {
+    rpc: 'request_dms_changes_command',
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const note = requireString(payload.note, 'note');
+      if (!note.ok) return note;
+      return succeed({ p_document_id: id.value, p_note: note.value });
+    },
+    invalidates: DMS_REVIEW_PAGES,
+  },
+  /**
+   * Archive, and un-archive: `p_archived` defaults true server-side but is
+   * forwarded explicitly whenever the caller states it, because the same function
+   * is how a document comes back. `dmsExpiry` is invalidated too -- an archived
+   * document stops being chased for renewal, so the horizon buckets change.
+   */
+  'dms.document.archive': {
+    rpc: 'archive_dms_document_command',
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_document_id: id.value };
+      const archived = asBoolean(payload.archived);
+      if (archived !== null) args.p_archived = archived;
+      const reason = asString(payload.reason);
+      if (reason !== null) args.p_reason = reason;
+      return succeed(args);
+    },
+    invalidates: ['dmsDocuments', 'dmsDocument360', 'dmsDashboard', 'dmsExpiry', 'dmsReviewQueue'],
+  },
+
+  /**
+   * Metadata. Eight optional fields plus `p_clear_expiry`, which exists because
+   * omitting `p_expires_on` means "leave it alone" and there would otherwise be no
+   * way to say "there is no expiry date after all". A `null` cannot carry that
+   * distinction through a defaulted argument, so the flag does.
+   *
+   * The server refuses this while the document is UNDER_REVIEW; the refusal is not
+   * duplicated here. A reviewer has to be looking at the same document the
+   * submitter sent, and that rule belongs where it cannot be bypassed.
+   */
+  'dms.document.updateMetadata': {
+    rpc: 'update_dms_document_metadata_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_id: id.value };
+      const strings: readonly (readonly [string, string])[] = [
+        ['title', 'p_title'], ['description', 'p_description'],
+        ['documentType', 'p_document_type'], ['confidentiality', 'p_confidentiality'],
+        ['issuedOn', 'p_issued_on'], ['expiresOn', 'p_expires_on'],
+      ];
+      for (const [key, arg] of strings) {
+        const text = asString(payload[key]);
+        if (text !== null) args[arg] = text;
+      }
+      const noticeDays = asNumber(payload.expiryNoticeDays);
+      if (noticeDays !== null) args.p_expiry_notice_days = noticeDays;
+      const clear = asBoolean(payload.clearExpiry);
+      if (clear !== null) args.p_clear_expiry = clear;
+      return succeed(args);
+    },
+    invalidates: ['dmsDocuments', 'dmsDocument360', 'dmsDashboard', 'dmsExpiry'],
+  },
+  /**
+   * Tags get their own command because `p_tags` is a Postgres `text[]`, and a
+   * jsonb payload cannot carry one through the generic patch helper: it would
+   * arrive as a jsonb array and the cast would fail at the assignment.
+   * `stringList` treats absent as empty, which is the correct reading -- clearing
+   * every tag is a thing a user does.
+   */
+  'dms.document.setTags': {
+    rpc: 'set_dms_document_tags_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const tags = stringList(payload.tags, 'tags');
+      if (!tags.ok) return tags;
+      return succeed({ p_id: id.value, p_tags: tags.value });
+    },
+    invalidates: ['dmsDocuments', 'dmsDocument360'],
+  },
+
+  /**
+   * Delete. Refused server-side for APPROVED, SUPERSEDED and EXPIRED documents and
+   * for any member of a sealed package -- an evidence package whose contents can be
+   * removed afterwards proves nothing. `dmsPackages` is invalidated because an
+   * OPEN package's member count changes when one of its documents goes.
+   */
+  'dms.document.delete': {
+    rpc: 'delete_dms_document_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      return id.ok ? succeed({ p_id: id.value }) : id;
+    },
+    invalidates: [
+      'dmsDocuments', 'dmsDocument360', 'dmsDashboard',
+      'dmsReviewQueue', 'dmsExpiry', 'dmsPackages',
+    ],
+  },
+
+  /**
+   * The read log. `p_action` defaults to `'VIEWED'`; a download says so.
+   *
+   * Only `dmsDocument360` is invalidated: this writes a row, but the row is about
+   * a read, and no counter anywhere else moves. It is the one DMS command costing
+   * `ledger.read` rather than `dms.write` -- see COMMAND_CAPABILITY.
+   */
+  'dms.document.recordAccess': {
+    rpc: 'record_dms_document_access_command',
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_document_id: id.value };
+      const action = asString(payload.action);
+      if (action !== null) args.p_action = action;
+      return succeed(args);
+    },
+    invalidates: ['dmsDocument360'],
+  },
+  /**
+   * Attaching a document to a business entity -- the thing that makes this a
+   * document management system rather than a folder. `p_relation` defaults to
+   * `'ABOUT'`; a booking's contract is `EVIDENCE_FOR`, a passport scan is `ABOUT`.
+   */
+  'dms.document.link': {
+    rpc: 'link_dms_document_command',
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const entityType = requireString(payload.entityType, 'entityType');
+      if (!entityType.ok) return entityType;
+      const entityId = requireString(payload.entityId, 'entityId');
+      if (!entityId.ok) return entityId;
+      const args: Record<string, unknown> = {
+        p_document_id: id.value,
+        p_entity_type: entityType.value,
+        p_entity_id: entityId.value,
+      };
+      const relation = asString(payload.relation);
+      if (relation !== null) args.p_relation = relation;
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['dmsDocument360'],
+  },
+
+  /** Unlinking identifies the LINK, not the document: one document can be linked
+   *  to the same entity twice under two relations, and only the row knows which. */
+  'dms.document.unlink': {
+    rpc: 'unlink_dms_document_command',
+    args: (payload) => {
+      const id = requireString(payload.linkId, 'linkId');
+      return id.ok ? succeed({ p_link_id: id.value }) : id;
+    },
+    invalidates: ['dmsDocument360'],
+  },
+
+  /**
+   * Document-to-document edges. `p_relation` is required here, unlike on `link`:
+   * there is no sensible default between two documents, and one of the values --
+   * `SUPERSEDES` -- also marks the target SUPERSEDED, which is why the library, the
+   * queue and the dashboard are invalidated by what looks like a pure edge write.
+   */
+  'dms.document.relate': {
+    rpc: 'relate_dms_documents_command',
+    args: (payload) => {
+      const from = requireString(payload.fromDocumentId, 'fromDocumentId');
+      if (!from.ok) return from;
+      const to = requireString(payload.toDocumentId, 'toDocumentId');
+      if (!to.ok) return to;
+      const relation = requireString(payload.relation, 'relation');
+      if (!relation.ok) return relation;
+      const args: Record<string, unknown> = {
+        p_from_document_id: from.value,
+        p_to_document_id: to.value,
+        p_relation: relation.value,
+      };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: DMS_REVIEW_PAGES,
+  },
+
+  'dms.document.unrelate': {
+    rpc: 'unrelate_dms_documents_command',
+    args: (payload) => {
+      const id = requireString(payload.relationId, 'relationId');
+      return id.ok ? succeed({ p_relation_id: id.value }) : id;
+    },
+    invalidates: DMS_REVIEW_PAGES,
+  },
+  /**
+   * The expiry sweep takes no arguments, and that is the point: it decides by date,
+   * not by who asked. Passing it a document id would turn a scheduled hygiene job
+   * into a way to declare one specific passport expired.
+   */
+  'dms.expiry.sweep': {
+    rpc: 'run_dms_expiry_sweep_command',
+    args: () => succeed({}),
+    invalidates: ['dmsExpiry', 'dmsDashboard', 'dmsDocuments', 'dmsDocument360'],
+  },
+
+  /** Queue an extraction. `p_engine` defaults to `'MANUAL'`. */
+  'dms.extraction.queue': {
+    rpc: 'queue_dms_extraction_command',
+    args: (payload) => {
+      const id = requireString(payload.documentId, 'documentId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_document_id: id.value };
+      const engine = asString(payload.engine);
+      if (engine !== null) args.p_engine = engine;
+      return succeed(args);
+    },
+    invalidates: ['dmsExtractionQuality', 'dmsDocument360', 'dmsDashboard'],
+  },
+
+  /**
+   * The engine reporting back. `p_fields` is a jsonb array forwarded whole, checked
+   * for shape and not for content, the same way `journal.create` forwards its lines:
+   * the function validates each field against the document type it belongs to, and
+   * duplicating half of that check here would leave two rules to keep in step.
+   *
+   * An empty array is legal -- a successful run that found nothing is a result.
+   */
+  'dms.extraction.record': {
+    rpc: 'record_dms_extraction_result_command',
+    args: (payload) => {
+      const jobId = requireString(payload.jobId, 'jobId');
+      if (!jobId.ok) return jobId;
+      const status = requireString(payload.status, 'status');
+      if (!status.ok) return status;
+      const args: Record<string, unknown> = { p_job_id: jobId.value, p_status: status.value };
+      const fields = payload.fields;
+      if (fields !== undefined && fields !== null) {
+        if (!Array.isArray(fields)) return fail('INVALID_ARGUMENT', 'fields must be a list');
+        args.p_fields = fields;
+      }
+      const confidence = asNumber(payload.confidence);
+      if (confidence !== null) args.p_confidence = confidence;
+      const error = asString(payload.error);
+      if (error !== null) args.p_error = error;
+      return succeed(args);
+    },
+    invalidates: ['dmsExtractionQuality', 'dmsDocument360', 'dmsDashboard'],
+  },
+  /**
+   * A human adjudicating one extracted field: ACCEPT, CORRECT or REJECT. Only
+   * CORRECT carries a value, and the emptiness is meaningful -- accepting a field
+   * whose value you also replaced is not accepting it. The three-way choice is left
+   * to the server to validate rather than re-enumerated here, so the vocabulary has
+   * one definition.
+   */
+  'dms.extraction.reviewField': {
+    rpc: 'review_dms_extracted_field_command',
+    args: (payload) => {
+      const fieldId = requireString(payload.fieldId, 'fieldId');
+      if (!fieldId.ok) return fieldId;
+      const action = requireString(payload.action, 'action');
+      if (!action.ok) return action;
+      const args: Record<string, unknown> = { p_field_id: fieldId.value, p_action: action.value };
+      const value = asString(payload.value);
+      if (value !== null) args.p_value = value;
+      return succeed(args);
+    },
+    invalidates: ['dmsExtractionQuality', 'dmsDocument360'],
+  },
+
+  /** A new evidence package: named, with a purpose, and OPEN until sealed. */
+  'dms.package.create': {
+    rpc: 'create_dms_evidence_package_command',
+    args: (payload) => {
+      const name = requireString(payload.name, 'name');
+      if (!name.ok) return name;
+      const args: Record<string, unknown> = { p_name: name.value };
+      const optional: readonly (readonly [string, string])[] = [
+        ['purpose', 'p_purpose'], ['reference', 'p_reference'], ['notes', 'p_notes'],
+      ];
+      for (const [key, arg] of optional) {
+        const text = asString(payload[key]);
+        if (text !== null) args[arg] = text;
+      }
+      return succeed(args);
+    },
+    invalidates: ['dmsPackages'],
+  },
+
+  /** Editing a package's description. Takes `p_id`, where `create` took none and
+   *  `seal` takes `p_package_id`. */
+  'dms.package.update': {
+    rpc: 'update_dms_evidence_package_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_id: id.value };
+      const optional: readonly (readonly [string, string])[] = [
+        ['name', 'p_name'], ['purpose', 'p_purpose'],
+        ['reference', 'p_reference'], ['notes', 'p_notes'],
+      ];
+      for (const [key, arg] of optional) {
+        const text = asString(payload[key]);
+        if (text !== null) args[arg] = text;
+      }
+      return succeed(args);
+    },
+    invalidates: ['dmsPackages'],
+  },
+  /**
+   * Adding or removing one member. `p_include` defaults true, so the same function
+   * is both verbs -- which is right, because "this document is not part of this
+   * package" is a fact worth recording rather than a row worth deleting.
+   */
+  'dms.package.setDocument': {
+    rpc: 'set_dms_package_document_command',
+    args: (payload) => {
+      const packageId = requireString(payload.packageId, 'packageId');
+      if (!packageId.ok) return packageId;
+      const documentId = requireString(payload.documentId, 'documentId');
+      if (!documentId.ok) return documentId;
+      const args: Record<string, unknown> = {
+        p_package_id: packageId.value,
+        p_document_id: documentId.value,
+      };
+      const include = asBoolean(payload.include);
+      if (include !== null) args.p_include = include;
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['dmsPackages', 'dmsDocument360'],
+  },
+
+  /** Sealing computes the digest over the members and freezes them. */
+  'dms.package.seal': {
+    rpc: 'seal_dms_evidence_package_command',
+    args: (payload) => {
+      const id = requireString(payload.packageId, 'packageId');
+      if (!id.ok) return id;
+      const args: Record<string, unknown> = { p_package_id: id.value };
+      const note = asString(payload.note);
+      if (note !== null) args.p_note = note;
+      return succeed(args);
+    },
+    invalidates: ['dmsPackages'],
+  },
+
+  /**
+   * Verification recomputes the digest and compares. It changes nothing and
+   * invalidates nothing -- an empty list here is the assertion that this is a read
+   * wearing a command's clothes, and the only reason it is a command at all is that
+   * the recomputation runs SECURITY DEFINER over tables an app cannot select from.
+   * Its capability is `ledger.read` for the same reason.
+   */
+  'dms.package.verify': {
+    rpc: 'verify_dms_evidence_package_command',
+    args: (payload) => {
+      const id = requireString(payload.packageId, 'packageId');
+      return id.ok ? succeed({ p_package_id: id.value }) : id;
+    },
+    invalidates: [],
+  },
+  /**
+   * Voiding is OPEN → VOID only, and the reason is required. A sealed package
+   * cannot be voided: the seal exists to record that these documents were these
+   * documents at that moment, and voiding it would erase the one fact it carries.
+   * Withdraw a sealed package by superseding it, not by unsaying it.
+   */
+  'dms.package.void': {
+    rpc: 'void_dms_evidence_package_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      if (!id.ok) return id;
+      const reason = requireString(payload.reason, 'reason');
+      if (!reason.ok) return reason;
+      return succeed({ p_id: id.value, p_reason: reason.value });
+    },
+    invalidates: ['dmsPackages'],
+  },
+
+  'dms.package.delete': {
+    rpc: 'delete_dms_evidence_package_command',
+    args: (payload) => {
+      const id = requireString(payload.id, 'id');
+      return id.ok ? succeed({ p_id: id.value }) : id;
+    },
+    invalidates: ['dmsPackages', 'dmsDocument360'],
   },
 };
 

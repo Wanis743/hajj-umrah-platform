@@ -99,6 +99,15 @@ export const CAPABILITIES = [
   // So a CRM that only ever edits the pipeline never sees a UAC dialog, and the
   // single act that reaches the book still does.
   'crm.write',
+  // Filing a document is not posting to the book, and the same split that keeps
+  // `crm.write` out of `ledger.post` keeps this out of both. An approval here
+  // approves a *scan* -- it says the passport photocopy is legible and belongs to
+  // this pilgrim -- and it moves no money even when the scan is an invoice. What
+  // it does carry is bytes: `dms.write` is the capability behind the upload
+  // syscall as well as the review transitions, because a document that arrives
+  // and a document that is approved are the same act of asserting something into
+  // the record, and an app trusted with one is trusted with the other.
+  'dms.write',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -588,6 +597,30 @@ export const DATASETS = [
   // app that reads it, the way `groups` already is, because the next app to need a
   // package list must find this entry instead of adding `crmPackages` beside it.
   'packages',
+  // The document store. One table projection and six composed reads, and the
+  // split here is sharper than anywhere else in this list: `dmsDocuments` is the
+  // library, which `dms_documents_staff_select` already scopes to
+  // has_permission('dms_documents','read') AND row_in_staff_scope(agency, branch),
+  // so a projection is the whole of it. The other six are SECURITY DEFINER
+  // functions that fold across tables an app cannot select from at all -- version
+  // bytes, extraction fields, access logs, package members and their digests.
+  //
+  // `dmsDocuments` keeps its prefix although the naming rule above prefers the
+  // thing over the app, because `public.documents` is a *different* table that
+  // still exists and that `record_dms_document_access_command` deliberately does
+  // not write to. An unprefixed `documents` dataset here would be the one name in
+  // this list that points at the other table's subject.
+  //
+  // Four of the six answer with a single object and two with an array, which is
+  // the difference that decides `asDocumentRows` from `asRows` in the broker.
+  // Getting it backwards on an object yields an empty page rather than an error.
+  'dmsDocuments',
+  'dmsDashboard',
+  'dmsDocument360',
+  'dmsReviewQueue',
+  'dmsExpiry',
+  'dmsExtractionQuality',
+  'dmsPackages',
 ] as const;
 
 export type DatasetName = (typeof DATASETS)[number];
@@ -794,6 +827,67 @@ export const CRM_COMMANDS = [
 
 export type CrmCommandName = (typeof CRM_COMMANDS)[number];
 
+/**
+ * Document management. Twenty-six commands, and the count is the interesting part:
+ * `dmsCommands` in the service layer has twenty-nine, and the three missing here
+ * are `reserve`, `finalize` and `discard` -- the storage handshake.
+ *
+ * They are absent deliberately. A reserve on its own creates a version row whose
+ * bytes will never arrive and whose path no policy will let anyone clean up once
+ * the row is gone; a finalize on its own records a checksum over bytes nobody
+ * sent. The three are one operation with two failure paths, and an app that could
+ * call them separately could leave the store in a state the store cannot describe.
+ * So they live behind `docs.upload`, a syscall, where the kernel holds the whole
+ * protocol: hash, reserve, PUT, and on a failed PUT discard *before* the row goes.
+ * See SyscallMap.
+ *
+ * What remains is every act an app should be able to attempt on its own: the
+ * review transitions, the metadata and tag edits, the links between a document
+ * and the entities it is evidence for, the extraction jobs and their field
+ * review, and the evidence packages with their seal.
+ */
+export const DMS_COMMANDS = [
+  // The review state machine. Each of these stamps an actor and appends to the
+  // document's event ledger, which is why none of them is a metadata patch.
+  'dms.document.submit',
+  'dms.document.startReview',
+  'dms.document.approve',
+  'dms.document.reject',
+  'dms.document.requestChanges',
+  'dms.document.reopen',
+  'dms.document.archive',
+  // Content and classification.
+  'dms.document.updateMetadata',
+  'dms.document.setTags',
+  'dms.document.delete',
+  // Reading a document is itself a recorded act, so it is a command and not a
+  // side effect of the read. See COMMAND_CAPABILITY for why it costs only a read.
+  'dms.document.recordAccess',
+  // The graph: a document to an entity, and a document to another document.
+  'dms.document.link',
+  'dms.document.unlink',
+  'dms.document.relate',
+  'dms.document.unrelate',
+  // Expiry decides by date, not by who asked, which is why it takes no document.
+  'dms.expiry.sweep',
+  // Extraction: queue a job, record what an engine returned, accept or correct a
+  // field. Only a correction carries a value.
+  'dms.extraction.queue',
+  'dms.extraction.record',
+  'dms.extraction.reviewField',
+  // Evidence packages. Sealing and verifying share one digest function on the
+  // server, so they can never disagree about what a package contains.
+  'dms.package.create',
+  'dms.package.update',
+  'dms.package.setDocument',
+  'dms.package.seal',
+  'dms.package.verify',
+  'dms.package.void',
+  'dms.package.delete',
+] as const;
+
+export type DmsCommandName = (typeof DMS_COMMANDS)[number];
+
 /** Every command `data.command` will carry, whatever subsystem answers it. */
 export const DATA_COMMANDS = [
   ...LEDGER_COMMANDS,
@@ -801,6 +895,7 @@ export const DATA_COMMANDS = [
   ...SPINE_COMMANDS,
   ...CONTROL_COMMANDS,
   ...CRM_COMMANDS,
+  ...DMS_COMMANDS,
 ] as const;
 
 export type DataCommandName =
@@ -808,7 +903,8 @@ export type DataCommandName =
   | ModelCommandName
   | SpineCommandName
   | ControlCommandName
-  | CrmCommandName;
+  | CrmCommandName
+  | DmsCommandName;
 
 export interface CommandInvocation {
   readonly command: DataCommandName;
@@ -894,6 +990,92 @@ export interface TimerInfo {
 export type PowerAction = 'lock' | 'signOut' | 'restart' | 'shutdown' | 'sleep';
 
 /* ------------------------------------------------------------------ *
+ * Document store — bytes, which `fs.*` cannot carry
+ * ------------------------------------------------------------------ */
+
+/**
+ * The `fs.*` family above is a *virtual* filesystem: paths, text content and
+ * `VfsStat`, serving Notepad and Sheets out of the registry-backed tree. It has
+ * no way to move a 20 MB scanned PDF, and no bucket behind it if it did.
+ *
+ * These two syscalls are that path. They are separate from `fs.*` on purpose
+ * rather than bolted on as `fs.writeBytes`, because a document is not a file in
+ * a tree: it has a review state, a version chain, a checksum the server also
+ * computed, an expiry date and a set of entities it is evidence for. The VFS
+ * knows about none of that and should not learn.
+ */
+export type DocumentConfidentiality = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED';
+
+/**
+ * Bytes plus the two things the storage layer needs to describe them.
+ *
+ * `ArrayBuffer` and not `File`: the ABI names no DOM type anywhere, and this is
+ * not squeamishness -- `File` would put a browser interface in the contract that
+ * the kernel's own tests, and any future non-browser host, would have to fake.
+ * A buffer is also what makes the invariant checkable: the same buffer is hashed
+ * and uploaded, so the checksum is provably over the bytes that were sent rather
+ * than over a second read of a stream that might differ.
+ */
+export interface DocumentBytes {
+  readonly buffer: ArrayBuffer;
+  /** Original filename, kept for display and for the stored object's extension. */
+  readonly fileName: string;
+  /** Browser-reported MIME type. Empty is legal — the bucket decides. */
+  readonly contentType: string;
+}
+
+/**
+ * One upload. The kernel runs the whole three-step storage protocol behind this:
+ * reserve a row to get the one path the policies accept, PUT the bytes there,
+ * then finalize with size, MIME and SHA-256. There is no app-visible way to run
+ * those steps separately, which is why `DMS_COMMANDS` omits all three.
+ */
+export interface DocumentUploadRequest {
+  readonly file: DocumentBytes;
+  readonly title: string;
+  readonly documentType: string;
+  /** Set to add a version to an existing document; omit to create a new one. */
+  readonly documentId?: string | null;
+  readonly description?: string | null;
+  readonly confidentiality?: DocumentConfidentiality;
+  /** `YYYY-MM-DD`. */
+  readonly issuedOn?: string | null;
+  readonly expiresOn?: string | null;
+  readonly expiryNoticeDays?: number;
+  readonly tags?: readonly string[];
+  readonly workspaceId?: string;
+  /** False files the bytes without queueing the extraction engine. */
+  readonly queueExtraction?: boolean;
+}
+
+export interface DocumentUploadResult {
+  readonly documentId: string;
+  readonly versionId: string;
+  readonly versionNumber: number;
+  readonly versionCount: number;
+  /**
+   * Where the document ended up. Adding a version to an already-decided document
+   * resets it to DRAFT, because the thing that was approved is not this thing.
+   */
+  readonly reviewStatus: string;
+  readonly extractionJobId: string | null;
+  readonly checksumSha256: string;
+  readonly sizeBytes: number;
+}
+
+export interface DocumentUrlRequest {
+  readonly documentId: string;
+  readonly storagePath: string;
+  /** Seconds the link stays good. The server clamps; default is one minute. */
+  readonly expiresInSeconds?: number;
+}
+
+export interface DocumentUrlResult {
+  readonly url: string;
+  readonly expiresAt: IsoTimestamp;
+}
+
+/* ------------------------------------------------------------------ *
  * The syscall table
  * ------------------------------------------------------------------ */
 
@@ -961,6 +1143,10 @@ export interface SyscallMap {
   'data.query': { req: DatasetQuery; res: DatasetPage };
   'data.invalidate': { req: { datasets: readonly DatasetName[] }; res: { invalidated: number } };
   'data.command': { req: CommandInvocation; res: CommandOutcome };
+
+  /* ---- document store --------------------------------------------- */
+  'docs.upload': { req: DocumentUploadRequest; res: DocumentUploadResult };
+  'docs.signedUrl': { req: DocumentUrlRequest; res: DocumentUrlResult };
 
   /* ---- app inventory ---------------------------------------------- */
   /**
@@ -1055,6 +1241,13 @@ export const SYSCALL_CAPABILITY: { readonly [K in SyscallName]: Capability | nul
   'data.query': 'ledger.read',
   'data.invalidate': 'ledger.read',
   'data.command': 'ledger.read',
+  // Filing bytes is the write; reading them back is not. `docs.signedUrl` mints a
+  // link to an object the caller can already see -- the storage policies decide
+  // that, not this line -- and the access row it writes on the way is the
+  // kernel's own log of the read. Charging `dms.write` would mean nobody could
+  // open a passport scan without first holding the right to refile it.
+  'docs.upload': 'dms.write',
+  'docs.signedUrl': 'ledger.read',
   // The inventory *is* the `HKLM\SOFTWARE\FinanceOS\Apps` hive, so reading it
   // through `apps.*` costs exactly what reading it through `registry.*` costs —
   // no capability laundering. A pin is a per-user preference; installing and
@@ -1181,6 +1374,49 @@ export const COMMAND_CAPABILITY: { readonly [K in DataCommandName]: Capability }
   'crm.campaign.create': 'crm.write',
   'crm.campaign.update': 'crm.write',
   'crm.campaign.delete': 'crm.write',
+  // Twenty-four of the twenty-six DMS commands cost `dms.write`. Filing, tagging,
+  // linking and reviewing a document all assert something into the record, and
+  // they assert it about a *scan* -- an approval here says the photocopy is
+  // legible and belongs to this pilgrim. Even approving a scanned invoice moves
+  // no money: the money moves when someone posts it, under `ledger.post`.
+  'dms.document.submit': 'dms.write',
+  'dms.document.startReview': 'dms.write',
+  'dms.document.approve': 'dms.write',
+  'dms.document.reject': 'dms.write',
+  'dms.document.requestChanges': 'dms.write',
+  'dms.document.reopen': 'dms.write',
+  'dms.document.archive': 'dms.write',
+  'dms.document.updateMetadata': 'dms.write',
+  'dms.document.setTags': 'dms.write',
+  'dms.document.delete': 'dms.write',
+  // The first of the two exceptions. `record_dms_document_access_command` writes
+  // a row, so by shape it is a write -- but what it records is that someone
+  // *read* a document they were already allowed to read, and the row is the
+  // kernel's own bookkeeping rather than the app's assertion. Charging
+  // `dms.write` for it would mean a viewer needed filing rights to open a
+  // passport scan, which inverts the point: the log exists to watch reads, so it
+  // must not be the thing that stops them.
+  'dms.document.recordAccess': 'ledger.read',
+  'dms.document.link': 'dms.write',
+  'dms.document.unlink': 'dms.write',
+  'dms.document.relate': 'dms.write',
+  'dms.document.unrelate': 'dms.write',
+  'dms.expiry.sweep': 'dms.write',
+  'dms.extraction.queue': 'dms.write',
+  'dms.extraction.record': 'dms.write',
+  'dms.extraction.reviewField': 'dms.write',
+  'dms.package.create': 'dms.write',
+  'dms.package.update': 'dms.write',
+  'dms.package.setDocument': 'dms.write',
+  'dms.package.seal': 'dms.write',
+  // The second. `verify_dms_evidence_package_command` recomputes the digest and
+  // compares it to the sealed one; it changes nothing and is a command only
+  // because it runs SECURITY DEFINER over tables an app cannot select from. A
+  // verification that demanded write capability would be a verification nobody
+  // could run without first acquiring the right to alter what they are checking.
+  'dms.package.verify': 'ledger.read',
+  'dms.package.void': 'dms.write',
+  'dms.package.delete': 'dms.write',
 };
 
 /* ------------------------------------------------------------------ *
@@ -1298,6 +1534,7 @@ export const APP_IDS = {
   profitability: appId('com.financeos.profitability'),
   treasury: appId('com.financeos.treasury'),
   crm: appId('com.financeos.crm'),
+  dms: appId('com.financeos.dms'),
 } as const;
 
 /** Kernel-owned pseudo app id used by system processes. */

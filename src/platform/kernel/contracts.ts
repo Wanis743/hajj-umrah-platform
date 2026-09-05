@@ -19,6 +19,10 @@ import type {
   DatasetPage,
   DatasetQuery,
   DesktopId,
+  DocumentUploadRequest,
+  DocumentUploadResult,
+  DocumentUrlRequest,
+  DocumentUrlResult,
   EventChannel,
   EventLevel,
   EventQuery,
@@ -486,6 +490,27 @@ export interface DataBrokerSubsystem {
   /** Cache statistics for Settings' storage and About surfaces. */
   stats(): { readonly entries: number; readonly bytes: number; readonly hits: number; readonly misses: number };
   subscribe(listener: () => void): () => void;
+}
+
+/* ------------------------------------------------------------------ *
+ * Document store
+ * ------------------------------------------------------------------ */
+
+/**
+ * Bytes, as opposed to rows.
+ *
+ * Separate from the broker because a document is not a dataset and not a
+ * command: filing one is a three-call storage protocol with a rollback in the
+ * middle, and the whole of it has to be on this side of the ABI so an app cannot
+ * leave a reserved row pointing at a path with nothing behind it. Separate from
+ * the VFS because a document has a review state, a version chain, a checksum the
+ * server also computed and an expiry date, and a file tree knows none of that.
+ */
+export interface DocumentSubsystem {
+  /** Hash, reserve, PUT, finalize — and discard the row if the PUT fails. */
+  upload(pid: Pid, request: DocumentUploadRequest): Promise<AbiResult<DocumentUploadResult>>;
+  /** Records the read, then mints the link. In that order. */
+  signedUrl(pid: Pid, request: DocumentUrlRequest): Promise<AbiResult<DocumentUrlResult>>;
 }
 
 /* ------------------------------------------------------------------ *

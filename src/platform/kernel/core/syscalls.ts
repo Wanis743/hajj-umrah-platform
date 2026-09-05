@@ -50,6 +50,7 @@ import type {
   AppRegistrySubsystem,
   BusSubsystem,
   DataBrokerSubsystem,
+  DocumentSubsystem,
   EventLogSubsystem,
   HandleTable,
   KernelClock,
@@ -133,6 +134,7 @@ export interface DispatcherDeps {
   readonly metrics: MetricsSubsystem;
   readonly wm: WmSubsystem;
   readonly data: DataBrokerSubsystem;
+  readonly documents: DocumentSubsystem;
   readonly notifications: NotificationSubsystem;
   readonly apps: AppRegistrySubsystem;
   /** Resolved lazily: the shell attaches itself after the kernel is built. */
@@ -270,6 +272,7 @@ class Dispatcher implements DispatcherHandle {
     if (name.startsWith('service.')) return this.handleService(name, request);
     if (name.startsWith('eventlog.')) return this.handleEventLog(caller, name, request);
     if (name.startsWith('data.')) return this.handleData(caller, name, request);
+    if (name.startsWith('docs.')) return this.handleDocs(caller, name, request);
     if (name.startsWith('apps.')) return this.handleApps(name, request);
     if (name.startsWith('shell.')) return this.handleShell(caller, name, request);
     if (name.startsWith('window.')) return this.handleWindow(caller, name, request);
@@ -514,6 +517,32 @@ class Dispatcher implements DispatcherHandle {
         if (!consented.ok) return consented;
         return data.command(caller, invocation);
       }
+      default:
+        return fail('NOT_SUPPORTED', `Unhandled syscall: ${name}`);
+    }
+  }
+
+  /**
+   * Documents — bytes, where `handleData` moves rows.
+   *
+   * No elevation code, and that is not an omission: `guarded` has already run
+   * `ensureElevated` for `SYSCALL_CAPABILITY['docs.upload']`, and `dms.write` is
+   * outside `PRIVILEGED_CAPABILITIES`, so consent is not what stands between an
+   * app and a filing. The capability gate is. Filing a document is ordinary work
+   * for whoever was granted it; the thing that would need a prompt is the money
+   * it eventually supports, and that costs `ledger.post`.
+   *
+   * Also thin, for the same reason `handleApps` is: the whole three-call storage
+   * protocol lives in the document store, because a protocol split across a
+   * syscall boundary can be abandoned halfway by the app that started it.
+   */
+  private async handleDocs(caller: Pid, name: SyscallName, request: unknown): Promise<AbiResult<unknown>> {
+    const { documents } = this.deps;
+    switch (name) {
+      case 'docs.upload':
+        return documents.upload(caller, as<'docs.upload'>(request));
+      case 'docs.signedUrl':
+        return documents.signedUrl(caller, as<'docs.signedUrl'>(request));
       default:
         return fail('NOT_SUPPORTED', `Unhandled syscall: ${name}`);
     }

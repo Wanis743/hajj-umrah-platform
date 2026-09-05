@@ -57,6 +57,17 @@ const LABELS: Readonly<Record<Capability, Localized>> = {
     fr: 'Gérer les clients et les devis',
     en: 'Manage customers and quotes',
   },
+  // Says "file and approve documents" rather than "write DMS data", and the verb
+  // "approve" is there on purpose: twenty-four of the twenty-six commands behind
+  // this capability are filing and tagging, but the review verbs are here too, and
+  // an approval is the strongest thing it buys. What it does NOT buy is money
+  // moving — approving a scanned invoice under this capability records that the
+  // photocopy is legible; posting it costs `ledger.post`.
+  'dms.write': {
+    ar: 'حفظ الوثائق والموافقة عليها',
+    fr: 'Classer et approuver des documents',
+    en: 'File and approve documents',
+  },
 };
 
 const isCapability = (value: string): value is Capability =>
