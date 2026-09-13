@@ -14,8 +14,8 @@
  * `BiQueryResult` carries `ok`. run_bi_query_command reports failure as data rather
  * than raising, because an exception would roll back the bi_query_log row that
  * records the attempt, and a denied query is exactly the attempt worth keeping. The
- * service layer in src/services/biAnalytics.ts is what turns `ok: false` back into
- * an error, so nothing above it has to remember to check.
+ * Analytics app's row mappers in src/apps/bi/model.ts are what turn `ok: false` back
+ * into a typed failure, so nothing above them has to remember to check.
  */
 
 /** Every status any BI definition can hold. One vocabulary, four tables. */

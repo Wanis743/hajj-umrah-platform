@@ -14,6 +14,7 @@
  * money the finance suite argues about is first promised to somebody.
  */
 import type { AppPackage } from '@/platform/sdk';
+import { biManifest } from './bi/manifest';
 import { budgetsManifest } from './budgets/manifest';
 import { calculatorManifest } from './calculator/manifest';
 import { closeManifest } from './close/manifest';
@@ -76,4 +77,10 @@ export const APP_PACKAGES: readonly AppPackage[] = [
   // pay rather than what it earned. A profit is an opinion about a period; a balance is a
   // fact about this morning, and the two are not the same question.
   { manifest: treasuryManifest, load: () => import('./treasury/App') },
+  // Last, and the only one that ships no question of its own. Every window above answers
+  // something its author decided was worth asking; this one hands over the datasets and
+  // metrics and lets the reader write the question, then save it and hang it on a board.
+  // It comes after all of them because a semantic layer is only worth having once there
+  // is a book underneath it worth slicing.
+  { manifest: biManifest, load: () => import('./bi/App') },
 ];

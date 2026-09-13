@@ -15,9 +15,9 @@
  * step of them. A second arithmetic in the service layer would be a second answer to
  * "what does this model say", and the two would diverge on a Friday.
  *
- * One result shape for reads and writes, unlike `biAnalytics.ts`. BI needed failure
- * carried inside the payload because a refused query is the one worth auditing and a
- * `raise` would roll back the `bi_query_log` row recording it. Nothing in the
+ * One result shape for reads and writes, unlike the BI query path in `src/apps/bi/model.ts`.
+ * BI needed failure carried inside the payload because a refused query is the one worth
+ * auditing and a `raise` would roll back the `bi_query_log` row recording it. Nothing in the
  * modelling schema writes a row on the way to saying no, so a refusal here is an
  * exception, and every caller handles a read exactly as it handles a write.
  */
