@@ -224,12 +224,30 @@ values
 on conflict(metric_id) do update set definition=excluded.definition,source_function=excluded.source_function,display_unit=excluded.display_unit,updated_at=now();
 
 -- Narrow public exposure for sensitive tables: reads remain policy-controlled, direct writes are RPC-only.
-revoke update(status,paid_dzd,paid_sar,amount_dzd,amount_sar) on public.payments from authenticated;
-revoke update(status) on public.bookings, public.pilgrims, public.visas, public.groups, public.incidents, public.invoices from authenticated;
+--
+-- The payments line used to read `update(status,paid_dzd,paid_sar,amount_dzd,amount_sar)`
+-- on public.payments. paid_dzd and paid_sar are columns of bookings, not payments --
+-- payments carries amount_dzd/amount_sar -- so the whole statement failed with 42703
+-- and the two booking money columns it was reaching for were never revoked anywhere.
+-- Each table now names its own columns.
+--
+-- Both statements are no-ops against the database as it stands: `authenticated` and
+-- `anon` hold no privilege at all on either table, an earlier migration having revoked
+-- them wholesale. They are kept as a standing narrowing so a later column-level grant
+-- cannot quietly reopen a money column. Note the limit -- a column-level revoke does
+-- not subtract from a table-level GRANT UPDATE, so this is a guard against column
+-- grants specifically, not a substitute for keeping the table-level grant absent.
+revoke update(status,amount_dzd,amount_sar) on public.payments from authenticated;
+revoke update(status,paid_dzd,paid_sar) on public.bookings from authenticated;
+revoke update(status) on public.pilgrims, public.visas, public.groups, public.incidents, public.invoices from authenticated;
 
 -- Security-definer defaults for this hardening migration.
 alter function public.get_finance_summary(date,date,uuid,uuid) owner to postgres;
 
+-- `create policy` is not idempotent in Postgres -- there is no IF NOT EXISTS form --
+-- so a replay against a database that already carries this policy raises 42710.
+-- Drop first; the pair is then safe to re-run.
+drop policy if exists observability_staff_insert on public.observability_events;
 create policy observability_staff_insert on public.observability_events
 for insert to authenticated
 with check (public.row_in_staff_scope(agency_id, branch_id));

@@ -53,3 +53,9 @@ skills-lock.json
 # scripts/verify-evidence.mjs, and uploaded by CI as a build artifact. An absent
 # release/ means uncertified, which is honest and true of any fresh checkout.
 release/
+
+# Supabase CLI scratch for the linked project. Holds project-ref, the pooler
+# connection string, and cached server versions -- machine-local facts about
+# whoever ran `supabase link`, not facts about the codebase. pooler-url is a
+# connection string, so this is a secret-adjacent directory, not just noise.
+supabase/.temp/

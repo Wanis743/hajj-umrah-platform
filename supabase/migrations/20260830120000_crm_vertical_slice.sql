@@ -21,9 +21,13 @@
 --      forever even with rows in the table. The columns are added here.
 --
 --   3. 20260425042200_index_all_enterprise_foreign_keys creates an index on
---      public.crm_followups -- a table that was never created anywhere. That
---      statement is unguarded, so a fresh replay dies on it. crm_followups is
---      created here as a first-class table with that exact lead_id column.
+--      public.crm_followups -- a table no migration ever created. That statement
+--      is unguarded, so a fresh replay dies on it. crm_followups is created here
+--      as a first-class table with that exact lead_id column.
+--
+--      No migration created it; the live database has one anyway, on a different
+--      shape, typed in by hand. Section G retires that shape when empty before
+--      creating this one. See the block above the create for why.
 --
 -- Conventions taken from 20260709003000_external_operations (table + RLS +
 -- audit shape), 20260630134500_business_command_adapters (command naming) and
@@ -382,6 +386,38 @@ create index if not exists idx_crm_activities_customer on public.crm_activities(
 create index if not exists idx_crm_activities_lead on public.crm_activities(lead_id, occurred_at desc);
 create index if not exists idx_crm_activities_opportunity on public.crm_activities(opportunity_id, occurred_at desc);
 create index if not exists idx_crm_activities_occurred on public.crm_activities(agency_id, occurred_at desc);
+
+-- The live database turned out to carry a crm_followups of its own -- owner_id,
+-- action_type, scheduled_at where this one has assigned_to, title, priority --
+-- typed into a SQL editor and never written down, the same drift 20260324000400
+-- documents for the staff-scope helpers. `create table if not exists` accepts
+-- such a table silently; the index on assigned_to below is what finally raised
+-- 42703 and exposed it.
+--
+-- Retired on section A's terms: the divergent shape goes only when it is empty,
+-- and raises rather than destroying rows. Keyed on assigned_to because that is
+-- the column the failure named, so a table already matching this definition --
+-- a re-run, or a fresh replay -- is left untouched and the create below is the
+-- no-op it claims to be.
+do $$
+declare n bigint;
+begin
+  if to_regclass('public.crm_followups') is not null
+     and not exists (
+       select 1 from information_schema.columns
+        where table_schema = 'public'
+          and table_name   = 'crm_followups'
+          and column_name  = 'assigned_to'
+     ) then
+    execute 'select count(*) from public.crm_followups' into n;
+    if n > 0 then
+      raise exception
+        'Refusing to replace divergent public.crm_followups: % row(s) present; migrate the data first', n
+        using errcode = '22023';
+    end if;
+    drop table public.crm_followups cascade;
+  end if;
+end $$;
 
 create table if not exists public.crm_followups (
   id             uuid primary key default gen_random_uuid(),

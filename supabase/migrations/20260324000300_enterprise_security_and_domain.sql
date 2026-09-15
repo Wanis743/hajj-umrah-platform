@@ -64,10 +64,17 @@ alter table public.staff_profiles
   add constraint staff_profiles_role_check
   check (role in ('ADMIN','OPERATIONS_MANAGER','VISA_AGENT','FINANCE','GUIDE','CRM','AGENT'));
 
+-- staff_profiles_role_check is dropped at line 46 before it is re-added here.
+-- These two foreign keys had no such guard, which is only invisible while the
+-- file runs exactly once; a second run would stop on 42710.
+alter table public.staff_profiles
+  drop constraint if exists staff_profiles_agency_fk;
 alter table public.staff_profiles
   add constraint staff_profiles_agency_fk
   foreign key (agency_id) references public.agencies(id) on delete restrict;
 
+alter table public.staff_profiles
+  drop constraint if exists staff_profiles_branch_fk;
 alter table public.staff_profiles
   add constraint staff_profiles_branch_fk
   foreign key (branch_uuid) references public.branches(id) on delete restrict;
@@ -114,7 +121,12 @@ BEGIN
     'invoices','contracts','suppliers','tickets'
   ] loop
     if to_regclass('public.' || tbl) is not null then
-      execute format('update public.%I set agency_id = $1, branch_id = $2 where agency_id is null or branch_id is null', tbl)
+      -- coalesce, not a bare assignment. The WHERE fires when EITHER column is null,
+      -- so an unconditional two-column SET also rewrites the column that was already
+      -- correct: a row filed under a real agency with only a missing branch_id would be
+      -- reassigned to the DEFAULT tenant and vanish from every agency-scoped query.
+      -- Only the genuinely-null column may be filled.
+      execute format('update public.%I set agency_id = coalesce(agency_id, $1), branch_id = coalesce(branch_id, $2) where agency_id is null or branch_id is null', tbl)
         using v_agency_id, v_branch_id;
     end if;
   end loop;
@@ -131,8 +143,19 @@ create table if not exists public.staff_permissions (
   unique(role, resource, action)
 );
 
-truncate public.staff_permissions;
-
+-- This seed used to be preceded by `truncate public.staff_permissions;`, which was
+-- how it made itself re-runnable: wipe the grid, lay down these 147 rows again.
+--
+-- On a fresh replay the truncate is always a no-op -- line 126 just created the
+-- table empty -- so it never did anything except on a re-run against a database
+-- that had moved on. It has to move on: CRM, DMS, BI, the modeling store and the
+-- spine each seed their own rows here, and live now holds 466. Replaying the file
+-- with the truncate in place would cut 466 back to 147 and silently revoke every
+-- permission added after March, with no error and no failed gate to notice it.
+--
+-- `on conflict do nothing` against the table's own unique(role, resource, action)
+-- buys the same idempotency additively. Semantically identical on a fresh replay,
+-- strictly safer on every other one.
 insert into public.staff_permissions(role, resource, action) values
   ('OPERATIONS_MANAGER','pilgrims','read'), ('OPERATIONS_MANAGER','pilgrims','create'), ('OPERATIONS_MANAGER','pilgrims','update'),
   ('OPERATIONS_MANAGER','bookings','read'), ('OPERATIONS_MANAGER','bookings','create'), ('OPERATIONS_MANAGER','bookings','update'),
@@ -159,7 +182,8 @@ insert into public.staff_permissions(role, resource, action) values
   ('CRM','crm_leads','read'), ('CRM','crm_leads','create'), ('CRM','crm_leads','update'), ('CRM','crm_leads','delete'),
   ('CRM','pilgrims','read'), ('CRM','bookings','read'),
   ('AGENT','reservations','read'), ('AGENT','reservations','create'), ('AGENT','reservations','update'), ('AGENT','pilgrims','read'), ('AGENT','pilgrims','create'), ('AGENT','pilgrims','update'),
-  ('AGENT','bookings','read'), ('AGENT','bookings','create'), ('AGENT','bookings','update'), ('AGENT','packages','read'), ('AGENT','groups','read');
+  ('AGENT','bookings','read'), ('AGENT','bookings','create'), ('AGENT','bookings','update'), ('AGENT','packages','read'), ('AGENT','groups','read')
+on conflict (role, resource, action) do nothing;
 
 create or replace function public.staff_role()
 returns text
@@ -276,15 +300,62 @@ begin
 end;
 $$;
 
-DO $$ BEGIN
-  if to_regclass('public.reservations') is not null then
-    alter table public.reservations drop constraint if exists reservations_travelers_check;
-    alter table public.reservations add constraint reservations_travelers_check check (travelers between 1 and 20);
-    alter table public.reservations add constraint reservations_date_order check (end_date >= start_date);
-    alter table public.reservations add constraint reservations_name_length check (char_length(trim(name)) between 2 and 120);
-    alter table public.reservations add constraint reservations_phone_length check (char_length(trim(phone)) between 8 and 30);
-    alter table public.reservations add constraint reservations_notes_length check (notes is null or char_length(notes) <= 4000);
+-- These five checks are the validation the public reservation form never had.
+--
+-- Adding them to an established database means meeting rows that predate them.
+-- A migration must not silently delete a customer enquiry to make its own DDL
+-- succeed, and it must not weaken the check to `not valid` either -- that leaves
+-- a permanent unvalidated constraint and a guarantee that is only half made.
+--
+-- So non-conforming rows are moved aside, whole, into reservations_quarantine as
+-- jsonb before the constraints go on. Nothing is lost, the row stays queryable
+-- and restorable by hand, and the constraints land fully validated. On a fresh
+-- replay the table is empty and the entire block is a no-op.
+--
+-- Every add is preceded by a drop-if-exists so re-running the file cannot fail
+-- with 42710 on a constraint it added itself last time.
+DO $$
+declare
+  v_bad_rows constant text := $pred$
+    char_length(trim(coalesce(name,''))) not between 2 and 120
+    or char_length(trim(coalesce(phone,''))) not between 8 and 30
+    or travelers is null or travelers not between 1 and 20
+    or end_date < start_date
+    or (notes is not null and char_length(notes) > 4000)
+  $pred$;
+  v_moved bigint;
+BEGIN
+  if to_regclass('public.reservations') is null then return; end if;
+
+  create table if not exists public.reservations_quarantine (
+    id bigserial primary key,
+    quarantined_at timestamptz not null default now(),
+    reason text not null,
+    row_data jsonb not null
+  );
+  alter table public.reservations_quarantine enable row level security;
+  revoke all on public.reservations_quarantine from anon, authenticated;
+
+  execute format(
+    'insert into public.reservations_quarantine(reason, row_data)
+     select %L, to_jsonb(r) from public.reservations r where %s',
+    'failed the reservation validity checks added by 20260324000300', v_bad_rows);
+  execute format('delete from public.reservations where %s', v_bad_rows);
+  get diagnostics v_moved = ROW_COUNT;
+  if v_moved > 0 then
+    raise warning '20260324000300: quarantined % reservation row(s) that could not satisfy the new checks; see public.reservations_quarantine', v_moved;
   end if;
+
+  alter table public.reservations drop constraint if exists reservations_travelers_check;
+  alter table public.reservations add constraint reservations_travelers_check check (travelers between 1 and 20);
+  alter table public.reservations drop constraint if exists reservations_date_order;
+  alter table public.reservations add constraint reservations_date_order check (end_date >= start_date);
+  alter table public.reservations drop constraint if exists reservations_name_length;
+  alter table public.reservations add constraint reservations_name_length check (char_length(trim(name)) between 2 and 120);
+  alter table public.reservations drop constraint if exists reservations_phone_length;
+  alter table public.reservations add constraint reservations_phone_length check (char_length(trim(phone)) between 8 and 30);
+  alter table public.reservations drop constraint if exists reservations_notes_length;
+  alter table public.reservations add constraint reservations_notes_length check (notes is null or char_length(notes) <= 4000);
 END $$;
 
 DO $$ BEGIN
@@ -653,6 +724,35 @@ revoke all on function public.consume_reservation_rate_limit(text,integer,intege
 
 -- Public package catalog function (single source of truth, no raw package table access)
 -- -----------------------------------------------------------------------------
+-- `add column if not exists includes jsonb` below is a no-op against a database
+-- that already has an `includes` column of some other type -- which is exactly
+-- what production had: text[], typed into a SQL editor by hand, silently
+-- accepted here, and then rejected two hundred lines later by
+-- get_public_packages()'s `includes jsonb` return column with 42P13. The same
+-- blind spot as `create table if not exists` against a drifted table, one level
+-- down: the guard checks the name and never the shape.
+--
+-- jsonb is what this file declares and what the rest of the ledger assumes, so a
+-- pre-existing text[] is converted rather than accommodated. to_jsonb over a
+-- text[] yields a JSON array of the same strings -- 8 packages, 31 elements,
+-- nothing lost -- and the app reads the column through a normalizer that accepts
+-- either representation (usePublicPackages.ts toIncludes). On a fresh replay the
+-- column does not exist yet and this block does nothing.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'packages'
+      and column_name = 'includes' and udt_name = '_text'
+  ) then
+    alter table public.packages
+      alter column includes drop default,
+      alter column includes type jsonb using to_jsonb(coalesce(includes, array[]::text[])),
+      alter column includes set default '[]'::jsonb;
+    raise warning '20260324000300: converted public.packages.includes from text[] to jsonb';
+  end if;
+end $$;
+
 alter table public.packages
   add column if not exists type text default 'UMRAH',
   add column if not exists duration_label text,
