@@ -1,6 +1,20 @@
 -- Release security assertions. Run as a privileged CI role against a fresh database.
 
 -- Public reservations are Edge-only: no direct PostgREST table access and no RPC bypass.
+--
+-- "Public" is the operative word: two intake paths exist and only one of them is anon's.
+--   visitor -> supabase.functions.invoke('create-reservation')   src/lib/publicReservation.ts:40
+--              runs as service_role behind an origin allowlist, Turnstile, an IP rate limit
+--              and an idempotency key, and never touches the RPC below.
+--   staff   -> supabase.rpc('create_reservation_request')        NewReservationModal.tsx:71
+--              guarded by the function's own is_staff() 42501, and deriving agency_id and
+--              branch_id from the caller's staff profile -- which the Edge path, having no
+--              staff identity to read, cannot do at all.
+--
+-- 20260417203300 revoked EXECUTE from public, anon and authenticated in a single statement.
+-- Only the anon half follows from "public intake is Edge-only"; the authenticated half left
+-- the staff modal returning 42501 on every submit. 20260916140000 granted it back, so the
+-- authenticated assertion below now guards the staff path rather than echoing the anon one.
 select 'anon_reservations_select' as check_name,
        has_table_privilege('anon','public.reservations','select') = false as pass;
 select 'anon_reservations_insert' as check_name,
@@ -12,7 +26,7 @@ select 'anon_reservations_delete' as check_name,
 select 'anon_create_reservation_rpc' as check_name,
        has_function_privilege('anon','public.create_reservation_request(jsonb)','EXECUTE') = false as pass;
 select 'authenticated_create_reservation_rpc' as check_name,
-       has_function_privilege('authenticated','public.create_reservation_request(jsonb)','EXECUTE') = false as pass;
+       has_function_privilege('authenticated','public.create_reservation_request(jsonb)','EXECUTE') = true as pass;
 
 -- Audit log is immutable to client roles.
 select 'anon_audit_update' as check_name,
