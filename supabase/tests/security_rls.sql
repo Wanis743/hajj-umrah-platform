@@ -62,6 +62,54 @@ select 'anon_has_permission_execute' as check_name,
 select 'auth_has_permission_execute' as check_name,
        has_function_privilege('authenticated','public.has_permission(text,text)','EXECUTE') = true as pass;
 
+-- has_permission is not alone. A policy's USING expression is evaluated with the
+-- privileges of the role running the query, so every helper a policy names must be
+-- executable by that role or row security fails 42501 instead of filtering. Only
+-- has_permission was asserted here, which is how 20260830140000 revoked the other
+-- five from authenticated and broke 48 tables without turning this file red.
+-- Restored by 20260918100000. All six are SECURITY DEFINER over auth.uid(), so
+-- authenticated learns only about itself -- and anon still gets nothing.
+select 'auth_row_in_staff_scope_execute' as check_name,
+       has_function_privilege('authenticated','public.row_in_staff_scope(uuid,uuid)','EXECUTE') = true as pass;
+select 'auth_staff_role_execute' as check_name,
+       has_function_privilege('authenticated','public.staff_role()','EXECUTE') = true as pass;
+select 'auth_current_staff_agency_id_execute' as check_name,
+       has_function_privilege('authenticated','public.current_staff_agency_id()','EXECUTE') = true as pass;
+select 'auth_current_staff_branch_id_execute' as check_name,
+       has_function_privilege('authenticated','public.current_staff_branch_id()','EXECUTE') = true as pass;
+select 'anon_row_in_staff_scope_execute' as check_name,
+       has_function_privilege('anon','public.row_in_staff_scope(uuid,uuid)','EXECUTE') = false as pass;
+select 'anon_staff_role_execute' as check_name,
+       has_function_privilege('anon','public.staff_role()','EXECUTE') = false as pass;
+select 'anon_current_staff_agency_id_execute' as check_name,
+       has_function_privilege('anon','public.current_staff_agency_id()','EXECUTE') = false as pass;
+select 'anon_current_staff_branch_id_execute' as check_name,
+       has_function_privilege('anon','public.current_staff_branch_id()','EXECUTE') = false as pass;
+
+-- The invariant the six assertions above are a proxy for: no policy may name a
+-- function the role bound to that policy cannot execute. This catches the next
+-- helper as well as these six.
+select 'no_policy_calls_an_unexecutable_function' as check_name,
+       not exists (
+         select 1
+           from pg_policies p
+           join pg_class c on c.relname = p.tablename
+           join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+          -- The '.' is deliberately NOT in the exclusion class. pg_policies renders
+          -- public-schema quals unqualified, but anything rendered as
+          -- public.has_permission( would be skipped by a class containing '.',
+          -- and a check that silently stops looking is worse than no check.
+          cross join lateral regexp_matches(
+            coalesce(p.qual::text,'') || ' ' || coalesce(p.with_check::text,''),
+            '(?:^|[^a-z0-9_])([a-z_][a-z0-9_]*)\s*\(', 'g') m
+           join pg_proc fn on fn.proname = m[1]
+           join pg_namespace fns on fns.oid = fn.pronamespace and fns.nspname = 'public'
+          where p.schemaname = 'public'
+            and 'authenticated' = any(p.roles)
+            and has_table_privilege('authenticated', c.oid, 'SELECT')
+            and not has_function_privilege('authenticated', fn.oid, 'EXECUTE')
+       ) as pass;
+
 -- Permission matrix invariants for the highest-risk resources.
 with matrix(role,resource,action,allowed) as (
   values
