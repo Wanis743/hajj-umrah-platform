@@ -31,6 +31,11 @@ interface Node {
   kind: VfsNodeKind;
   contentType: VfsContentType;
   content: string;
+  /**
+   * Real size in bytes, when `content` is a projection rather than the file.
+   * Absent for text files, which are measured by their characters.
+   */
+  byteLength?: number;
   createdAt: IsoTimestamp;
   modifiedAt: IsoTimestamp;
   readOnly: boolean;
@@ -133,7 +138,12 @@ class TreeVolume implements VfsVolume {
 
   /* ---------------- writes ---------------- */
 
-  writeText(relativePath: string, content: string, contentType: VfsContentType): AbiResult<VfsStat> {
+  writeText(
+    relativePath: string,
+    content: string,
+    contentType: VfsContentType,
+    byteLength?: number,
+  ): AbiResult<VfsStat> {
     if (!this.mutable) return fail('PERMISSION_DENIED', `Volume ${this.letter}: is read-only`);
     const segments = splitRelative(relativePath);
     const name = segments[segments.length - 1];
@@ -171,6 +181,9 @@ class TreeVolume implements VfsVolume {
     };
     node.content = content;
     node.contentType = contentType;
+    // Assigned rather than merged: a path rewritten from binary to text must
+    // stop reporting the old file's byte count.
+    node.byteLength = byteLength;
     node.modifiedAt = at;
     parent.children.set(name.toLowerCase(), node);
     parent.modifiedAt = at;
@@ -270,7 +283,7 @@ class TreeVolume implements VfsVolume {
       name: segments.length === 0 ? `${this.letter}:` : node.name,
       kind: node.kind,
       contentType: node.contentType,
-      size: node.kind === 'file' ? node.content.length : (node.children?.size ?? 0),
+      size: node.kind === 'file' ? (node.byteLength ?? node.content.length) : (node.children?.size ?? 0),
       createdAt: node.createdAt,
       modifiedAt: node.modifiedAt,
       readOnly: this.readOnly || node.readOnly,

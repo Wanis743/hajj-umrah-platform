@@ -16,6 +16,7 @@ import {
   type VfsVolumeInfo,
 } from '../abi';
 import type { KernelLogger, VfsSubsystem, VfsVolume } from '../contracts';
+import { toBase64 } from './bytes';
 import { EVENT_IDS } from './eventlog';
 import { basename, contains, dirname, extname, join, normalize, parse, relative, volumeOf } from './paths';
 import { createSignal } from './store';
@@ -37,6 +38,9 @@ const EXTENSION_TYPES: Readonly<Record<string, VfsContentType>> = {
   '.fjournal': 'application/vnd.financeos.journal',
   '.freport': 'application/vnd.financeos.report',
   '.lnk': 'application/vnd.financeos.shortcut',
+  '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
 export function contentTypeFor(path: string): VfsContentType {
@@ -136,6 +140,32 @@ class Vfs implements VfsSubsystem {
       return fail('ALREADY_EXISTS', `File already exists: ${normalize(path)}`);
     }
     const result = volume.writeText(rest, content, contentType);
+    if (result.ok) this.signal.bump();
+    return result;
+  }
+
+  /**
+   * The binary write, which is the text write with a projection in front of it.
+   *
+   * It goes through `volume.writeText` on purpose rather than growing a second
+   * write path down every volume: a volume's job is to hold named content with a
+   * type, and whether that content is prose or a base64'd zip is the VFS's
+   * problem, not the volume's. What the volume is told is the real byte count,
+   * so the stat reports the file rather than its projection.
+   */
+  writeBinary(
+    path: string,
+    bytes: Uint8Array,
+    contentType: VfsContentType,
+    createOnly: boolean,
+  ): AbiResult<VfsStat> {
+    const resolved = this.route(path);
+    if (!resolved.ok) return resolved;
+    const { volume, rest } = resolved.value;
+    if (createOnly && volume.stat(rest) !== null) {
+      return fail('ALREADY_EXISTS', `File already exists: ${normalize(path)}`);
+    }
+    const result = volume.writeText(rest, toBase64(bytes), contentType, bytes.length);
     if (result.ok) this.signal.bump();
     return result;
   }

@@ -99,6 +99,7 @@ class Controller implements ShellHostController {
       fileDialog: (spec) => this.fileDialog(spec),
       clipboardWrite: (text) => writeClipboard(text),
       clipboardRead: () => readClipboard(),
+      download: (fileName, bytes, contentType) => deliverDownload(fileName, bytes, contentType),
       power: (action) => this.options.onPower(action),
     };
   }
@@ -231,6 +232,40 @@ async function readClipboard(): Promise<string> {
     // Permission refused or the document is not focused.
   }
   return '';
+}
+
+/**
+ * The only place in the OS where a file leaves the simulation.
+ *
+ * Everything above this line writes into the virtual volumes, which is why
+ * Export felt like it worked for so long and never produced a file: the user
+ * got a toast and a path that existed nowhere outside the tab. This is the
+ * ordinary browser download, and it lives in the shell because the kernel is
+ * not allowed a DOM.
+ *
+ * The BOM is not decoration. Excel opens a UTF-8 CSV as the system codepage
+ * unless the file leads with one, and an agency exporting Arabic supplier names
+ * would get mojibake in every row. The other three formats declare their own
+ * encoding internally and must not be prefixed with anything.
+ */
+async function deliverDownload(fileName: string, bytes: Uint8Array, contentType: string): Promise<boolean> {
+  try {
+    const parts: BlobPart[] = contentType.startsWith('text/csv') ? ['﻿', bytes] : [bytes];
+    const url = URL.createObjectURL(new Blob(parts, { type: contentType }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.rel = 'noopener';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    // Revoked on a later frame: Safari reads the URL after the click returns.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function createShellHost(options: ShellHostOptions): ShellHostController {

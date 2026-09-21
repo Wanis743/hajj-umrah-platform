@@ -205,7 +205,24 @@ export type VfsContentType =
   | 'application/vnd.financeos.journal'
   | 'application/vnd.financeos.report'
   | 'application/vnd.financeos.shortcut'
+  // The three an export produces that a text editor cannot open. They exist here
+  // so a report saved as PDF or Office is a first-class file in the tree -- named,
+  // sized and iconed like any other -- rather than an `octet-stream` the file
+  // manager has nothing to say about. Nothing reads them back: `fs.readText` on
+  // one of these returns its base64 projection, which is the honest answer to
+  // asking a text syscall for a zip.
+  | 'application/pdf'
+  | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  | 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   | 'application/octet-stream';
+
+/** Content types whose bytes are not text, and are stored base64-projected. */
+export const BINARY_CONTENT_TYPES: readonly VfsContentType[] = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/octet-stream',
+];
 
 export interface VfsStat {
   /** Absolute Windows-style path, e.g. `C:\Users\finance\Desktop\notes.txt`. */
@@ -1203,6 +1220,19 @@ export interface SyscallMap {
     req: { path: string; content: string; contentType?: VfsContentType; createOnly?: boolean };
     res: VfsStat;
   };
+  /**
+   * The same write, for bytes rather than characters.
+   *
+   * A PDF and an Office package are zip containers and UTF-16 string storage
+   * mangles them, so the kernel keeps a base64 projection and records the real
+   * byte count in the stat -- the file manager reports what the file weighs, not
+   * what its projection weighs. This is the *filing* half of an export; it puts
+   * nothing on the user's computer. `shell.download` is the other half.
+   */
+  'fs.writeBinary': {
+    req: { path: string; bytes: Uint8Array; contentType: VfsContentType; createOnly?: boolean };
+    res: VfsStat;
+  };
   'fs.mkdir': { req: { path: string; recursive?: boolean }; res: VfsStat };
   'fs.remove': { req: { path: string; recursive?: boolean }; res: { removed: number } };
   'fs.move': { req: { from: string; to: string; overwrite?: boolean }; res: VfsStat };
@@ -1282,6 +1312,19 @@ export interface SyscallMap {
   'shell.fileDialog': { req: FileDialogSpec; res: { path: string | null } };
   'shell.clipboardWrite': { req: { text: string }; res: { written: true } };
   'shell.clipboardRead': { req: {}; res: { text: string } };
+  /**
+   * Hand a file to the person, not to the simulated disk.
+   *
+   * Every other write in this table lands inside the OS. This one leaves it: the
+   * shell turns the bytes into a download the browser saves wherever the person
+   * keeps their files. It costs `fs.write` rather than a capability of its own
+   * because it is the same act -- an app that may write a report may hand that
+   * report over, and an app that may not write one has nothing to hand.
+   */
+  'shell.download': {
+    req: { fileName: string; bytes: Uint8Array; contentType: VfsContentType };
+    res: { delivered: true };
+  };
 
   'window.setTitle': { req: { window: WindowId; title: string }; res: WindowInfo };
   'window.setDirty': { req: { window: WindowId; dirty: boolean }; res: WindowInfo };
@@ -1320,6 +1363,7 @@ export const SYSCALL_CAPABILITY: { readonly [K in SyscallName]: Capability | nul
   'fs.list': 'fs.read',
   'fs.readText': 'fs.read',
   'fs.writeText': 'fs.write',
+  'fs.writeBinary': 'fs.write',
   'fs.mkdir': 'fs.write',
   'fs.remove': 'fs.write',
   'fs.move': 'fs.write',
@@ -1379,6 +1423,9 @@ export const SYSCALL_CAPABILITY: { readonly [K in SyscallName]: Capability | nul
   'shell.fileDialog': 'fs.read',
   'shell.clipboardWrite': 'clipboard',
   'shell.clipboardRead': 'clipboard',
+  // Not a capability of its own: see the syscall's own note. Handing over a file
+  // the app was already entitled to write is the same privilege as writing it.
+  'shell.download': 'fs.write',
   'window.setTitle': null,
   'window.setDirty': null,
   'window.setProgress': null,

@@ -78,6 +78,7 @@ const SEARCH_LIMIT = 200;
 /** Syscalls whose effect is written to the audit trail after it succeeds. */
 const AUDITED: Readonly<Partial<Record<SyscallName, number>>> = {
   'fs.writeText': EVENT_IDS.fileWrite,
+  'fs.writeBinary': EVENT_IDS.fileWrite,
   'fs.mkdir': EVENT_IDS.fileWrite,
   'fs.move': EVENT_IDS.fileWrite,
   'fs.copy': EVENT_IDS.fileWrite,
@@ -332,6 +333,15 @@ class Dispatcher implements DispatcherHandle {
       case 'fs.writeText': {
         const r = as<'fs.writeText'>(request);
         const outcome = vfs.writeText(r.path, r.content, r.contentType ?? 'text/plain', r.createOnly ?? false);
+        if (outcome.ok) {
+          this.deps.processes.noteIo(caller, outcome.value.size);
+          this.announceFile(caller, r.path, 'modified');
+        }
+        return outcome;
+      }
+      case 'fs.writeBinary': {
+        const r = as<'fs.writeBinary'>(request);
+        const outcome = vfs.writeBinary(r.path, r.bytes, r.contentType, r.createOnly ?? false);
         if (outcome.ok) {
           this.deps.processes.noteIo(caller, outcome.value.size);
           this.announceFile(caller, r.path, 'modified');
@@ -624,6 +634,16 @@ class Dispatcher implements DispatcherHandle {
       }
       case 'shell.clipboardRead':
         return succeed({ text: await host.clipboardRead() });
+      case 'shell.download': {
+        // The one syscall whose effect leaves the OS entirely. The kernel has no
+        // DOM and cannot build a blob, so it states the intent and the shell
+        // performs it -- exactly as the clipboard works one case up.
+        const r = as<'shell.download'>(request);
+        const delivered = await host.download(r.fileName, r.bytes, r.contentType);
+        return delivered
+          ? succeed({ delivered: true as const })
+          : fail('IO_ERROR', `The browser refused to deliver ${r.fileName}`);
+      }
       default:
         return fail('NOT_SUPPORTED', `Unhandled syscall: ${name}`);
     }

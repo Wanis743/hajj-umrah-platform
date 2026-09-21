@@ -306,7 +306,18 @@ export interface VfsVolume {
   stat(relativePath: string): VfsStat | null;
   list(relativePath: string): readonly VfsStat[] | null;
   readText(relativePath: string): string | null;
-  writeText(relativePath: string, content: string, contentType: VfsContentType): AbiResult<VfsStat>;
+  /**
+   * `byteLength` overrides the size the stat reports. Text files leave it unset
+   * and are measured by their characters; a binary file is stored as a base64
+   * projection a third larger than itself, and passes its real weight here so
+   * the file manager does not inflate it.
+   */
+  writeText(
+    relativePath: string,
+    content: string,
+    contentType: VfsContentType,
+    byteLength?: number,
+  ): AbiResult<VfsStat>;
   mkdir(relativePath: string, recursive: boolean): AbiResult<VfsStat>;
   remove(relativePath: string, recursive: boolean): AbiResult<number>;
   usedBytes(): number;
@@ -321,6 +332,8 @@ export interface VfsSubsystem {
   list(path: string, showHidden: boolean): AbiResult<readonly VfsStat[]>;
   readText(path: string): AbiResult<{ content: string; stat: VfsStat }>;
   writeText(path: string, content: string, contentType: VfsContentType, createOnly: boolean): AbiResult<VfsStat>;
+  /** Files bytes rather than characters; see `VfsVolume.writeText`'s `byteLength`. */
+  writeBinary(path: string, bytes: Uint8Array, contentType: VfsContentType, createOnly: boolean): AbiResult<VfsStat>;
   mkdir(path: string, recursive: boolean): AbiResult<VfsStat>;
   remove(path: string, recursive: boolean): AbiResult<number>;
   move(from: string, to: string, overwrite: boolean): AbiResult<VfsStat>;
@@ -524,6 +537,13 @@ export interface ShellHost {
   fileDialog(spec: FileDialogSpec): Promise<string | null>;
   clipboardWrite(text: string): Promise<boolean>;
   clipboardRead(): Promise<string>;
+  /**
+   * Delivers a file to the person running the OS. The only host call that
+   * escapes the simulation: everything else paints, prompts or copies, and this
+   * one puts bytes in their downloads folder. Answers `false` when the browser
+   * refuses, which the syscall reports as `IO_ERROR` rather than swallowing.
+   */
+  download(fileName: string, bytes: Uint8Array, contentType: string): Promise<boolean>;
   power(action: PowerAction): void;
 }
 
