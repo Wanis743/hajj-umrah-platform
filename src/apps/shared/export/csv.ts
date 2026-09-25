@@ -11,6 +11,7 @@
  * whether `1.250` is one thousand or one and a quarter will guess wrong in one of
  * the two languages this OS runs in.
  */
+import { utf8, type TableDocument } from './document';
 
 /** Quotes a value when leaving it bare could break the row. */
 export function csvCell(value: string): string {
@@ -29,3 +30,12 @@ export const csvRow = (cells: readonly string[]): string => cells.map(csvCell).j
 export function csvDocument(header: readonly string[], rows: readonly (readonly string[])[]): string {
   return [csvRow(header), ...rows.map(csvRow)].join('\r\n');
 }
+
+/**
+ * The document as CSV bytes.
+ *
+ * The provenance lines and the title are dropped rather than prepended: a CSV
+ * with a preamble is a CSV that no spreadsheet parses, and the three formats
+ * that have a page all carry the same facts.
+ */
+export const writeCsv = (doc: TableDocument): Uint8Array => utf8(csvDocument(doc.header, doc.rows));

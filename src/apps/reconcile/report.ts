@@ -1,23 +1,26 @@
 /**
  * Reconciliation — what leaves the window.
  *
- * Two artefacts, and they answer different questions. The CSV is the difference
+ * Two artefacts, and they answer different questions. The table is the difference
  * report: the statement lines nobody could tie to an entry, and the posted entries
  * nobody could tie to the statement, in one file with a `side` column. That file is
  * the paper somebody takes to the bank, or back to the person who booked the entry.
  * The clipboard text is one row and its best candidate, which is what gets pasted
  * into a message that starts "is this the same payment?".
  *
- * Machine columns carry codes rather than labels, because a CSV outlives the
+ * Machine columns carry codes rather than labels, because an exported file outlives the
  * language it was exported in. The clipboard is the opposite — it is read once, by a
  * person, now — so it is written in theirs.
  */
 import type { Localized } from '@/platform/sdk';
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import type { BankStatement, BankTransaction } from '../shared/ledger';
 import { type Candidate, isEligible, type LedgerRow, SIGNAL_LABEL } from './match';
 
 export type Label = (value: Localized) => string;
+
+/** The runtime's positional translator, narrowed to what a pure module needs. */
+export type Translate = (ar: string, fr: string, en: string) => string;
 
 const HEADER = [
   'side',
@@ -41,41 +44,88 @@ const money = (value: number): string => value.toFixed(2);
  * Matched lines are left out on purpose: a difference report listing the things
  * that agree is a report nobody reads to the end. `ignored` lines are left out too
  * — somebody already decided those need no counterpart.
+ *
+ * The head above the table is what the CSV could never carry. A difference report
+ * is only meaningful against a statement — which bank, which day, and what the two
+ * sides are supposed to add up to — and a rectangle whose first row must be the
+ * header has nowhere to say that. It is said here, so the file that reaches the
+ * bank names the statement it disputes.
  */
-export function differenceCsv(
+export function differenceTable(
   transactions: readonly BankTransaction[],
   ledgerRows: readonly LedgerRow[],
-): string {
+  statement: BankStatement | null,
+  tr: Translate,
+): TableDocument {
   const open = transactions.filter((row) => row.state === 'unmatched');
   const loose = ledgerRows.filter(isEligible);
-  return csvDocument(HEADER, [
-    ...open.map((row) => [
-      'STATEMENT',
-      row.date,
-      row.reference,
-      row.description,
-      direction(row.kind),
-      money(row.amount),
-      'UNMATCHED',
-      '',
-      '',
-    ]),
-    ...loose.map((row) => [
-      'LEDGER',
-      row.date,
-      row.reference,
-      row.line.memo,
-      direction(row.kind),
-      money(row.amount),
-      'UNRECONCILED',
-      row.accountLabel,
-      '',
-    ]),
-  ]);
+  return tableDocument(
+    tr('تقرير الفروق', 'Rapport des écarts', 'Difference report'),
+    HEADER,
+    [
+      ...open.map((row) => [
+        'STATEMENT',
+        row.date,
+        row.reference,
+        row.description,
+        direction(row.kind),
+        money(row.amount),
+        'UNMATCHED',
+        '',
+        '',
+      ]),
+      ...loose.map((row) => [
+        'LEDGER',
+        row.date,
+        row.reference,
+        row.line.memo,
+        direction(row.kind),
+        money(row.amount),
+        'UNRECONCILED',
+        row.accountLabel,
+        '',
+      ]),
+    ],
+    differenceMeta(open, loose, statement, tr),
+  );
 }
 
+/** Which statement this disputes, and how far apart the two sides are. */
+function differenceMeta(
+  open: readonly BankTransaction[],
+  loose: readonly LedgerRow[],
+  statement: BankStatement | null,
+  tr: Translate,
+): readonly TableMeta[] {
+  const meta: TableMeta[] = [];
+  if (statement !== null) {
+    meta.push({ label: tr('تاريخ الكشف', 'Date du relevé', 'Statement date'), value: statement.date });
+    meta.push({ label: tr('الحالة', 'État', 'Status'), value: statement.status });
+    meta.push({
+      label: tr('الرصيد', 'Solde', 'Balance'),
+      value: `${money(statement.opening)} → ${money(statement.closing)}`,
+    });
+  }
+  meta.push({
+    label: tr('غير مطابق — الكشف', 'Non rapprochées — relevé', 'Unmatched — statement'),
+    value: `${open.length} · ${money(open.reduce((sum, row) => sum + row.amount, 0))}`,
+  });
+  meta.push({
+    label: tr('غير مطابق — الدفتر', 'Non rapprochées — livre', 'Unreconciled — book'),
+    value: `${loose.length} · ${money(loose.reduce((sum, row) => sum + row.amount, 0))}`,
+  });
+  return meta;
+}
+
+/**
+ * `reconciliation-2026-08-28` — the statement's own day, not today's, because a
+ * reconciliation is about a statement and not about when it was printed.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends
+ * the one matching the bytes it produced.
+ */
 export const suggestedFileName = (statement: BankStatement | null, today: string): string =>
-  `reconciliation-${statement === null ? today : statement.date}.csv`;
+  `reconciliation-${statement === null ? today : statement.date}`;
 
 /**
  * One statement line and what it might be, as pasteable text.

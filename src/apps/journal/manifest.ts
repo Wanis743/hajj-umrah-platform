@@ -8,9 +8,10 @@
  *
  * `.fxjournal` is a *draft* — an unposted entry saved to a file so a batch can be
  * prepared away from the books, reviewed, and posted later (or from another
- * machine). That is what `fs.read`/`fs.write` are for, together with the CSV
- * export; the association makes double-clicking one on the desktop open it here.
+ * machine). That is what `fs.read`/`fs.write` are for, together with the export
+ * of what is on screen; the association makes double-clicking one on the desktop open it here.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -59,7 +60,8 @@ export const journalManifest = defineApp({
     { id: 'open', title: text('فتح مسودة…', 'Ouvrir un brouillon…', 'Open draft…'), accelerator: 'Ctrl+O' },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export as CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'view:draft', title: text('المسودات', 'Brouillons', 'Drafts') },
     { id: 'view:pending', title: text('قيد الموافقة', 'En attente', 'Pending approval') },
     { id: 'view:posted', title: text('المرحّلة', 'Comptabilisées', 'Posted') },

@@ -29,7 +29,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  FileDown,
   Gauge,
   History,
   Lock,
@@ -64,6 +63,7 @@ import {
   ToolbarSpacer,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { ACCOUNT_TYPE_LABEL, type Budget } from '../shared/ledger';
 import type { ModelingBusy } from './actions';
 import {
@@ -195,15 +195,12 @@ export function ModelingToolbar(props: ToolbarProps) {
       >
         {tr('نسخ', 'Copier', 'Copy')}
       </Button>
-      <Button
-        icon={FileDown}
+      <ExportButton
         busy={busy === 'export'}
         disabled={working}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
         title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+      />
       <IconButton
         icon={RefreshCw}
         label={tr('تحديث (F5)', 'Actualiser (F5)', 'Refresh (F5)')}

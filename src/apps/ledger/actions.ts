@@ -18,15 +18,10 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { CHANNEL_ACTIVATED, useApp, useIpc, useLedgerCommand } from '@/platform/sdk';
+import type { ExportFormat, TableDocument } from '../shared/export';
 import type { Account } from '../shared/ledger';
-import { REPORTS } from '../shared/paths';
-import {
-  accountClipboardText,
-  type LedgerView,
-  type Posting,
-  type Rollup,
-  suggestedFileName,
-} from './accounts';
+import { useExport } from '../shared/useExport';
+import { accountClipboardText, type Posting, type Rollup } from './accounts';
 import { type AccountDraft, accountPayload, activePayload, draftCommand } from './form';
 
 /**
@@ -58,7 +53,8 @@ export interface LedgerActions {
   save: (draft: AccountDraft) => Promise<boolean>;
   /** The one flag, resent with the whole account because the RPC requires it. */
   setActive: (account: Account, next: boolean) => void;
-  exportCsv: (view: LedgerView, content: string, today: string) => void;
+  /** Save the view in front of the person, in the format they picked. */
+  readonly exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   copy: (account: Account, totals: Rollup, postings: readonly Posting[]) => void;
 }
 
@@ -66,7 +62,11 @@ export function useLedgerActions(): LedgerActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<LedgerBusy>(null);
+  const [acting, setBusy] = useState<LedgerBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
+  // Two spinners folded into one. The export hook owns its own dialog and its own
+  // write; the two RPCs here still raise the token that names which one is running.
+  const busy: LedgerBusy = exporting !== null ? 'export' : acting;
 
   const save = useCallback(
     async (draft: AccountDraft): Promise<boolean> => {
@@ -135,43 +135,7 @@ export function useLedgerActions(): LedgerActions {
     [runtime, tr],
   );
 
-  const exportCsv = useCallback(
-    (view: LedgerView, content: string, today: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير CSV', 'Exporter en CSV', 'Export as CSV'),
-          // A chart and a trial balance are both reports about the book rather
-          // than documents of it, so they are offered where the reports live.
-          startPath: REPORTS,
-          suggestedName: suggestedFileName(view, today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', { path, content, contentType: 'text/csv' });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, tr],
-  );
-
-  return { busy, save, setActive, exportCsv, copy };
+  return { busy, save, setActive, exportTable, copy };
 }
 
 /**

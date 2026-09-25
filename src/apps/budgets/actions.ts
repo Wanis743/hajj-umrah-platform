@@ -15,7 +15,8 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { APP_IDS, CHANNEL_ACTIVATED, useApp, useIpc, useLedgerCommand } from '@/platform/sdk';
-import { REPORTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { useExport } from '../shared/useExport';
 
 /**
  * In-window accelerators, the manifest's set exactly.
@@ -52,7 +53,8 @@ export interface BudgetActions {
   readonly busy: BudgetBusy;
   setAmount: (budgetId: string, accountId: string, amounts: PlanAmounts, intent: PlanIntent) => Promise<boolean>;
   copy: (text: string) => void;
-  exportCsv: (content: string, suggestedName: string) => void;
+  /** Save the table in front of the person, in the format they picked. */
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Hand-off: Ledger's account focus reads `args.accountId`. */
   openAccount: (accountId: string) => void;
 }
@@ -61,11 +63,12 @@ export function useBudgetActions(): BudgetActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<BudgetBusy>(null);
+  const [writing, setWriting] = useState<PlanIntent | null>(null);
+  const { busy: exporting, exportTable } = useExport();
 
   const setAmount = useCallback(
     async (budgetId: string, accountId: string, amounts: PlanAmounts, intent: PlanIntent): Promise<boolean> => {
-      setBusy(intent);
+      setWriting(intent);
       const ok = await ledger.run(
         {
           command: 'budget.upsert',
@@ -77,7 +80,7 @@ export function useBudgetActions(): BudgetActions {
           failure: tr('تعذّر تحديث الخطة.', 'Mise à jour impossible.', 'Could not update the plan.'),
         },
       );
-      setBusy(null);
+      setWriting(null);
       return ok;
     },
     [ledger, tr],
@@ -96,40 +99,6 @@ export function useBudgetActions(): BudgetActions {
     [runtime, tr],
   );
 
-  const exportCsv = useCallback(
-    (content: string, suggestedName: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير', 'Exporter', 'Export'),
-          startPath: REPORTS,
-          suggestedName,
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', { path, content, contentType: 'text/csv' });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, tr],
-  );
-
   const openAccount = useCallback(
     (accountId: string) => {
       void runtime.launch(APP_IDS.ledger, { accountId });
@@ -137,7 +106,12 @@ export function useBudgetActions(): BudgetActions {
     [runtime],
   );
 
-  return { busy, setAmount, copy, exportCsv, openAccount };
+  // A write and an export cannot be in flight at once — the dialog is modal and the
+  // amount field is behind it — so one name is enough, and the toolbar's Export
+  // control spins whichever of the four formats is being written.
+  const busy: BudgetBusy = exporting !== null ? 'export' : writing;
+
+  return { busy, setAmount, copy, exportTable, openAccount };
 }
 
 /**

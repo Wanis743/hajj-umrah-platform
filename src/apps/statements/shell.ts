@@ -18,6 +18,7 @@
  */
 import { type KeyboardEvent, type MouseEvent, type Ref, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocale } from '@/platform/sdk';
+import { type ExportFormat, parseExportCommand } from '../shared/export/commands';
 import { hotkey, type StatementsBusy, useReportAssociation, useStatementsActions } from './actions';
 import type { Basis } from './balances';
 import { DEFAULT_REPORT, type SavedReport } from './document';
@@ -26,10 +27,10 @@ import {
   accountClipboardText,
   type Provenance,
   rowClipboardText,
-  statementCsv,
+  statementTable,
   suggestedFileName,
   summaryClipboardText,
-  trialCsv,
+  trialTable,
 } from './report';
 import type { StatementRow, StatementView } from './statement';
 
@@ -181,13 +182,16 @@ export function useStatementsShell(): StatementsShell {
   /* ---- the command path -------------------------------------------- */
 
   /** "Export" is the statement in front of the person, filtered exactly as it is filtered. */
-  const exportView = useCallback(() => {
-    const csv =
-      report.view === 'trial'
-        ? trialCsv(model.rows, source, t, tr)
-        : statementCsv(model.rows, source, t, tr);
-    actions.exportCsv(csv, suggestedFileName(report.view, today));
-  }, [actions, model.rows, report.view, source, t, today, tr]);
+  const exportView = useCallback(
+    (format: ExportFormat) => {
+      const doc =
+        report.view === 'trial'
+          ? trialTable(model.rows, source, t, tr)
+          : statementTable(model.rows, report.view, source, t, tr);
+      actions.exportTable(doc, suggestedFileName(report.view, today), format);
+    },
+    [actions, model.rows, report.view, source, t, today, tr],
+  );
 
   const openSaved = useCallback(() => {
     void actions.openReport().then((next) => {
@@ -247,8 +251,9 @@ export function useStatementsShell(): StatementsShell {
         searchRef.current?.focus();
         return;
       }
-      if (id === 'export') {
-        exportView();
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        exportView(format);
         return;
       }
       if (id === 'copy') {

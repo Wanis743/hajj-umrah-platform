@@ -29,6 +29,7 @@
  * closed March and when" is the audit log, not this window's memory of it.
  */
 import { defineApp, text } from '../shared/manifest';
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { APP_IDS } from '@/platform/kernel/abi';
 
 export const closeManifest = defineApp({
@@ -133,6 +134,7 @@ export const closeManifest = defineApp({
       title: text('تصدير قائمة التحقّق', 'Exporter la checklist', 'Export the checklist'),
       accelerator: 'Ctrl+E',
     },
+    ...EXPORT_COMMANDS,
     { id: 'view:checks', title: text('العوائق', 'Obstacles', 'Blockers') },
     { id: 'view:tasks', title: text('المهام', 'Tâches', 'Tasks') },
     { id: 'view:controls', title: text('الرقابات', 'Contrôles internes', 'Controls') },

@@ -25,7 +25,6 @@ import {
   ClipboardCheck,
   Clock,
   Copy,
-  FileDown,
   History,
   ListChecks,
   Lock,
@@ -55,6 +54,7 @@ import {
   ToolbarSpacer,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { EPSILON, type FiscalPeriod, PERIOD_STATUS_LABEL, periodTone, TASK_STATUS_LABEL } from '../shared/ledger';
 import type { CloseBusy } from './actions';
 import type { ChecklistRow, CloseAssessment } from './checks';
@@ -192,15 +192,12 @@ export function CloseToolbar(props: ToolbarProps) {
           }
         />
       )}
-      <Button
-        icon={FileDown}
+      <ExportButton
         busy={busy === 'export'}
         disabled={working}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
         title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+      />
       <IconButton
         icon={RefreshCw}
         label={tr('تحديث (F5)', 'Actualiser (F5)', 'Refresh (F5)')}

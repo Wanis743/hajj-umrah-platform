@@ -17,7 +17,7 @@
  * OS runs in.
  */
 import type { Localized } from '@/platform/sdk';
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { ACCOUNT_TYPE_LABEL, type FiscalPeriod } from '../shared/ledger';
 import type { AccountFigure, Basis } from './balances';
 import {
@@ -33,9 +33,14 @@ import {
 export type Label = (value: Localized) => string;
 export type Translate = (ar: string, fr: string, en: string) => string;
 
-/** `statement-balance-2026-08-29.csv` — the view first, because that is what differs. */
+/**
+ * `statement-balance-2026-08-29` — the view first, because that is what differs.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends the one
+ * matching the bytes it produced.
+ */
 export const suggestedFileName = (view: StatementView, today: string): string =>
-  `statement-${view}-${today}.csv`;
+  `statement-${view}-${today}`;
 
 /** A period as a reader needs it: what it is called, and the dates that settles. */
 const periodText = (period: FiscalPeriod | null, tr: Translate): string => {
@@ -88,6 +93,32 @@ export function basisLine(source: Provenance, tr: Translate): string {
  * ------------------------------------------------------------------ */
 
 /**
+ * The basis, as a block the page formats print above the table.
+ *
+ * The CSV cannot carry it — row one there has to be the header — which is why the two
+ * columns that never vary are also repeated on every row. A PDF, a Word file and a
+ * spreadsheet all have a head to put this in, and the ceiling belongs there above all: a
+ * total that is a floor rather than a fact is not a thing a reader should have to scroll
+ * right to discover.
+ */
+function provenanceMeta(source: Provenance, tr: Translate): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: tr('الأساس', 'Base', 'Basis'), value: basisCell(source.basis, tr) },
+    { label: tr('الفترة', 'Période', 'Period'), value: periodText(source.period, tr) },
+  ];
+  if (source.comparison !== null) {
+    meta.push({ label: tr('مقارنة', 'Comparaison', 'Compared with'), value: periodText(source.comparison, tr) });
+  }
+  if (source.bounded) {
+    meta.push({
+      label: tr('حدّ أدنى', 'Minorant', 'Lower bound'),
+      value: tr('الصفحة مكتملة', 'Page saturée', 'The page was full'),
+    });
+  }
+  return meta;
+}
+
+/**
  * How a row moved against its comparison.
  *
  * Computed off the row rather than off the account, so a subtotal exports the same variance
@@ -103,15 +134,17 @@ const moved = (row: StatementRow): number | null => (row.prior === null ? null :
  * here for the same reason they carry none on screen — the number belongs to the line that
  * closes the section, and printing it twice invites a reader to add it in.
  */
-export function statementCsv(
+export function statementTable(
   rows: readonly StatementRow[],
+  view: StatementView,
   source: Provenance,
   t: Label,
   tr: Translate,
-): string {
+): TableDocument {
   const basis = basisCell(source.basis, tr);
   const period = periodCell(source);
-  return csvDocument(
+  return tableDocument(
+    t(VIEW_LABEL[view]),
     [
       tr('النوع', 'Nature', 'Kind'),
       tr('الحساب', 'Compte', 'Account'),
@@ -140,6 +173,7 @@ export function statementCsv(
         period,
       ];
     }),
+    provenanceMeta(source, tr),
   );
 }
 
@@ -154,15 +188,16 @@ export function statementCsv(
  * off four hundred, and which of those it is decides whether a wrong figure is worth
  * hunting by eye.
  */
-export function trialCsv(
+export function trialTable(
   rows: readonly StatementRow[],
   source: Provenance,
   t: Label,
   tr: Translate,
-): string {
+): TableDocument {
   const basis = basisCell(source.basis, tr);
   const period = periodCell(source);
-  return csvDocument(
+  return tableDocument(
+    t(VIEW_LABEL.trial),
     [
       tr('النوع', 'Nature', 'Kind'),
       tr('الحساب', 'Compte', 'Account'),
@@ -192,6 +227,7 @@ export function trialCsv(
         period,
       ];
     }),
+    provenanceMeta(source, tr),
   );
 }
 

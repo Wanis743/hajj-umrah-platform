@@ -51,7 +51,8 @@ import {
   useIpc,
   useLedgerCommand,
 } from '@/platform/sdk';
-import { REPORTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { type ExportBusy, useExport } from '../shared/useExport';
 import { toVerification } from './model';
 import type {
   DmsAccessAction,
@@ -1129,22 +1130,23 @@ function usePackageCommands(
  * Out of the app
  * ------------------------------------------------------------------ */
 
-/**
- * What the save dialog offers to call the file.
- *
- * The view is in the name because six tabs export six different tables and a folder
- * of `dms-2026-09-05.csv`, `dms-2026-09-05 (1).csv` tells nobody which is which. The
- * date is the caller's — `format.ts`'s `isoToday()` — rather than a `new Date()` here,
- * so a report exported from a screen that says "as of the 4th" is not stamped the 5th
- * because the clock turned over while it was open.
- */
-const fileName = (view: DmsView, today: string): string => `dms-${view}-${today}.csv`;
-
 export interface TransferActions {
-  readonly exportCsv: (view: DmsView, content: string, today: string) => void;
+  /** Save the tab in front of the person, in the format they picked. */
+  readonly exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   readonly copy: (text: string) => void;
   /** Cross-app, carrying an argument: every neighbour reads a document id. */
   readonly openApp: (app: AppId, args?: Readonly<Record<string, string>>) => void;
+}
+
+/**
+ * What this seam knows that the interface does not.
+ *
+ * The export hook owns its own dialog and its own spinner. `useDmsActions` folds that
+ * into the app's single `busy`, and no pane is offered two answers to the question of
+ * whether something is in flight.
+ */
+interface TransferSeam extends TransferActions {
+  readonly exporting: ExportBusy;
 }
 
 /**
@@ -1161,47 +1163,10 @@ export interface TransferActions {
  * bill filed against it is reachable from the document, and `{ invoiceId }` is how the
  * accounting app is told which one.
  */
-function useTransferActions(setBusy: (busy: DmsBusy) => void): TransferActions {
+function useTransferActions(): TransferSeam {
   const runtime = useApp();
   const { tr } = runtime.locale;
-
-  const exportCsv = useCallback(
-    (view: DmsView, content: string, today: string): void => {
-      const run = async (): Promise<void> => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير CSV', 'Exporter en CSV', 'Export as CSV'),
-          startPath: REPORTS,
-          suggestedName: fileName(view, today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content,
-          contentType: 'text/csv',
-        });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير', 'Exporté', 'Exported'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير', 'Export impossible', 'Export failed'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, setBusy, tr],
-  );
+  const { busy: exporting, exportTable } = useExport();
 
   /**
    * A checksum, a document number, a storage path — the three things somebody copies
@@ -1227,7 +1192,7 @@ function useTransferActions(setBusy: (busy: DmsBusy) => void): TransferActions {
     [runtime],
   );
 
-  return { exportCsv, copy, openApp };
+  return { exporting, exportTable, copy, openApp };
 }
 
 /* ------------------------------------------------------------------ *
@@ -1269,14 +1234,17 @@ export interface DmsActions
  */
 export function useDmsActions(): DmsActions {
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<DmsBusy>(null);
+  const [acting, setBusy] = useState<DmsBusy>(null);
   const bytes = useByteActions(setBusy);
   const review = useReviewCommands(ledger, setBusy);
   const metadata = useMetadataCommands(ledger, setBusy);
   const filing = useFilingCommands(ledger, setBusy);
   const extraction = useExtractionCommands(ledger, setBusy);
   const packages = usePackageCommands(ledger, setBusy);
-  const transfer = useTransferActions(setBusy);
+  const { exporting, ...transfer } = useTransferActions();
+  // Two spinners folded into one. The export hook owns its own dialog and its own
+  // write; the other twenty-six acts still raise the token that names themselves.
+  const busy: DmsBusy = exporting !== null ? 'export' : acting;
   return {
     busy,
     ...bytes,

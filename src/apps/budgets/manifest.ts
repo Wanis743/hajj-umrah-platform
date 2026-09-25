@@ -20,6 +20,7 @@
  * Actuals are read, never written. A budget line moves; the book does not.
  */
 import { defineApp, text } from '../shared/manifest';
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { APP_IDS } from '@/platform/kernel/abi';
 
 export const budgetsManifest = defineApp({
@@ -80,6 +81,7 @@ export const budgetsManifest = defineApp({
       title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'),
       accelerator: 'Ctrl+E',
     },
+    ...EXPORT_COMMANDS,
     { id: 'view:variance', title: text('الفروق', 'Écarts', 'Variance') },
     { id: 'view:plan', title: text('الخطة', 'Plan', 'Plan') },
     { id: 'view:rollup', title: text('التجميع', 'Synthèse', 'Rollup') },

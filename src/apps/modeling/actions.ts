@@ -3,15 +3,16 @@
  *
  * Nothing here writes to the book, and that is the whole security posture of the app: no
  * `ledger.post`, no privileged capability, no consent prompt. The only things that leave
- * this window are a CSV and a paragraph, both of which the person asked for by name.
+ * this window are a table and a paragraph, both of which the person asked for by name.
  *
  * Which means "busy" has a smaller job here than in the apps that post: it exists so the
  * export button spins while the file dialog and the write are in flight, and so a second
  * press cannot start a second write to the same path.
  */
-import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useRef } from 'react';
 import { APP_IDS, CHANNEL_ACTIVATED, useApp, useIpc } from '@/platform/sdk';
-import { REPORTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { useExport } from '../shared/useExport';
 
 /**
  * In-window accelerators, the manifest's set exactly.
@@ -47,7 +48,8 @@ export type ModelingBusy = 'export' | null;
 export interface ModelingActions {
   readonly busy: ModelingBusy;
   copy: (text: string) => void;
-  exportCsv: (content: string, suggestedName: string) => void;
+  /** Save the table in front of the person, in the format they picked. */
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Hand-off: Ledger's account focus reads `args.accountId`. */
   openAccount: (accountId: string) => void;
 }
@@ -55,7 +57,7 @@ export interface ModelingActions {
 export function useModelingActions(): ModelingActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
-  const [busy, setBusy] = useState<ModelingBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
 
   const copy = useCallback(
     (text: string) => {
@@ -70,40 +72,6 @@ export function useModelingActions(): ModelingActions {
     [runtime, tr],
   );
 
-  const exportCsv = useCallback(
-    (content: string, suggestedName: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير', 'Exporter', 'Export'),
-          startPath: REPORTS,
-          suggestedName,
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', { path, content, contentType: 'text/csv' });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, tr],
-  );
-
   const openAccount = useCallback(
     (accountId: string) => {
       void runtime.launch(APP_IDS.ledger, { accountId });
@@ -111,7 +79,12 @@ export function useModelingActions(): ModelingActions {
     [runtime],
   );
 
-  return { busy, copy, exportCsv, openAccount };
+  // The only act this window has, so the derivation is the whole of it: the export
+  // hook owns the dialog and the write, and `busy` is just that hook's answer in
+  // this app's own vocabulary.
+  const busy: ModelingBusy = exporting !== null ? 'export' : null;
+
+  return { busy, copy, exportTable, openAccount };
 }
 
 /**

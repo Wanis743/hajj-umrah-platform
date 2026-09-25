@@ -1,14 +1,14 @@
 /**
  * Six tabs, six rectangles.
  *
- * `dmsCsv` writes the tab a person is looking at to a file and `dmsClipboard` writes the
+ * `dmsDocument` writes the tab a person is looking at to a file and `dmsClipboard` writes the
  * same rectangle to the clipboard as tab-separated columns, so the file and the paste can
  * never disagree about what a review queue's columns are. One set of column lists, two
  * consumers — the split `../crm/export.ts` makes for the same reason.
  *
- * Cells are raw, in the sense `../shared/csv.ts` means it: `PENDING_REVIEW` rather than
+ * Cells are raw, in the sense `../shared/export` means it: `PENDING_REVIEW` rather than
  * `En attente`, `2026-09-12` rather than `12 sept. 2026`, `0.8433` rather than `84 %`. A
- * CSV is opened by a spreadsheet, and a file that arrives pre-formatted cannot be
+ * table is opened by a spreadsheet, and a file that arrives pre-formatted cannot be
  * un-formatted. Headers are the exception — they are read by a person and never parsed, so
  * they are translated.
  *
@@ -22,8 +22,15 @@
  * and `daysRemaining` travels with the date it is derived from rather than being left to
  * the spreadsheet, so a cell recomputed in Excel cannot become a second opinion about
  * whether a passport has already expired.
+ *
+ * The library and the review queue are paged, and a page is not a total. For as long as
+ * the only format was CSV that fact had nowhere to live: row one has to be the header,
+ * and a footer row saying "there is more" breaks the rectangle for every reader who only
+ * wanted the rows. The page formats have a head above the table, so it goes there.
  */
-import { csvDocument } from '../shared/csv';
+import type { Localized } from '@/platform/sdk';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
+import { VIEW_LABEL } from './labels';
 import type { DmsModel } from './model';
 import type {
   DmsDashboard,
@@ -37,6 +44,9 @@ import type {
 
 /** The runtime's positional translator, narrowed to what a pure module needs. */
 export type Translate = (ar: string, fr: string, en: string) => string;
+
+/** Reads a `Localized` in the reader's language. The head of a page format needs one. */
+export type Label = (value: Localized) => string;
 
 /** A header row and the rows beneath it, all cells already strings. */
 interface DmsTable {
@@ -442,11 +452,48 @@ function dmsTable(view: DmsView, model: DmsModel, tr: Translate): DmsTable {
   }
 }
 
-/** The file. CRLF, the comma and the doubled quote are `csvDocument`'s business. */
-export const dmsCsv = (view: DmsView, model: DmsModel, tr: Translate): string => {
+/**
+ * What the reader has to be told about the rectangle underneath.
+ *
+ * Only the four paged tabs can be short of the truth, and only when the page filled:
+ * `model.truncated` is the server saying *there were more rows than I sent*. The two
+ * report tabs are server-side aggregates over everything and carry no such doubt, so
+ * they say nothing rather than saying "complete", which would be a claim this module
+ * is not in a position to make.
+ */
+function scopeMeta(view: DmsView, model: DmsModel, tr: Translate): readonly TableMeta[] {
+  if (view === 'dashboard' || view === 'extraction') return [];
+  if (!model.truncated) return [];
+  return [
+    {
+      label: tr('مقتطع', 'Tronqué', 'Truncated'),
+      value: tr(
+        'امتلأت الصفحة: هذه بداية القائمة وليست كلّها.',
+        'La page était pleine : ceci est le début de la liste, pas son tout.',
+        'The page was full — this is the start of the list, not all of it.',
+      ),
+    },
+  ];
+}
+
+/** The file, in whichever of the four formats was asked for. */
+export const dmsDocument = (
+  view: DmsView,
+  model: DmsModel,
+  t: Label,
+  tr: Translate,
+): TableDocument => {
   const table = dmsTable(view, model, tr);
-  return csvDocument(table.header, table.rows);
+  return tableDocument(t(VIEW_LABEL[view]), table.header, table.rows, scopeMeta(view, model, tr));
 };
+
+/**
+ * What the save dialog offers to call it.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends the
+ * one matching the bytes it produced.
+ */
+export const suggestedFileName = (view: DmsView, today: string): string => `dms-${view}-${today}`;
 
 /**
  * The same rectangle as tab-separated columns, which is what a spreadsheet accepts from the

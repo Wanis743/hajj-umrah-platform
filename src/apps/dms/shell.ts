@@ -35,7 +35,9 @@ import { APP_IDS, useLocale, type AppId } from '@/platform/sdk';
 import { hotkey, useDmsActions, useDmsFocus } from './actions';
 import type { DmsActions, DmsBusy, DmsTarget, FieldReviewAction } from './actions';
 import type { MetadataDraft, PackageDraft, UploadDraft } from './actions';
-import { dmsClipboard, dmsCsv } from './export';
+import { parseExportCommand } from '../shared/export/commands';
+import { dmsClipboard, dmsDocument, suggestedFileName } from './export';
+import type { Label } from './export';
 import type { Translate } from './export';
 import { isoToday } from './format';
 import { useDmsModel } from './model';
@@ -912,6 +914,9 @@ interface CommandDeps {
   /** Resolved once at mount. It names the exported file and does nothing else. */
   readonly today: string;
   readonly tr: Translate;
+  /** Reads a `Localized` in the reader's language. Only the export needs it, to put a
+   *  tab's own name at the head of the page formats. */
+  readonly t: Label;
   /** Read side only. The shell hands the same ref out for the search box to attach to. */
   readonly searchRef: { readonly current: HTMLInputElement | null };
 }
@@ -1012,7 +1017,7 @@ function useDmsDetailVerbs(
  * which package.
  */
 function useDmsCommandPath(deps: CommandDeps): DmsCommands {
-  const { ui, model, dialogs, actions, selectedRow, today, tr, searchRef } = deps;
+  const { ui, model, dialogs, actions, selectedRow, today, tr, t, searchRef } = deps;
   const { dialog, open, setPreview, setVerify } = dialogs;
   const { view, changeView } = ui;
 
@@ -1034,8 +1039,9 @@ function useDmsCommandPath(deps: CommandDeps): DmsCommands {
     if (id === 'refresh') { model.refreshAll(); return true; }
     if (id === 'search') { searchRef.current?.focus(); return true; }
     if (id === 'upload') { open({ kind: 'upload', form: EMPTY_UPLOAD }); return true; }
-    if (id === 'export') {
-      actions.exportCsv(view, dmsCsv(view, model, tr), today);
+    const format = parseExportCommand(id);
+    if (format !== null) {
+      actions.exportTable(dmsDocument(view, model, t, tr), suggestedFileName(view, today), format);
       return true;
     }
     if (id === 'copy') { actions.copy(dmsClipboard(view, model, tr)); return true; }
@@ -1045,7 +1051,7 @@ function useDmsCommandPath(deps: CommandDeps): DmsCommands {
       return true;
     }
     return false;
-  }, [actions, model, open, searchRef, today, tr, view]);
+  }, [actions, model, open, searchRef, t, today, tr, view]);
 
   /**
    * Moving a document through review, and only where the graph allows it.
@@ -1353,7 +1359,7 @@ export interface DmsShell {
  * `selectedRow` is resolved before it so the command path receives a row rather than an id.
  */
 export function useDmsShell(): DmsShell {
-  const { tr } = useLocale();
+  const { t, tr } = useLocale();
   // Resolved once at mount. It names the exported file and nothing else, and a window left
   // open across midnight naming two files from one grid differently is not worth a clock.
   const today = useMemo(isoToday, []);
@@ -1379,6 +1385,7 @@ export function useDmsShell(): DmsShell {
     selectedRow,
     today,
     tr,
+    t,
     searchRef,
   });
   const counts = tally(model, ui.view);

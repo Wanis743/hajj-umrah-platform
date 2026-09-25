@@ -17,7 +17,7 @@
  * the two languages this OS runs in.
  */
 import type { Localized } from '@/platform/sdk';
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { type Basis, type FiscalPeriod } from '../shared/ledger';
 import { type Contribution, type Dimension, isUntagged, type MemberFigure, type Slice, variance } from './figures';
 import { DIMENSION_LABEL } from './question';
@@ -26,9 +26,14 @@ import { DIMENSION_LABEL } from './question';
 export type Label = (value: Localized) => string;
 export type Translate = (ar: string, fr: string, en: string) => string;
 
-/** `profitability-package-2026-08-29.csv` — the dimension first, because that is what differs. */
+/**
+ * `profitability-package-2026-08-29` — the dimension first, because that is what differs.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends the one
+ * matching the bytes it produced.
+ */
 export const suggestedFileName = (dimension: Dimension, today: string): string =>
-  `profitability-${dimension}-${today}.csv`;
+  `profitability-${dimension}-${today}`;
 
 /** A period as a reader needs it: what it is called, and the dates that settles. */
 const periodText = (period: FiscalPeriod | null, tr: Translate): string => {
@@ -98,6 +103,38 @@ export function basisLine(source: Provenance, t: Label, tr: Translate): string {
  * ------------------------------------------------------------------ */
 
 /**
+ * The five facts, as a block the page formats print above the table.
+ *
+ * The CSV cannot carry it — row one there has to be the header — which is why the
+ * three columns that never vary are also repeated on every row. A PDF, a Word file
+ * and a spreadsheet all have a head to put this in, and coverage belongs there most
+ * of all: it is the one number that decides whether the margins underneath mean
+ * anything, and a reader who has to scroll right to the fourteenth column to find it
+ * has already read the margins.
+ */
+function provenanceMeta(source: Provenance, t: Label, tr: Translate): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: tr('البُعد', 'Dimension', 'Dimension'), value: t(DIMENSION_LABEL[source.dimension]) },
+    { label: tr('الأساس', 'Base', 'Basis'), value: basisCell(source.basis, tr) },
+    { label: tr('الفترة', 'Période', 'Period'), value: periodText(source.period, tr) },
+    { label: tr('التغطية', 'Couverture', 'Coverage'), value: pct(source.coverage, tr) },
+  ];
+  if (source.comparison !== null) {
+    meta.push({ label: tr('مقارنة', 'Comparaison', 'Compared with'), value: periodText(source.comparison, tr) });
+  }
+  if (source.unnamed > 0) {
+    meta.push({ label: tr('بلا اسم', 'Sans nom', 'Unnamed'), value: String(source.unnamed) });
+  }
+  if (source.bounded) {
+    meta.push({
+      label: tr('حدّ أدنى', 'Minorant', 'Lower bound'),
+      value: tr('الصفحة مكتملة', 'Page saturée', 'The page was full'),
+    });
+  }
+  return meta;
+}
+
+/**
  * The table, one row per member, remainder included.
  *
  * The kind column tells a member from the remainder, because a sheet that sorts by
@@ -106,16 +143,17 @@ export function basisLine(source: Provenance, t: Label, tr: Translate): string {
  * rather than as percent strings: a spreadsheet formats those, and a `%` in a cell
  * is a cell that will not multiply.
  */
-export function sliceCsv(
+export function sliceTable(
   rows: readonly MemberFigure[],
   source: Provenance,
   t: Label,
   tr: Translate,
-): string {
+): TableDocument {
   const dimension = t(DIMENSION_LABEL[source.dimension]);
   const basis = basisCell(source.basis, tr);
   const period = periodCell(source);
-  return csvDocument(
+  return tableDocument(
+    `${tr('الربحية', 'Rentabilité', 'Profitability')} — ${dimension}`,
     [
       tr('النوع', 'Nature', 'Kind'),
       dimension,
@@ -153,6 +191,7 @@ export function sliceCsv(
         period,
       ];
     }),
+    provenanceMeta(source, t, tr),
   );
 }
 

@@ -544,6 +544,15 @@ export interface ShellHost {
    * refuses, which the syscall reports as `IO_ERROR` rather than swallowing.
    */
   download(fileName: string, bytes: Uint8Array, contentType: string): Promise<boolean>;
+  /**
+   * Show the browser's print dialog for a document the OS composed.
+   *
+   * The sibling of `download`, and there for the one thing the OS cannot do
+   * itself: set Arabic on a page. Resolves once the dialog has been asked for,
+   * not once the person has answered it -- a print dialog has no cancel the
+   * page can observe.
+   */
+  print(title: string, html: string): Promise<boolean>;
   power(action: PowerAction): void;
 }
 

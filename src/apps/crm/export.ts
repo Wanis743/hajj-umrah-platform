@@ -2,13 +2,13 @@
  * The pipeline, as a file.
  *
  * Seven grids, seven column lists, and one shape they all pass through: a header row and
- * a rectangle of already-stringified cells. `crmCsv` writes that rectangle to a file,
+ * a rectangle of already-stringified cells. `crmDocument` writes that rectangle to a file,
  * `gridClipboardText` writes it to the clipboard as tab-separated columns, and
  * `recordClipboardText` reads one row of it back as a labelled block a person can paste
  * into WhatsApp. Three consumers, one set of columns — so the file, the paste and the
  * message can never disagree about what a quote's columns are.
  *
- * Cells are raw, in the sense `shared/csv.ts` means it: ISO stamps rather than
+ * Cells are raw, in the sense `shared/export/csv.ts` means it: ISO stamps rather than
  * `29/08/2026`, `1250.00` rather than `1 250,00 DA`. A CSV is opened by a spreadsheet,
  * and this OS runs in a locale where the comma is the decimal separator — a file that
  * arrives pre-formatted cannot be un-formatted, and one that arrives formatted for the
@@ -22,7 +22,7 @@
  * cell carries the raw id rather than a blank — a blank means "no campaign", and an id
  * means "a campaign this page could not name", which are different facts.
  */
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import type {
   Activity,
   Campaign,
@@ -434,23 +434,86 @@ export function crmTable(
   }
 }
 
-/** The file. CRLF and quoting are `csvDocument`'s business. */
-export const crmCsv = (
-  view: CrmView,
-  visible: CrmVisible,
-  lookups: Lookups,
-  tr: Translate,
-): string => {
-  const table = crmTable(view, visible, lookups, tr);
-  return csvDocument(table.header, table.rows);
+/**
+ * What each grid is called, in the file rather than on the rail.
+ *
+ * The same seven strings the toolbar shows, kept here rather than imported from
+ * `chrome.tsx`: that module is a component file and pulling it in would drag the icon
+ * set into every paste and every export. Seven duplicated words are cheaper than that,
+ * and a compiler error is what happens if an eighth surface arrives with no title.
+ */
+const VIEW_TITLE: Readonly<Record<CrmView, (tr: Translate) => string>> = {
+  leads: (tr) => tr('العملاء المحتملون', 'Prospects', 'Leads'),
+  customers: (tr) => tr('العملاء', 'Clients', 'Customers'),
+  pipeline: (tr) => tr('مسار الفرص', 'Pipeline', 'Pipeline'),
+  quotes: (tr) => tr('عروض الأسعار', 'Devis', 'Quotes'),
+  activities: (tr) => tr('سجل التواصل', 'Échanges', 'Activities'),
+  followups: (tr) => tr('المتابعات', 'Relances', 'Follow-ups'),
+  campaigns: (tr) => tr('الحملات', 'Campagnes', 'Campaigns'),
 };
 
 /**
- * `crm-quotes-2026-09-03.csv` — the surface first, because that is what differs between
+ * What the file is a file *of*, which the rows alone do not say.
+ *
+ * A spreadsheet of eleven quotes is either the whole quote book of a quiet week or what
+ * is left of a hundred and forty after somebody typed a customer's name into the search
+ * box, and the rows read identically in both cases. The page ceiling is the same kind of
+ * fact: a grid that came back full is a grid with more behind it.
+ */
+export interface CrmSource {
+  readonly view: CrmView;
+  /** What was typed in the search box, or `''` when the grid was whole. */
+  readonly search: string;
+  /** Rows in the file, and rows the app had loaded. */
+  readonly shown: number;
+  readonly total: number;
+  /** A page came back full, so even `total` is a floor rather than a count. */
+  readonly truncated: boolean;
+}
+
+/**
+ * The surface and the narrowing, as a block the page formats print above the table.
+ *
+ * The CSV cannot carry it — row one there has to be the header — so for years this
+ * simply was not said anywhere and the file arrived looking like the whole book. A PDF,
+ * a Word file and a spreadsheet all have a head to put it in.
+ */
+function provenanceMeta(source: CrmSource, tr: Translate): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: tr('السجلات', 'Enregistrements', 'Records'), value: `${source.shown} / ${source.total}` },
+  ];
+  if (source.search !== '') {
+    meta.push({ label: tr('بحث', 'Recherche', 'Search'), value: source.search });
+  }
+  if (source.truncated) {
+    meta.push({
+      label: tr('حدّ أدنى', 'Minorant', 'Lower bound'),
+      value: tr('الصفحة مكتملة', 'Page saturée', 'The page was full'),
+    });
+  }
+  return meta;
+}
+
+/** The file. CRLF, the comma and the doubled quote are the writers' business. */
+export const crmDocument = (
+  visible: CrmVisible,
+  lookups: Lookups,
+  source: CrmSource,
+  tr: Translate,
+): TableDocument => {
+  const table = crmTable(source.view, visible, lookups, tr);
+  return tableDocument(VIEW_TITLE[source.view](tr), table.header, table.rows, provenanceMeta(source, tr));
+};
+
+/**
+ * `crm-quotes-2026-09-03` — the surface first, because that is what differs between
  * two exports taken the same afternoon.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends the
+ * one matching the bytes it produced.
  */
 export const suggestedFileName = (view: CrmView, today: string): string =>
-  `crm-${view}-${today}.csv`;
+  `crm-${view}-${today}`;
 
 /**
  * The same rectangle as tab-separated columns, which is what a spreadsheet accepts from

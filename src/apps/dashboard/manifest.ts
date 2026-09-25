@@ -20,6 +20,7 @@
  * No file association. A dashboard is a view of the book, not a document; there is
  * nothing here to open from the desktop.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -87,6 +88,7 @@ export const dashboardManifest = defineApp({
       title: text('نسخ الملخص', 'Copier le résumé', 'Copy summary'),
       accelerator: 'Ctrl+Shift+C',
     },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export as CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير الصفحة', 'Exporter la page', 'Export this page'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
   ],
 });

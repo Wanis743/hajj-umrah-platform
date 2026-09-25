@@ -46,6 +46,7 @@ import {
   ToolbarSpacer,
   useApp,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { Currency } from '../shared/ledger';
 import type { InboxBusy } from './actions';
 import {
@@ -55,6 +56,7 @@ import {
   type InboxFilter,
   type InboxTally,
   type QueueId,
+  QUEUE_TITLE,
   type WorkItem,
 } from './queue';
 
@@ -241,16 +243,18 @@ export function InboxToolbar({
         placeholder={tr('المرجع أو الوصف أو الشخص', 'Référence, libellé ou personne', 'Reference, detail or person')}
       />
       <ToolbarSpacer />
-      <Button
+      <ExportButton
         size="sm"
-        icon={FileDown}
         busy={busy === 'export'}
         disabled={!canExport}
-        onClick={() => onCommand('export')}
-        title={tr('تصدير المعروض إلى CSV', 'Exporter l’affichage en CSV', 'Export what is on screen as CSV')}
-      >
-        {tr('تصدير CSV', 'Exporter CSV', 'Export CSV')}
-      </Button>
+        onCommand={onCommand}
+        label={tr('تصدير', 'Exporter', 'Export')}
+        title={tr(
+          'تصدير المعروض (Ctrl+E)',
+          'Exporter l’affichage (Ctrl+E)',
+          'Export what is on screen (Ctrl+E)',
+        )}
+      />
     </>
   );
 }
@@ -279,7 +283,7 @@ export interface QueueRailProps {
  * a person needs to know the other queues are not empty.
  */
 export function QueueRail({ filter, onFilter, tally }: QueueRailProps) {
-  const { tr, lang } = useApp().locale;
+  const { t, tr, lang } = useApp().locale;
   const patch = (next: Partial<InboxFilter>) => onFilter({ ...filter, ...next });
   const badge = (count: number): number | null => (count === 0 ? null : count);
   const suffix = (count: number): string => (count === 0 ? '' : ` (${fmt.integer(count, lang)})`);
@@ -288,28 +292,28 @@ export function QueueRail({ filter, onFilter, tally }: QueueRailProps) {
       <NavGroupLabel>{tr('القوائم', 'Files', 'Queues')}</NavGroupLabel>
       <NavItem
         icon={Inbox}
-        label={tr('في انتظار الاعتماد', 'À approuver', 'Waiting on you')}
+        label={t(QUEUE_TITLE.approvals)}
         selected={filter.queue === 'approvals'}
         badge={badge(tally.byQueue.approvals)}
         onClick={() => patch({ queue: 'approvals' })}
       />
       <NavItem
         icon={ListChecks}
-        label={tr('خطوات الإقفال', 'Étapes de clôture', 'Close checklist')}
+        label={t(QUEUE_TITLE.checklist)}
         selected={filter.queue === 'checklist'}
         badge={badge(tally.byQueue.checklist)}
         onClick={() => patch({ queue: 'checklist' })}
       />
       <NavItem
         icon={ArrowLeftRight}
-        label={tr('تحويلات', 'Transmissions', 'Handoffs')}
+        label={t(QUEUE_TITLE.handoffs)}
         selected={filter.queue === 'handoffs'}
         badge={badge(tally.byQueue.handoffs)}
         onClick={() => patch({ queue: 'handoffs' })}
       />
       <NavItem
         icon={History}
-        label={tr('قرارات سابقة', 'Décisions passées', 'Decided')}
+        label={t(QUEUE_TITLE.decided)}
         selected={filter.queue === 'decided'}
         badge={badge(tally.byQueue.decided)}
         onClick={() => patch({ queue: 'decided' })}

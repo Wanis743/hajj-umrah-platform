@@ -96,8 +96,8 @@ export type {
 } from './charts';
 export { BarChart, DonutChart, LineChart, Sparkline, StackedBar, Waterfall } from './charts';
 
-export type { MenuBarMenu, MenuEntry, MenuFlyoutProps } from './menu';
-export { MenuBar, MenuFlyout } from './menu';
+export type { MenuBarMenu, MenuEntry, MenuFlyoutProps, SplitButtonProps } from './menu';
+export { MenuBar, MenuFlyout, SplitButton } from './menu';
 
 export type { ContextMenuController, ContextMenuState } from './useContextMenu';
 export { useContextMenu } from './useContextMenu';

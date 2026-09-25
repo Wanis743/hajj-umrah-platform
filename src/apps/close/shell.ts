@@ -23,6 +23,7 @@
 import { type KeyboardEvent, type MouseEvent, type Ref, useCallback, useMemo, useRef, useState } from 'react';
 import { useLocale } from '@/platform/sdk';
 import type { FiscalPeriod } from '../shared/ledger';
+import { type ExportFormat, parseExportCommand } from '../shared/export/commands';
 import {
   type CloseActions,
   type CloseBusy,
@@ -43,14 +44,14 @@ import {
 import {
   type Label,
   type Translate,
-  checkCsv,
-  checklistCsv,
+  checkTable,
+  checklistTable,
   controlClipboardText,
-  controlCsv,
+  controlTable,
   suggestedFileName,
   summaryClipboardText,
   taskClipboardText,
-  trailCsv,
+  trailTable,
 } from './report';
 
 /** Nothing chosen: the model then derives the newest period that is still open. */
@@ -488,27 +489,36 @@ function useCloseCommandPath(deps: CommandDeps): CloseCommands {
   const { searchRef, changeView, pickPeriod, setReason, setReopening, openDialog } = deps;
 
   /** "Export" means the view in front of the person, and nothing else. */
-  const exportView = useCallback(() => {
-    // The register is a snapshot rather than a month's artefact, so it is filed by the
-    // day it was taken. Passing no period is what puts `today` in the name.
-    const name = suggestedFileName(view === 'controls' ? null : model.period, view, today);
-    if (view === 'tasks') actions.exportCsv(checklistCsv(model.visibleTasks, t, tr), name);
-    else if (view === 'trail') actions.exportCsv(trailCsv(model.visibleTrail, tr), name);
-    else if (view === 'controls') actions.exportCsv(controlCsv(model.visibleControls, now, t, tr), name);
-    else actions.exportCsv(checkCsv(model.assessment.checks, model.period, t, tr), name);
-  }, [
-    actions,
-    model.assessment.checks,
-    model.period,
-    model.visibleControls,
-    model.visibleTasks,
-    model.visibleTrail,
-    now,
-    t,
-    today,
-    tr,
-    view,
-  ]);
+  const exportView = useCallback(
+    (format: ExportFormat) => {
+      // The register is a snapshot rather than a month's artefact, so it is filed by the
+      // day it was taken. Passing no period is what puts `today` in the name.
+      const period = view === 'controls' ? null : model.period;
+      const name = suggestedFileName(period, view, today);
+      const doc =
+        view === 'tasks'
+          ? checklistTable(model.visibleTasks, period, t, tr)
+          : view === 'trail'
+            ? trailTable(model.visibleTrail, period, t, tr)
+            : view === 'controls'
+              ? controlTable(model.visibleControls, now, t, tr)
+              : checkTable(model.assessment.checks, model.period, t, tr);
+      actions.exportTable(doc, name, format);
+    },
+    [
+      actions,
+      model.assessment.checks,
+      model.period,
+      model.visibleControls,
+      model.visibleTasks,
+      model.visibleTrail,
+      now,
+      t,
+      today,
+      tr,
+      view,
+    ],
+  );
 
   /**
    * Answering a finding.
@@ -565,8 +575,9 @@ function useCloseCommandPath(deps: CommandDeps): CloseCommands {
         searchRef.current?.focus();
         return;
       }
-      if (id === 'export') {
-        exportView();
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        exportView(format);
         return;
       }
       if (id === 'copy') {

@@ -28,7 +28,6 @@ import {
   Clock,
   Copy,
   Database,
-  Download,
   FileBarChart,
   GitBranch,
   Grid3x3,
@@ -60,6 +59,7 @@ import {
   useLocale,
   type MenuEntry,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { VIEW_LABEL } from './labels';
 import {
   governedKindOf,
@@ -299,16 +299,13 @@ export function BiToolbar(props: BiToolbarProps) {
       >
         {tr('تحديث', 'Actualiser', 'Refresh')}
       </Button>
-      <Button
-        icon={Download}
+      <ExportButton
         variant="subtle"
-        onClick={() => props.onCommand('export')}
-        disabled={working}
         busy={props.busy === 'export'}
+        disabled={working}
+        onCommand={props.onCommand}
         title={tr('تصدير المعروض (Ctrl+E)', 'Exporter l’affichage (Ctrl+E)', 'Export what is shown (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+      />
       <Button
         icon={Copy}
         variant="subtle"

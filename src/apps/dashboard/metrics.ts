@@ -24,7 +24,7 @@
  * a tidy donut over a broken book.
  */
 import type { DatasetRow, Localized, Tone } from '@/platform/sdk';
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { asString, str } from '../shared/guards';
 import {
   type AccountType,
@@ -826,7 +826,7 @@ export interface Formatters {
   readonly integer: (value: number) => string;
 }
 
-/** Raw decimals for the spreadsheet, per the rule in `shared/csv.ts`. */
+/** Raw decimals for the spreadsheet, per the rule in `shared/export/csv.ts`. */
 const dec = (value: number): string => (Number.isFinite(value) ? value.toFixed(2) : '');
 const int = (value: number): string => (Number.isFinite(value) ? String(Math.round(value)) : '');
 
@@ -975,26 +975,82 @@ function closeRows(snap: Snapshot): readonly (readonly string[])[] {
 /**
  * The page you are looking at, as a table.
  *
- * Codes rather than labels in the machine columns — a CSV outlives the language it
- * was exported in — and one table per page, because a spreadsheet given two headers
- * in one file is a spreadsheet nobody can pivot.
+ * Codes rather than labels in the machine columns — an exported file outlives the
+ * language it was exported in — and one table per page, because a spreadsheet given
+ * two headers in one file is a spreadsheet nobody can pivot.
+ *
+ * The head above the table is what the CSV could never carry. Every number on a
+ * dashboard page is only true inside its window, and a rectangle whose first row
+ * must be the header has nowhere to say which window that was.
  */
-export function pageCsv(snap: Snapshot, page: PageId, t: (text: Localized) => string): string {
-  const window = windowLabel(snap.window, t);
-  if (page === 'position') return csvDocument(ACCOUNT_HEADER, accountRows(snap.trial, BALANCE_TYPES));
-  if (page === 'performance') return csvDocument(ACCOUNT_HEADER, accountRows(snap.trial, INCOME_TYPES));
+export function pageTable(snap: Snapshot, page: PageId, t: (text: Localized) => string): TableDocument {
+  const title = t(PAGE_LABEL[page]);
+  if (page === 'position' || page === 'performance') {
+    const rows = accountRows(snap.trial, page === 'position' ? BALANCE_TYPES : INCOME_TYPES);
+    return tableDocument(title, ACCOUNT_HEADER, rows, pageMeta(snap, page, rows.length, t));
+  }
   if (page === 'activity') {
-    return csvDocument(
+    const rows = snap.activity.months.map((point) => [
+      point.key,
+      int(point.count),
+      int(point.posted),
+      dec(point.value),
+      snap.book,
+    ]);
+    return tableDocument(
+      title,
       ['month', 'entries', 'posted', 'posted_value', 'currency'],
-      snap.activity.months.map((point) => [point.key, int(point.count), int(point.posted), dec(point.value), snap.book]),
+      rows,
+      pageMeta(snap, page, rows.length, t),
     );
   }
   if (page === 'close') {
-    return csvDocument(['kind', 'name', 'status', 'detail', 'entries', 'unposted', 'value'], closeRows(snap));
+    const rows = closeRows(snap);
+    return tableDocument(
+      title,
+      ['kind', 'name', 'status', 'detail', 'entries', 'unposted', 'value'],
+      rows,
+      pageMeta(snap, page, rows.length, t),
+    );
   }
-  return csvDocument(['metric', 'value', 'currency', 'basis'], overviewRows(snap, window));
+  const rows = overviewRows(snap, windowLabel(snap.window, t));
+  return tableDocument(title, ['metric', 'value', 'currency', 'basis'], rows, pageMeta(snap, page, rows.length, t));
 }
 
+/** Localized in place: this module carries `t`, not the positional translator. */
+const say = (ar: string, fr: string, en: string): Localized => ({ ar, fr, en });
+
+/** The window every number under it was true inside, and what the page counted. */
+function pageMeta(
+  snap: Snapshot,
+  page: PageId,
+  rows: number,
+  t: (text: Localized) => string,
+): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: t(say('الفترة', 'Période', 'Window')), value: windowLabel(snap.window, t) },
+    { label: t(say('العملة', 'Devise', 'Currency')), value: snap.book },
+    { label: t(say('بتاريخ', 'Au', 'As of')), value: snap.today },
+  ];
+  if (page === 'position' || page === 'performance') {
+    meta.push({ label: t(say('الحسابات', 'Comptes', 'Accounts')), value: String(rows) });
+  } else if (page === 'activity') {
+    meta.push({ label: t(say('القيود', 'Écritures', 'Entries')), value: String(snap.activity.total) });
+  } else if (page === 'close') {
+    meta.push({
+      label: t(say('الإقفال', 'Clôture', 'Close')),
+      value: `${String(snap.close.certified)} / ${String(snap.close.total)}`,
+    });
+  }
+  return meta;
+}
+
+/**
+ * `dashboard-activity-2026-08-28` — the page, then the day it was taken.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends
+ * the one matching the bytes it produced.
+ */
 export function suggestedFileName(page: PageId, today: string): string {
-  return `dashboard-${page}-${today}.csv`;
+  return `dashboard-${page}-${today}`;
 }

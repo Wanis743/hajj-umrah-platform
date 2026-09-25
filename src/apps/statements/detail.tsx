@@ -17,7 +17,6 @@ import {
   ClipboardCopy,
   ClipboardList,
   ExternalLink,
-  FileDown,
   Gauge,
   Landmark,
   Percent,
@@ -37,6 +36,7 @@ import {
   Section,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { ACCOUNT_TYPE_LABEL, EPSILON, toCurrency } from '../shared/ledger';
 import type { StatementsBusy } from './actions';
 import type { AccountFigure } from './balances';
@@ -211,15 +211,13 @@ export function StatementPane(props: StatementPaneProps) {
         <Button block variant="subtle" icon={ClipboardCopy} onClick={() => props.onCommand('copy')}>
           {tr('نسخ الملخّص', 'Copier la synthèse', 'Copy the summary')}
         </Button>
-        <Button
+        <ExportButton
           block
-          icon={FileDown}
           busy={props.busy === 'export'}
           disabled={props.busy !== null}
-          onClick={() => props.onCommand('export')}
-        >
-          {tr('تصدير البيان', 'Exporter l’état', 'Export the statement')}
-        </Button>
+          onCommand={props.onCommand}
+          label={tr('تصدير البيان', 'Exporter l’état', 'Export the statement')}
+        />
       </div>
     </div>
   );

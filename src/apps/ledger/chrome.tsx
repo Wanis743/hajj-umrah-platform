@@ -16,7 +16,6 @@ import {
   ClipboardCopy,
   CornerDownRight,
   CreditCard,
-  FileDown,
   Landmark,
   ListTree,
   Pencil,
@@ -46,6 +45,7 @@ import {
   fmt,
   useApp,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import {
   type Account,
   ACCOUNT_TYPES,
@@ -124,20 +124,18 @@ export function LedgerToolbar({
         </>
       ) : null}
       <ToolbarSpacer />
-      <Button
+      <ExportButton
         size="sm"
-        icon={FileDown}
         busy={busy === 'export'}
         disabled={!canExport}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
+        label={tr('تصدير', 'Exporter', 'Export')}
         title={tr(
-          'تصدير المعروض إلى CSV',
-          'Exporter l’affichage en CSV',
-          'Export what is on screen as CSV',
+          'تصدير المعروض (Ctrl+E)',
+          'Exporter l’affichage (Ctrl+E)',
+          'Export what is on screen (Ctrl+E)',
         )}
-      >
-        {tr('تصدير CSV', 'Exporter CSV', 'Export CSV')}
-      </Button>
+      />
     </>
   );
 }

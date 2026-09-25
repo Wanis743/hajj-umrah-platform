@@ -27,7 +27,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  FileDown,
   Filter,
   FolderOpen,
   Gauge,
@@ -61,6 +60,7 @@ import {
   ToolbarSpacer,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { EPSILON, type FiscalPeriod, PERIOD_STATUS_LABEL } from '../shared/ledger';
 import type { StatementsBusy } from './actions';
 import type { Basis } from './balances';
@@ -160,15 +160,12 @@ export function StatementsToolbar(props: ToolbarProps) {
       >
         {tr('نسخ', 'Copier', 'Copy')}
       </Button>
-      <Button
-        icon={FileDown}
+      <ExportButton
         busy={busy === 'export'}
         disabled={working}
-        onClick={() => onCommand('export')}
-        title={tr('تصدير CSV (Ctrl+E)', 'Exporter en CSV (Ctrl+E)', 'Export to CSV (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+        onCommand={onCommand}
+        title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
+      />
       <ToolbarSeparator />
       <IconButton
         icon={Save}

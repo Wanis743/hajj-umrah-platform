@@ -12,7 +12,7 @@
  * Amounts are decimals with a dot and no currency mark, and percentages are plain ratios:
  * a file that arrives pre-formatted cannot be reformatted back.
  */
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { ACCOUNT_TYPE_LABEL } from '../shared/ledger';
 import type { Budget } from '../shared/ledger';
 import type { Localized } from '@/platform/sdk';
@@ -23,9 +23,14 @@ import { METHOD_LABEL } from './forecast';
 export type Label = (value: Localized) => string;
 export type Translate = (ar: string, fr: string, en: string) => string;
 
-/** `model-forecast-2026-08-28.csv` — the view first, because that is what differs. */
+/**
+ * `model-forecast-2026-08-28` — the view first, because that is what differs.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends
+ * the one matching the bytes it produced.
+ */
 export function suggestedFileName(view: string, today: string): string {
-  return `model-${view}-${today}.csv`;
+  return `model-${view}-${today}`;
 }
 
 /** The scenario as one line, for the top of a file and the end of a paragraph. */
@@ -41,6 +46,35 @@ export function scenarioLine(scenario: Scenario, t: Label, tr: Translate): strin
     parts.push(`${tr('تجاوزات', 'Dérogations', 'Overrides')}: ${scenario.overrides.size}`);
   }
   return parts.join(' · ');
+}
+
+/**
+ * The same assumptions as `scenarioLine`, but as a block the page formats can set.
+ *
+ * A projection read on paper is read without the sliders that produced it, so the
+ * driver, the window and the horizon go at the head of the page. The CSV cannot
+ * carry them — row one there has to be the header — which is why the forecast also
+ * repeats them as columns.
+ */
+function scenarioMeta(scenario: Scenario, t: Label, tr: Translate): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: tr('المحرّك', 'Moteur', 'Driver'), value: t(METHOD_LABEL[scenario.method]) },
+    { label: tr('الأفق', 'Horizon', 'Horizon'), value: String(scenario.horizon) },
+    { label: tr('أشهر النظر', 'Fenêtre', 'Lookback'), value: String(scenario.lookback) },
+  ];
+  if (scenario.method === 'growth') {
+    meta.push({ label: tr('النمو', 'Croissance', 'Growth'), value: `${scenario.growth}%` });
+  }
+  if (scenario.uplift !== 0) {
+    meta.push({
+      label: tr('زيادة التكاليف', 'Inflation des charges', 'Cost uplift'),
+      value: `${scenario.uplift}%`,
+    });
+  }
+  if (scenario.overrides.size > 0) {
+    meta.push({ label: tr('تجاوزات', 'Dérogations', 'Overrides'), value: String(scenario.overrides.size) });
+  }
+  return meta;
 }
 
 /** Which driver produced a row, once the override has had its say. */
@@ -61,13 +95,13 @@ const rowDriver = (row: ForecastRow, scenario: Scenario, t: Label, tr: Translate
  * The rows come in as an argument rather than off the projection, because what leaves has to
  * be what was on screen: a search box that hid two thirds of the grid did so on purpose.
  */
-export function forecastCsv(
+export function forecastTable(
   rows: readonly ForecastRow[],
   months: readonly string[],
   scenario: Scenario,
   t: Label,
   tr: Translate,
-): string {
+): TableDocument {
   const header = [
     tr('الحساب', 'Compte', 'Account'),
     tr('التسمية', 'Libellé', 'Name'),
@@ -82,7 +116,8 @@ export function forecastCsv(
     tr('الأفق', 'Horizon', 'Horizon'),
     tr('عدد القيود', 'Écritures', 'Postings'),
   ];
-  return csvDocument(
+  return tableDocument(
+    tr('التوقّع', 'Projection', 'Forecast'),
     header,
     rows.map((row) => [
       row.account.code,
@@ -98,12 +133,19 @@ export function forecastCsv(
       String(scenario.horizon),
       String(row.lines),
     ]),
+    scenarioMeta(scenario, t, tr),
   );
 }
 
 /** The months, actual and projected in one column so the join is visible. */
-export function timelineCsv(rows: readonly TimelineRow[], tr: Translate): string {
-  return csvDocument(
+export function timelineTable(
+  rows: readonly TimelineRow[],
+  scenario: Scenario,
+  t: Label,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('الخطّ الزمني', 'Chronologie', 'Timeline'),
     [
       tr('الشهر', 'Mois', 'Month'),
       tr('النوع', 'Nature', 'Kind'),
@@ -120,12 +162,19 @@ export function timelineCsv(rows: readonly TimelineRow[], tr: Translate): string
       row.result.toFixed(2),
       row.cumulative.toFixed(2),
     ]),
+    scenarioMeta(scenario, t, tr),
   );
 }
 
 /** The comparison against the plan, by account type. */
-export function compareCsv(rows: readonly CompareRow[], t: Label, tr: Translate): string {
-  return csvDocument(
+export function compareTable(
+  rows: readonly CompareRow[],
+  scenario: Scenario,
+  t: Label,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('المتوقّع مقابل الموازنة', 'Projeté contre budget', 'Projected against plan'),
     [
       tr('النوع', 'Type', 'Type'),
       tr('المتوقّع', 'Projeté', 'Projected'),
@@ -140,6 +189,7 @@ export function compareCsv(rows: readonly CompareRow[], t: Label, tr: Translate)
       row.gap.toFixed(2),
       String(row.accounts),
     ]),
+    scenarioMeta(scenario, t, tr),
   );
 }
 

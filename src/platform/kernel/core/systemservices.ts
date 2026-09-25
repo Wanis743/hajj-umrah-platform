@@ -151,6 +151,19 @@ function safeName(value: string, fallback: string): string {
   return cleaned === '' ? fallback : cleaned.slice(0, 80);
 }
 
+/**
+ * Quotes a value for the projected trial balance below.
+ *
+ * Deliberately not the apps' `shared/export/csv.ts`, which the whole suite now shares.
+ * The kernel cannot import from `src/apps/`, and the boundary gate exists to keep it
+ * that way — a kernel that reached into an app for a string helper would be the exact
+ * inversion the three walls are there to catch.
+ *
+ * The rules differ anyway, because the readers differ. That one escapes `\r` too and
+ * joins with CRLF, because its output leaves for Excel; this one takes whatever a
+ * projected dataset row holds and joins with LF, because its output is a file inside
+ * the OS that the file manager browses and Notepad opens.
+ */
 function csvCell(value: unknown): string {
   const raw = value === null || value === undefined ? '' : String(value);
   return /[",\n]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;

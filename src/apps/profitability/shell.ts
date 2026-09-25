@@ -26,6 +26,7 @@ import {
   useState,
 } from 'react';
 import { useLocale } from '@/platform/sdk';
+import { type ExportFormat, parseExportCommand } from '../shared/export/commands';
 import type { Basis } from '../shared/ledger';
 import { hotkey, type ProfitabilityBusy, useProfitabilityActions } from './actions';
 import { type Dimension, laggard, leader, type MemberFigure, type Sort } from './figures';
@@ -35,7 +36,7 @@ import {
   memberClipboardText,
   type Provenance,
   sliceClipboardText,
-  sliceCsv,
+  sliceTable,
   suggestedFileName,
 } from './report';
 
@@ -203,12 +204,16 @@ export function useProfitabilityShell(): ProfitabilityShell {
   /* ---- the command path -------------------------------------------- */
 
   /** "Export" is the table in front of the person, filtered exactly as it is filtered. */
-  const exportTable = useCallback(() => {
-    actions.exportCsv(
-      sliceCsv(model.rows, source, t, tr),
-      suggestedFileName(question.dimension, today),
-    );
-  }, [actions, model.rows, question.dimension, source, t, today, tr]);
+  const exportView = useCallback(
+    (format: ExportFormat) => {
+      actions.exportTable(
+        sliceTable(model.rows, source, t, tr),
+        suggestedFileName(question.dimension, today),
+        format,
+      );
+    },
+    [actions, model.rows, question.dimension, source, t, today, tr],
+  );
 
   /** The whole report as a paragraph, with the two ends of the ranking named in it. */
   const copySlice = useCallback(() => {
@@ -265,8 +270,9 @@ export function useProfitabilityShell(): ProfitabilityShell {
         searchRef.current?.focus();
         return;
       }
-      if (id === 'export') {
-        exportTable();
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        exportView(format);
         return;
       }
       if (id === 'copy') {
@@ -280,7 +286,7 @@ export function useProfitabilityShell(): ProfitabilityShell {
       const target = row ?? model.selected;
       if (target !== null) actOnRow(id, target);
     },
-    [actOnRow, controls, copySlice, exportTable, model],
+    [actOnRow, controls, copySlice, exportView, model],
   );
 
   /** The toolbar, the accelerators and the panes all act on the selection, never on a row. */

@@ -42,7 +42,8 @@ import {
   useIpc,
   useLedgerCommand,
 } from '@/platform/sdk';
-import { REPORTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { type ExportBusy, useExport } from '../shared/useExport';
 import { asString } from '../shared/guards';
 import { type BiRun, readChart, readDrill, readQuery, readSync } from './model';
 import {
@@ -897,14 +898,24 @@ export function useBiFocus(onTarget: (target: BiTarget) => void): void {
   });
 }
 
-const fileName = (view: BiView, today: string): string => `bi-${view}-${today}.csv`;
-
 export interface BiTransferActions {
-  readonly exportCsv: (view: BiView, content: string, today: string) => void;
+  /** Save the tab in front of the person, in the format they picked. */
+  readonly exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   readonly copy: (text: string) => void;
   /** Cross-app, carrying an argument: drill-through is the whole reason this app
    *  holds `shell.launch`. A cell stands for rows another app owns. */
   readonly openApp: (app: AppId, args?: Readonly<Record<string, string>>) => void;
+}
+
+/**
+ * What this seam knows that the interface does not.
+ *
+ * The export hook owns its own dialog and its own spinner. `useBiActions` folds that
+ * into the app's single `busy`, and nothing downstream is offered two answers to the
+ * question of whether something is in flight.
+ */
+interface BiTransferSeam extends BiTransferActions {
+  readonly exporting: ExportBusy;
 }
 
 /**
@@ -915,50 +926,13 @@ export interface BiTransferActions {
  * whether its save worked so it can stay open; a toolbar button does not, so the
  * promise is consumed here and the caller gets a plain click handler.
  *
- * `exportCsv` is the only one that touches `busy`, because it is the only one that
+ * `exportTable` is the only one that raises a spinner, because it is the only one that
  * opens a sheet the user can sit in front of.
  */
-function useBiTransfer(setBusy: (busy: BiBusy) => void): BiTransferActions {
+function useBiTransfer(): BiTransferSeam {
   const runtime = useApp();
   const { tr } = runtime.locale;
-
-  const exportCsv = useCallback(
-    (view: BiView, content: string, today: string): void => {
-      const run = async (): Promise<void> => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير CSV', 'Exporter en CSV', 'Export as CSV'),
-          startPath: REPORTS,
-          suggestedName: fileName(view, today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content,
-          contentType: 'text/csv',
-        });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير', 'Exporté', 'Exported'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير', 'Export impossible', 'Export failed'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, setBusy, tr],
-  );
+  const { busy: exporting, exportTable } = useExport();
 
   /**
    * Compiled SQL, a dataset key, a metric's formula — what somebody lifts out of
@@ -984,7 +958,7 @@ function useBiTransfer(setBusy: (busy: BiBusy) => void): BiTransferActions {
     [runtime],
   );
 
-  return { exportCsv, copy, openApp };
+  return { exporting, exportTable, copy, openApp };
 }
 
 /* ------------------------------------------------------------------ *
@@ -1009,10 +983,13 @@ export interface BiActions extends BiQueryActions, BiGovernanceActions, BiTransf
 
 export function useBiActions(): BiActions {
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<BiBusy>(null);
+  const [acting, setBusy] = useState<BiBusy>(null);
   const queries = useBiQueries(setBusy);
   const governance = useBiGovernance(ledger, setBusy);
-  const transfer = useBiTransfer(setBusy);
+  const { exporting, ...transfer } = useBiTransfer();
+  // Two spinners folded into one. The export hook owns its own dialog and its own
+  // write, and every other act here still raises the token that names itself.
+  const busy: BiBusy = exporting !== null ? 'export' : acting;
   return {
     busy,
     ...queries,

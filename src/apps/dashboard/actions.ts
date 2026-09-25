@@ -14,19 +14,17 @@
  * there.
  *
  * The other two acts are what anybody does with a dashboard at nine in the morning:
- * paste the numbers into a message, or take the page to a meeting as a CSV.
+ * paste the numbers into a message, or take the page to a meeting as a file.
  */
-import { type KeyboardEvent, useCallback, useMemo, useState } from 'react';
+import { type KeyboardEvent, useCallback, useMemo } from 'react';
 import { type AppId, APP_IDS, fmt, type LaunchArgs, useApp } from '@/platform/sdk';
+import type { ExportFormat, TableDocument } from '../shared/export';
 import type { Currency } from '../shared/ledger';
-import { REPORTS } from '../shared/paths';
+import { useExport } from '../shared/useExport';
 import {
   type Destination,
   type Formatters,
-  type PageId,
-  pageCsv,
   type Snapshot,
-  suggestedFileName,
   summaryText,
   type TargetApp,
 } from './metrics';
@@ -74,13 +72,17 @@ export interface DashboardActions {
   readonly formatters: Formatters;
   open: (destination: Destination) => void;
   copySummary: (snap: Snapshot) => void;
-  exportCsv: (snap: Snapshot, page: PageId) => void;
+  /** Save the page in front of the person, in the format they picked. */
+  readonly exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
 }
 
 export function useDashboardActions(book: Currency): DashboardActions {
   const runtime = useApp();
   const { t, tr, lang } = runtime.locale;
-  const [busy, setBusy] = useState<DashboardBusy>(null);
+  // The only act here that touches the disk, so the hook's own token is the
+  // whole of this app's busy state — nothing else to fold it with.
+  const { busy: exporting, exportTable } = useExport();
+  const busy: DashboardBusy = exporting === null ? null : 'export';
 
   const formatters = useMemo<Formatters>(
     () => ({
@@ -116,43 +118,5 @@ export function useDashboardActions(book: Currency): DashboardActions {
     [formatters, runtime, tr],
   );
 
-  const exportCsv = useCallback(
-    (snap: Snapshot, page: PageId) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير الصفحة', 'Exporter la page', 'Export this page'),
-          startPath: REPORTS,
-          suggestedName: suggestedFileName(page, snap.today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content: pageCsv(snap, page, t),
-          contentType: 'text/csv',
-        });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, t, tr],
-  );
-
-  return { busy, formatters, open, copySummary, exportCsv };
+  return { busy, formatters, open, copySummary, exportTable };
 }

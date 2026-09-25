@@ -34,6 +34,7 @@
  * customer receives is DMS's, and the CSV written here is the pipeline itself,
  * exported for the Monday meeting.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -152,7 +153,8 @@ export const crmManifest = defineApp({
     { id: 'complete', title: text('إنجاز المتابعة', 'Terminer la relance', 'Complete follow-up') },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export as CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     // All seven surfaces, including the two the jump list leaves out. The palette
     // and the taskbar answer the same question from the keyboard and the mouse, so
     // a view reachable from one and not the other is a view found by accident.

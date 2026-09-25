@@ -11,16 +11,20 @@
  * because a different row got selected.
  */
 import { type RefObject, useCallback, useMemo, useRef } from 'react';
+import { parseExportCommand } from '../shared/export/commands';
 import type { JournalEntry, JournalLine } from '../shared/ledger';
 import type { JournalActions } from './actions';
 import { type Draft, draftFromEntry, emptyDraft } from './draft';
-import { type JournalFilter, VIEWS } from './entries';
+import { entriesFileName, entriesTable, type JournalFilter, type Translate, VIEWS } from './entries';
 
 export interface CommandInput {
   readonly actions: JournalActions;
   readonly today: string;
-  /** The rows a CSV export would carry: what is on screen, not the whole page. */
+  /** The rows an export would carry: what is on screen, not the whole page. */
   readonly visible: readonly JournalEntry[];
+  /** The filter those rows came through, so the exported file can name it. */
+  readonly filter: JournalFilter;
+  readonly tr: Translate;
   readonly lines: readonly JournalLine[];
   readonly labelOf: (accountId: string | null) => string;
   readonly menuTarget: JournalEntry | null;
@@ -58,7 +62,8 @@ export function useJournalCommands(input: CommandInput): JournalCommands {
 
   const command = useCallback(
     (id: string): void => {
-      const { actions, today, visible, searchRef, refetch, setDraft, setFilter } = latest.current;
+      const { actions, today, visible, filter, tr, searchRef, refetch, setDraft, setFilter } =
+        latest.current;
       if (id === 'new') {
         setDraft(emptyDraft(today));
       } else if (id === 'open') {
@@ -67,12 +72,15 @@ export function useJournalCommands(input: CommandInput): JournalCommands {
         refetch();
       } else if (id === 'find') {
         searchRef.current?.focus();
-      } else if (id === 'export') {
-        actions.exportCsv(visible, today);
       } else if (id.startsWith('view:')) {
         const wanted = id.slice('view:'.length);
         const view = VIEWS.find((candidate) => candidate === wanted);
         if (view !== undefined) setFilter((current) => ({ ...current, view }));
+      } else {
+        const format = parseExportCommand(id);
+        if (format !== null) {
+          actions.exportTable(entriesTable(visible, filter, tr), entriesFileName(today), format);
+        }
       }
     },
     [openDraftFile],

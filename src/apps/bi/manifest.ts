@@ -10,6 +10,7 @@
  * on bookings, on pilgrims or on the journal, and the answer it gives is the same
  * kind of answer in each case.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -118,7 +119,8 @@ export const biManifest = defineApp({
     { id: 'dataset:new', title: text('مجموعة بيانات جديدة', 'Nouveau jeu de données', 'New dataset'), accelerator: 'Ctrl+N' },
     { id: 'search', title: text('بحث', 'Rechercher', 'Find definition'), accelerator: 'Ctrl+F' },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
-    { id: 'export', title: text('تصدير', 'Exporter', 'Export'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'analysis:save', title: text('حفظ التحليل', "Enregistrer l'analyse", 'Save analysis'), accelerator: 'Ctrl+S' },
     { id: 'dashboard:new', title: text('لوحة جديدة', 'Nouveau tableau de bord', 'New dashboard') },
     { id: 'source:sync', title: text('مزامنة المصادر', 'Synchroniser les sources', 'Sync sources') },

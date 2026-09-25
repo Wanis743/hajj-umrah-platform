@@ -10,6 +10,7 @@
  * passport scan, a supplier contract and a visa approval are all filed here,
  * and only some of them are ever evidence for a journal entry.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -118,7 +119,8 @@ export const dmsManifest = defineApp({
     { id: 'upload', title: text('تحميل وثيقة', 'Déposer un document', 'Upload document'), accelerator: 'Ctrl+U' },
     { id: 'search', title: text('بحث', 'Rechercher', 'Find document'), accelerator: 'Ctrl+F' },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
-    { id: 'export', title: text('تصدير', 'Exporter', 'Export'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'sweep', title: text('فحص الصلاحية', 'Balayage des échéances', 'Run expiry sweep') },
     { id: 'package:new', title: text('حزمة جديدة', 'Nouveau dossier', 'New evidence package') },
   ],

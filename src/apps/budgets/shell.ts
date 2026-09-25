@@ -22,14 +22,15 @@ import {
   useAccountFocus,
   useBudgetActions,
 } from './actions';
+import { type ExportFormat, parseExportCommand } from '../shared/export/commands';
 import { type BudgetModel, type BudgetSelection, type BudgetView, useBudgetModel } from './model';
 import {
   groupClipboardText,
-  rollupCsv,
+  rollupTable,
   rowClipboardText,
   suggestedFileName,
   summaryClipboardText,
-  varianceCsv,
+  varianceTable,
 } from './report';
 import type { RollupRow, VarianceRow } from './variance';
 
@@ -207,11 +208,17 @@ export function useBudgetShell(): BudgetShell {
   /* ---- the command path -------------------------------------------- */
 
   /** "Export" means the view in front of the person, and nothing else. */
-  const exportView = useCallback(() => {
-    const name = suggestedFileName(model.budget, view, today);
-    if (view === 'rollup') actions.exportCsv(rollupCsv(model.assessment.groups, t, tr), name);
-    else actions.exportCsv(varianceCsv(model.rows, t, tr), name);
-  }, [actions, model.assessment.groups, model.budget, model.rows, t, today, tr, view]);
+  const exportView = useCallback(
+    (format: ExportFormat) => {
+      const name = suggestedFileName(model.budget, view, today);
+      const doc =
+        view === 'rollup'
+          ? rollupTable(model.assessment.groups, model.budget, model.assessment, t, tr)
+          : varianceTable(model.rows, model.budget, model.assessment, t, tr);
+      actions.exportTable(doc, name, format);
+    },
+    [actions, model.assessment, model.budget, model.rows, t, today, tr, view],
+  );
 
   /**
    * The dialog's two fields, filled from wherever the press came from.
@@ -263,8 +270,9 @@ export function useBudgetShell(): BudgetShell {
         searchRef.current?.focus();
         return;
       }
-      if (id === 'export') {
-        exportView();
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        exportView(format);
         return;
       }
       if (id === 'copy') {

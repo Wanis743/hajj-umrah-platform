@@ -32,10 +32,11 @@
  */
 import { type KeyboardEvent, useCallback, useState } from 'react';
 import { APP_IDS, type Localized, useApp, useLedgerCommand } from '@/platform/sdk';
+import type { ExportFormat, TableDocument } from '../shared/export';
 import type { CloseTask, JournalEntry, JournalLine } from '../shared/ledger';
-import { DOCUMENTS } from '../shared/paths';
 import { type SpineInboxItem, STAGE_LABEL } from '../shared/spine';
-import { itemClipboardText, type QueueId, queueCsv, suggestedFileName, type WorkItem } from './queue';
+import { useExport } from '../shared/useExport';
+import { itemClipboardText, type WorkItem } from './queue';
 
 /**
  * What a notification says a handoff was.
@@ -124,7 +125,7 @@ export interface InboxActions {
     lines: readonly JournalLine[],
     accountLabelOf: (accountId: string | null) => string,
   ) => void;
-  exportCsv: (items: readonly WorkItem[], queue: QueueId, today: string) => void;
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Hand-off: Ledger's account focus reads `args.accountId`. */
   openAccount: (accountId: string) => void;
 }
@@ -239,7 +240,11 @@ export function useInboxActions(): InboxActions {
   const runtime = useApp();
   const { t, tr } = runtime.locale;
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<InboxBusy>(null);
+  const [acting, setBusy] = useState<InboxBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
+  // Two spinners folded into one. The export hook owns its own dialog and its own
+  // write; the seven acts above still raise the token that names which one is running.
+  const busy: InboxBusy = exporting !== null ? 'export' : acting;
 
   const approve = useCallback(
     async (entry: JournalEntry, note: string): Promise<boolean> => {
@@ -375,44 +380,6 @@ export function useInboxActions(): InboxActions {
     [runtime, t, tr],
   );
 
-  const exportCsv = useCallback(
-    (items: readonly WorkItem[], queue: QueueId, today: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير القائمة', 'Exporter la liste', 'Export the queue'),
-          startPath: DOCUMENTS,
-          suggestedName: suggestedFileName(queue, today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content: queueCsv(items, t),
-          contentType: 'text/csv',
-        });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, t, tr],
-  );
-
   const openAccount = useCallback(
     (accountId: string) => {
       void runtime.launch(APP_IDS.ledger, { accountId });
@@ -430,7 +397,7 @@ export function useInboxActions(): InboxActions {
     decline,
     sweep,
     copy,
-    exportCsv,
+    exportTable,
     openAccount,
   };
 }

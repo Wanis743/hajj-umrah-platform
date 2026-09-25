@@ -46,6 +46,7 @@ import {
   ToolbarSpacer,
   useApp,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import {
   type BankAccount,
   type BankStatement,
@@ -156,20 +157,18 @@ export function ReconcileToolbar({
         placeholder={tr('المرجع أو الوصف أو المبلغ', 'Référence, libellé ou montant', 'Reference, detail or amount')}
       />
       <ToolbarSpacer />
-      <Button
+      <ExportButton
         size="sm"
-        icon={FileDown}
         busy={busy === 'export'}
         disabled={!canExport}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
+        label={tr('تصدير الفروق', 'Exporter les écarts', 'Export differences')}
         title={tr(
-          'تصدير ما لم يُطابق من الجانبين',
-          'Exporter ce qui n’est rapproché d’aucun côté',
-          'Export what did not match, on either side',
+          'تصدير ما لم يُطابق من الجانبين (Ctrl+E)',
+          'Exporter ce qui n’est rapproché d’aucun côté (Ctrl+E)',
+          'Export what did not match, on either side (Ctrl+E)',
         )}
-      >
-        {tr('تصدير CSV', 'Exporter CSV', 'Export CSV')}
-      </Button>
+      />
     </>
   );
 }

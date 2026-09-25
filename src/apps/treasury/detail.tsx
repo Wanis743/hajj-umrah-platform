@@ -25,7 +25,6 @@ import {
   ClipboardCopy,
   Coins,
   ExternalLink,
-  FileDown,
   Gauge,
   Landmark,
   ListChecks,
@@ -45,6 +44,7 @@ import {
   type Tone,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { Currency } from '../shared/ledger';
 import type { TreasuryBusy } from './actions';
 import {
@@ -279,15 +279,13 @@ export function PositionPane(props: PositionPaneProps) {
         <Button block variant="subtle" icon={ClipboardCopy} onClick={() => props.onCommand('copy')}>
           {tr('نسخ الملخّص', 'Copier la synthèse', 'Copy the summary')}
         </Button>
-        <Button
+        <ExportButton
           block
-          icon={FileDown}
           busy={props.busy === 'export'}
           disabled={props.busy !== null}
-          onClick={() => props.onCommand('export')}
-        >
-          {tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
-        </Button>
+          onCommand={props.onCommand}
+          label={tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
+        />
       </div>
     </div>
   );

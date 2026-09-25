@@ -23,7 +23,10 @@
  * with the difference at the top, is exactly what somebody wants after pressing Match.
  */
 import { type Ref, useCallback, useMemo, useRef, useState } from 'react';
+import { useApp } from '@/platform/sdk';
+import { parseExportCommand } from '../shared/export/commands';
 import { type BankTransaction, type Currency, toCurrency } from '../shared/ledger';
+import { differenceTable, suggestedFileName } from './report';
 import { type ReconcileBusy, type SweepReport, useBankFocus, useReconcileActions } from './actions';
 import { type Candidate, candidatesFor } from './match';
 import {
@@ -85,6 +88,9 @@ export interface ReconcileShell {
 
 export function useReconcileShell(): ReconcileShell {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Only the export needs it, to put a title and the statement it disputes at the
+  // head of the page formats.
+  const { tr } = useApp().locale;
 
   const [view, setView] = useState<ReconcileView>('open');
   const [search, setSearch] = useState('');
@@ -181,14 +187,21 @@ export function useReconcileShell(): ReconcileShell {
       else if (id === 'refresh') model.refresh();
       else if (id === 'find') searchRef.current?.focus();
       else if (id === 'auto') runSweep();
-      else if (id === 'export') {
-        actions.exportCsv(model.transactions, model.ledgerRows, model.statement, today);
-      } else if (id === 'open-account') {
+      else if (id === 'open-account') {
         const accountId = model.account?.ledgerAccountId ?? null;
         if (accountId !== null) actions.openLedgerAccount(accountId);
-      } else if (transaction !== null) actOn(id, transaction);
+      } else {
+        const format = parseExportCommand(id);
+        if (format !== null) {
+          actions.exportTable(
+            differenceTable(model.transactions, model.ledgerRows, model.statement, tr),
+            suggestedFileName(model.statement, today),
+            format,
+          );
+        } else if (transaction !== null) actOn(id, transaction);
+      }
     },
-    [actOn, actions, changeView, model, runSweep, today],
+    [actOn, actions, changeView, model, runSweep, today, tr],
   );
 
   const command = useCallback((id: string) => perform(id, model.selected), [model.selected, perform]);

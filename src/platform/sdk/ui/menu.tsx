@@ -5,8 +5,10 @@
  * context menus and jump lists, so keyboard behaviour and edge-flipping are
  * consistent with the shell's own context menus.
  */
-import { ChevronRight, Check, type LucideIcon } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, type LucideIcon } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Button } from './primitives';
+import type { ButtonVariant, ControlSize } from './tokens';
 
 export interface MenuEntry {
   readonly id: string;
@@ -156,6 +158,122 @@ export function MenuFlyout({ x, y, entries, onSelect, onDismiss, minWidth = 200,
         );
       })}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Split button
+ * ------------------------------------------------------------------ */
+
+export interface SplitButtonProps {
+  /** The main half's label. */
+  readonly children?: ReactNode;
+  readonly icon?: LucideIcon;
+  /** The default act, which the main half performs without opening anything. */
+  readonly onClick: () => void;
+  /** The other ways of doing the same thing. */
+  readonly entries: readonly MenuEntry[];
+  readonly onSelect: (id: string) => void;
+  /** Named for a screen reader, since the chevron half carries no text. */
+  readonly menuLabel: string;
+  readonly variant?: ButtonVariant;
+  readonly size?: ControlSize;
+  readonly disabled?: boolean;
+  readonly busy?: boolean;
+  readonly title?: string;
+  readonly block?: boolean;
+  readonly minWidth?: number;
+}
+
+/**
+ * One act on the left, the other ways of doing it under the chevron.
+ *
+ * The main half is the thing people press without reading — it fires directly,
+ * with no menu in the way, and keeps whatever behaviour it had before the other
+ * options existed. The chevron is for the day they want a different one.
+ *
+ * The menu is positioned `fixed` against the chevron's own rectangle rather than
+ * rendered inside the button, so it escapes toolbars and side panels that clip
+ * their overflow — which is most of them.
+ */
+export function SplitButton({
+  children,
+  icon,
+  onClick,
+  entries,
+  onSelect,
+  menuLabel,
+  variant = 'default',
+  size = 'md',
+  disabled,
+  busy,
+  title,
+  block,
+  minWidth = 200,
+}: SplitButtonProps) {
+  const chevron = useRef<HTMLButtonElement | null>(null);
+  const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
+  const glyph = size === 'lg' ? 18 : size === 'sm' ? 13 : 15;
+  const off = disabled === true || busy === true;
+
+  const toggle = () => {
+    if (point !== null) {
+      setPoint(null);
+      return;
+    }
+    const element = chevron.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    // Hung from the trailing edge so the menu grows back under the button rather
+    // than off the side of a rail that is 260px wide.
+    setPoint({ x: rect.right - minWidth, y: rect.bottom + 2 });
+  };
+
+  return (
+    <>
+      <div className="fx-split" data-block={block === true ? 'true' : undefined}>
+        <Button
+          className="fx-split-main"
+          icon={icon}
+          variant={variant}
+          size={size}
+          disabled={disabled}
+          busy={busy}
+          title={title}
+          onClick={onClick}
+        >
+          {children}
+        </Button>
+        <button
+          ref={chevron}
+          type="button"
+          className="fx-btn fx-split-more"
+          data-variant={variant}
+          data-size={size}
+          disabled={off}
+          aria-label={menuLabel}
+          aria-haspopup="menu"
+          aria-expanded={point !== null}
+          title={menuLabel}
+          onClick={toggle}
+        >
+          <ChevronDown size={glyph} />
+        </button>
+      </div>
+      {point === null ? null : (
+        <MenuFlyout
+          x={point.x}
+          y={point.y}
+          entries={entries}
+          minWidth={minWidth}
+          onSelect={(id) => {
+            setPoint(null);
+            onSelect(id);
+          }}
+          onDismiss={() => setPoint(null)}
+        />
+      )}
+    </>
   );
 }
 

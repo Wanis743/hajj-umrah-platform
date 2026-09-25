@@ -25,6 +25,7 @@ import {
   useState,
 } from 'react';
 import { fmt, useLocale } from '@/platform/sdk';
+import { type ExportFormat, parseExportCommand } from '../shared/export/commands';
 import { hotkey, type ModelingBusy, useAccountFocus, useModelingActions } from './actions';
 import {
   type CompareRow,
@@ -36,14 +37,14 @@ import {
 } from './forecast';
 import { type ModelingModel, type ModelingSelection, type ModelingView, useModelingModel } from './model';
 import {
-  compareCsv,
-  forecastCsv,
+  compareTable,
+  forecastTable,
   groupClipboardText,
   monthClipboardText,
   rowClipboardText,
   suggestedFileName,
   summaryClipboardText,
-  timelineCsv,
+  timelineTable,
 } from './report';
 
 /** Nothing chosen: no plan to compare against, and nothing in the right-hand pane. */
@@ -333,12 +334,19 @@ export function useModelingShell(): ModelingShell {
   /* ---- the command path -------------------------------------------- */
 
   /** "Export" means the view in front of the person, filtered exactly as it is filtered. */
-  const exportView = useCallback(() => {
-    const name = suggestedFileName(view, today);
-    if (view === 'timeline') actions.exportCsv(timelineCsv(projection.timeline, tr), name);
-    else if (view === 'compare') actions.exportCsv(compareCsv(projection.compare, t, tr), name);
-    else actions.exportCsv(forecastCsv(model.rows, projection.futureMonths, scenario, t, tr), name);
-  }, [actions, model.rows, projection, scenario, t, today, tr, view]);
+  const exportView = useCallback(
+    (format: ExportFormat) => {
+      const name = suggestedFileName(view, today);
+      const doc =
+        view === 'timeline'
+          ? timelineTable(projection.timeline, scenario, t, tr)
+          : view === 'compare'
+            ? compareTable(projection.compare, scenario, t, tr)
+            : forecastTable(model.rows, projection.futureMonths, scenario, t, tr);
+      actions.exportTable(doc, name, format);
+    },
+    [actions, model.rows, projection, scenario, t, today, tr, view],
+  );
 
   const actOn = useCallback(
     (id: string, row: ForecastRow) => {
@@ -379,8 +387,9 @@ export function useModelingShell(): ModelingShell {
         searchRef.current?.focus();
         return;
       }
-      if (id === 'export') {
-        exportView();
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        exportView(format);
         return;
       }
       if (id === 'reset') {

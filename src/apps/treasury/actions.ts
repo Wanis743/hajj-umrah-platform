@@ -1,7 +1,7 @@
 /**
  * Treasury — the acts.
  *
- * Four things leave this window and not one of them writes a number: a CSV, a
+ * Four things leave this window and not one of them writes a number: a report, a
  * paragraph, and two hand-offs. No `ledger.post`, no privileged capability, no consent
  * prompt — a cash report that could move a balance would not be a report, and the
  * manifest says as much before the kernel loads a line of this.
@@ -16,9 +16,10 @@
  * spins and a second press cannot start a second write to the same path while the first
  * dialog is still open.
  */
-import { type KeyboardEvent, useCallback, useState } from 'react';
+import { type KeyboardEvent, useCallback } from 'react';
 import { APP_IDS, useApp } from '@/platform/sdk';
-import { REPORTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { useExport } from '../shared/useExport';
 
 /**
  * In-window accelerators, the manifest's set exactly.
@@ -47,7 +48,8 @@ export type TreasuryBusy = 'export' | null;
 export interface TreasuryActions {
   readonly busy: TreasuryBusy;
   copy: (text: string) => void;
-  exportCsv: (content: string, suggestedName: string) => void;
+  /** Save the table in front of the person, in the format they picked. */
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Hand-off: the Ledger's focus reads `args.accountId` as a *ledger* account. */
   openAccount: (accountId: string) => void;
   /** Hand-off: Reconciliation's focus reads `args.accountId` as a *bank* account. */
@@ -57,7 +59,7 @@ export interface TreasuryActions {
 export function useTreasuryActions(): TreasuryActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
-  const [busy, setBusy] = useState<TreasuryBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
 
   const copy = useCallback(
     (text: string) => {
@@ -68,40 +70,6 @@ export function useTreasuryActions(): TreasuryActions {
             : { kind: 'error', title: tr('تعذّر النسخ.', 'Copie impossible.', 'Could not copy.') },
         );
       });
-    },
-    [runtime, tr],
-  );
-
-  const exportCsv = useCallback(
-    (content: string, suggestedName: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير', 'Exporter', 'Export'),
-          startPath: REPORTS,
-          suggestedName,
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', { path, content, contentType: 'text/csv' });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
     },
     [runtime, tr],
   );
@@ -120,5 +88,9 @@ export function useTreasuryActions(): TreasuryActions {
     [runtime],
   );
 
-  return { busy, copy, exportCsv, openAccount, openReconcile };
+  // The window names one act, not four formats: the toolbar's Export control
+  // spins whichever of them is being written.
+  const busy: TreasuryBusy = exporting === null ? null : 'export';
+
+  return { busy, copy, exportTable, openAccount, openReconcile };
 }

@@ -11,7 +11,7 @@
  * in one locale and as text in the other, and the version that reads as text is the one
  * that ends up in the deck.
  */
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { ACCOUNT_TYPE_LABEL, type Budget } from '../shared/ledger';
 import type { Localized } from '@/platform/sdk';
 import { type BudgetAssessment, type RollupRow, VARIANCE_STATE_LABEL, type VarianceRow } from './variance';
@@ -20,10 +20,57 @@ import { type BudgetAssessment, type RollupRow, VARIANCE_STATE_LABEL, type Varia
 export type Label = (value: Localized) => string;
 export type Translate = (ar: string, fr: string, en: string) => string;
 
-/** `budget-2026-plan-variance.csv` — the budget first, because that is how it is filed. */
+/**
+ * `budget-2026-plan-variance` — the budget first, because that is how it is filed.
+ *
+ * No extension: the format is picked after Export is pressed, and the writer
+ * appends the one that matches the bytes it produced.
+ */
 export function suggestedFileName(budget: Budget | null, view: string, today: string): string {
   const stem = budget === null ? today : budget.name.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase();
-  return `budget-${stem === '' ? today : stem}-${view}.csv`;
+  return `budget-${stem === '' ? today : stem}-${view}`;
+}
+
+/**
+ * Which budget, measured how, and how completely — at the head of the page.
+ *
+ * `basis` is the one that decides what the numbers mean: "actual" against a
+ * period and "actual" against the whole book are different figures with the same
+ * name, and a printed page that does not say which is a page somebody will argue
+ * from. The CSV cannot carry it, which is exactly why the other three formats do.
+ */
+function budgetMeta(
+  budget: Budget | null,
+  assessment: BudgetAssessment,
+  tr: Translate,
+): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    {
+      label: tr('الموازنة', 'Budget', 'Budget'),
+      value: budget === null ? tr('غير محدّدة', 'Non sélectionné', 'Not selected') : budget.name,
+    },
+    {
+      label: tr('الأساس', 'Base', 'Basis'),
+      value:
+        assessment.basis === 'period'
+          ? tr('الفترة', 'La période', 'The period')
+          : tr('الدفتر كاملًا', 'Tout le livre', 'The whole book'),
+    },
+    {
+      label: tr('سطور الخطة', 'Lignes', 'Plan lines'),
+      value: `${assessment.lines}/${assessment.accounts}`,
+    },
+  ];
+  if (!assessment.complete) {
+    meta.push({
+      label: tr('الاكتمال', 'Exhaustivité', 'Completeness'),
+      value: tr('جزئي: صفحة مكتملة', 'Partiel : page saturée', 'Partial: a page was full'),
+    });
+  }
+  if (assessment.locked) {
+    meta.push({ label: tr('الحالة', 'État', 'State'), value: tr('مقفلة', 'Verrouillé', 'Locked') });
+  }
+  return meta;
 }
 
 /**
@@ -32,8 +79,15 @@ export function suggestedFileName(budget: Budget | null, view: string, today: st
  * Serves the plan view too: it is the same row with the idle accounts left in, and a
  * second exporter that formatted them differently would be a second thing to keep true.
  */
-export function varianceCsv(rows: readonly VarianceRow[], t: Label, tr: Translate): string {
-  return csvDocument(
+export function varianceTable(
+  rows: readonly VarianceRow[],
+  budget: Budget | null,
+  assessment: BudgetAssessment,
+  t: Label,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('الفروق', 'Écarts budgétaires', 'Budget variance'),
     [
       tr('الحساب', 'Compte', 'Account'),
       tr('التسمية', 'Libellé', 'Name'),
@@ -56,12 +110,20 @@ export function varianceCsv(rows: readonly VarianceRow[], t: Label, tr: Translat
       t(VARIANCE_STATE_LABEL[row.state]),
       String(row.lines),
     ]),
+    budgetMeta(budget, assessment, tr),
   );
 }
 
 /** The version that goes into the meeting: five rows at most, and the count that matters. */
-export function rollupCsv(groups: readonly RollupRow[], t: Label, tr: Translate): string {
-  return csvDocument(
+export function rollupTable(
+  groups: readonly RollupRow[],
+  budget: Budget | null,
+  assessment: BudgetAssessment,
+  t: Label,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('الموازنة حسب النوع', 'Budget par type', 'Budget by type'),
     [
       tr('النوع', 'Type', 'Type'),
       tr('الخطة', 'Budget', 'Planned'),
@@ -78,6 +140,7 @@ export function rollupCsv(groups: readonly RollupRow[], t: Label, tr: Translate)
       String(group.accounts),
       String(group.adverse),
     ]),
+    budgetMeta(budget, assessment, tr),
   );
 }
 

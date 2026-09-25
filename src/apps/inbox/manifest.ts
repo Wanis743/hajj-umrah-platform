@@ -33,6 +33,7 @@
  * somebody else's document, so the only thing written to disk is a CSV of the queue
  * for the meeting where it gets discussed.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -124,7 +125,8 @@ export const inboxManifest = defineApp({
     { id: 'decline', title: text('رفض التحويل…', 'Refuser la transmission…', 'Decline handoff…') },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export as CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير القائمة', 'Exporter la file', 'Export this queue'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     // All four, in the rail's order. The jump list and the palette answer the same
     // question from different places — the taskbar and the keyboard — so a queue
     // reachable from one and not the other is a queue a person finds by accident.

@@ -46,6 +46,8 @@ import {
   useLocale,
 } from '@/platform/sdk';
 import { useModelingActions } from '../actions';
+import { csvOf, type TableDocument, tableDocument } from '../../shared/export';
+import { parseExportCommand } from '../../shared/export/commands';
 import {
   type Certificate,
   type CompiledModel,
@@ -60,6 +62,7 @@ import {
   versionOf,
 } from '../engine';
 import type { ModelingView } from '../model';
+import type { Translate } from '../report';
 import type { WorkbenchSink } from '../shell';
 import type { ModelCommands } from './commands';
 import { useModelCommands } from './commands';
@@ -504,13 +507,8 @@ function ResultsPane({ document, run, failure, target, onTarget }: ResultsPanePr
  * Taking the grid out
  * ------------------------------------------------------------------ */
 
-/** Quotes a field only when it would otherwise break the row. */
-function csvCell(text: string): string {
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
 /**
- * The run, as a spreadsheet would read it.
+ * The run, as a table any of the four writers can set.
  *
  * Raw numbers with a dot, not `fmt` — this leaves the browser for Excel, and a French locale's
  * comma decimal separator would arrive there as a column break. Rows only, not assumptions: this
@@ -518,15 +516,31 @@ function csvCell(text: string): string {
  *
  * A row with no series at all still gets its line, empty, because a reader comparing two exports
  * needs the shape to be stable even when a formula stopped resolving.
+ *
+ * The three key columns keep the model's own spelling rather than the reader's language. A key
+ * is what a formula refers to, and a file that translated it would be a file nobody could paste
+ * back. Which model and which scenario produced the numbers go in the head of the page instead,
+ * where the page formats can carry them and the CSV does not have to.
  */
-function toCsv(document: ModelDocument, run: ModelRun): string {
-  const lines: string[] = [`key,label,unit,${run.periods.map(csvCell).join(',')}`];
-  for (const row of document.rows) {
-    const series = run.series.get(row.key) ?? [];
-    const cells = run.periods.map((_, index) => (index < series.length ? String(series[index]) : ''));
-    lines.push([csvCell(row.key), csvCell(row.label), csvCell(row.unit), ...cells].join(','));
-  }
-  return lines.join('\r\n');
+function runTable(document: ModelDocument, run: ModelRun, scenario: DocScenario, tr: Translate): TableDocument {
+  return tableDocument(
+    `${document.header.name} — ${scenario.name}`,
+    ['key', 'label', 'unit', ...run.periods],
+    document.rows.map((row) => {
+      const series = run.series.get(row.key) ?? [];
+      return [
+        row.key,
+        row.label,
+        row.unit,
+        ...run.periods.map((_, index) => (index < series.length ? String(series[index]) : '')),
+      ];
+    }),
+    [
+      { label: tr('النموذج', 'Modèle', 'Model'), value: document.header.key },
+      { label: tr('السيناريو', 'Scénario', 'Scenario'), value: scenario.name },
+      { label: tr('الإصدار', 'Version', 'Version'), value: String(document.header.version) },
+    ],
+  );
 }
 /* ------------------------------------------------------------------ *
  * The workbench
@@ -542,7 +556,7 @@ function toCsv(document: ModelDocument, run: ModelRun): string {
  * (a model somebody else archived) reads as no document rather than as an error.
  */
 export function Workbench({ modelKey, onPickModel, view, onCommand, sink }: WorkbenchProps) {
-  const { t } = useLocale();
+  const { t, tr } = useLocale();
   const shellActions = useModelingActions();
 
   const [sheet, setSheet] = useState<Sheet>('results');
@@ -727,11 +741,16 @@ export function Workbench({ modelKey, onPickModel, view, onCommand, sink }: Work
         actions.publish();
         return true;
       }
-      if (id === 'export' || id === 'copy') {
+      if (id === 'copy') {
         if (document === null || run === null || active === null) return true;
-        const csv = toCsv(document, run);
-        if (id === 'copy') shellActions.copy(csv);
-        else shellActions.exportCsv(csv, `${document.header.key}-${active.id}.csv`);
+        shellActions.copy(csvOf(runTable(document, run, active, tr)));
+        return true;
+      }
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        if (document === null || run === null || active === null) return true;
+        const doc = runTable(document, run, active, tr);
+        shellActions.exportTable(doc, `${document.header.key}-${active.id}`, format);
         return true;
       }
       return false;
@@ -739,7 +758,7 @@ export function Workbench({ modelKey, onPickModel, view, onCommand, sink }: Work
     return () => {
       sink.current = null;
     };
-  }, [actions, active, document, run, shellActions, sink]);
+  }, [actions, active, document, run, shellActions, sink, tr]);
 
   /**
    * Open something, once, when there is something to open.

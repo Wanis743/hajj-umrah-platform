@@ -23,7 +23,6 @@ import {
   Clock,
   Copy,
   ExternalLink,
-  FileDown,
   Layers,
   Lock,
   Pencil,
@@ -50,6 +49,7 @@ import {
   ToolbarSpacer,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { Budget, FiscalPeriod } from '../shared/ledger';
 import type { BudgetBusy } from './actions';
 import type { BudgetView } from './model';
@@ -123,15 +123,12 @@ export function BudgetToolbar(props: ToolbarProps) {
           placeholder={tr('بحث في الحسابات', 'Rechercher un compte', 'Search accounts')}
         />
       )}
-      <Button
-        icon={FileDown}
+      <ExportButton
         busy={busy === 'export'}
         disabled={working}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
         title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+      />
       <IconButton
         icon={RefreshCw}
         label={tr('تحديث (F5)', 'Actualiser (F5)', 'Refresh (F5)')}

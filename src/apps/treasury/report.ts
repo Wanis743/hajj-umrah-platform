@@ -18,7 +18,7 @@
  * numbers in the three languages this OS runs in.
  */
 import type { Localized } from '@/platform/sdk';
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import type { Currency } from '../shared/ledger';
 import {
   BUCKET_LABEL,
@@ -38,9 +38,15 @@ import { REPORTING, type RateBook, reported } from './rates';
 export type Label = (value: Localized) => string;
 export type Translate = (ar: string, fr: string, en: string) => string;
 
-/** `treasury-payable-2026-08-29.csv` — the lens first, because that is what differs. */
+/**
+ * `treasury-payable-2026-08-29` — the lens first, because that is what differs.
+ *
+ * No extension. The person picks the format after they press Export, and a name
+ * that ended in `.csv` is how a file called `treasury-cash-2026-08-29.csv` used
+ * to arrive holding something else entirely.
+ */
 export const suggestedFileName = (lens: Lens, today: string): string =>
-  `treasury-${lens}-${today}.csv`;
+  `treasury-${lens}-${today}`;
 
 /** An amount as a file and a paragraph want it: a dot, two places, and its currency named. */
 const money = (value: number, currency: Currency = REPORTING): string =>
@@ -154,6 +160,55 @@ const bookCells = (row: CashRow): readonly string[] => {
 };
 
 /**
+ * The provenance as labelled lines, for the formats that have a page.
+ *
+ * The file repeats all of it on every row because a spreadsheet has nowhere else
+ * to put it. A PDF and a Word document have a head, and a fact stated once at the
+ * head of a page gets read — the same fact in column sixteen of nine hundred rows
+ * does not.
+ */
+function provenanceMeta(source: Provenance, t: Label, tr: Translate): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: tr('العدسة', 'Vue', 'Lens'), value: t(LENS_LABEL[source.lens]) },
+    { label: tr('بتاريخ', 'Au', 'As of'), value: source.today },
+    { label: tr('سعر الصرف', 'Taux de change', 'Rate'), value: rateLine(source.rates, tr) },
+  ];
+  if (source.lens !== 'cash') {
+    meta.push({
+      label: tr('الأفق', 'Horizon', 'Horizon'),
+      value: tr(`${source.horizon} يومًا`, `${source.horizon} j`, `${source.horizon} days`),
+    });
+  }
+  if (source.whole > 0) {
+    meta.push({
+      label: tr('محسوبة بالكامل', 'Comptées en entier', 'Counted whole'),
+      value: tr(
+        `${source.whole} فاتورة`,
+        `${source.whole} facture(s)`,
+        `${source.whole} invoice(s)`,
+      ),
+    });
+  }
+  if (source.setAside > 0) {
+    meta.push({
+      label: tr('مستثنى', 'Écartés', 'Set aside'),
+      value: tr(
+        `${source.setAside} مستندًا`,
+        `${source.setAside} document(s)`,
+        `${source.setAside} document(s)`,
+      ),
+    });
+  }
+  if (source.bounded) {
+    meta.push({
+      label: tr('حدّ أدنى', 'Minorant', 'Lower bound'),
+      value: tr('الصفحة مكتملة', 'page saturée', 'the page was full'),
+    });
+  }
+  return meta;
+}
+
+/**
  * The table, one row per line of whichever lens is in force.
  *
  * One shape for the three lenses, and the columns a lens has no use for are left empty
@@ -165,16 +220,17 @@ const bookCells = (row: CashRow): readonly string[] => {
  * because a sheet that sums the second one is summing the rate as well, and the reader
  * should be able to see which figures were converted and at what.
  */
-export function rowsCsv(
+export function rowsTable(
   rows: readonly CashRow[],
   source: Provenance,
   t: Label,
   tr: Translate,
-): string {
+): TableDocument {
   const lens = t(LENS_LABEL[source.lens]);
   const horizon = source.lens === 'cash' ? '' : String(source.horizon);
   const rate = source.rates.perSar === null ? '' : source.rates.perSar.toFixed(4);
-  return csvDocument(
+  return tableDocument(
+    `${tr('الخزينة', 'Trésorerie', 'Treasury')} — ${lens}`,
     [
       tr('العدسة', 'Vue', 'Lens'),
       tr('المرجع', 'Référence', 'Reference'),
@@ -210,6 +266,7 @@ export function rowsCsv(
       source.today,
       rate,
     ]),
+    provenanceMeta(source, t, tr),
   );
 }
 

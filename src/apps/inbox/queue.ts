@@ -35,7 +35,7 @@
  * ages in a test.
  */
 import type { DatasetRow, Localized, Tone } from '@/platform/sdk';
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { asString, str } from '../shared/guards';
 import {
   type CloseTask,
@@ -772,6 +772,14 @@ const QUEUE_CODE: Readonly<Record<QueueId, string>> = {
   decided: 'DECIDED',
 };
 
+/** What each queue is called to a person — the rail's labels and the export's title. */
+export const QUEUE_TITLE: Readonly<Record<QueueId, Localized>> = {
+  approvals: { ar: 'في انتظار الاعتماد', fr: 'À approuver', en: 'Waiting on you' },
+  checklist: { ar: 'خطوات الإقفال', fr: 'Étapes de clôture', en: 'Close checklist' },
+  handoffs: { ar: 'تحويلات', fr: 'Transmissions', en: 'Handoffs' },
+  decided: { ar: 'قرارات سابقة', fr: 'Décisions passées', en: 'Decided' },
+};
+
 const STATE_CODE: Readonly<Record<ItemState, string>> = {
   waiting: 'WAITING',
   blocked: 'BLOCKED',
@@ -781,17 +789,22 @@ const STATE_CODE: Readonly<Record<ItemState, string>> = {
 /**
  * The queue as it stands, for the meeting where it gets discussed.
  *
- * Codes rather than labels in the machine columns, because a CSV outlives the
- * language it was exported in; the two prose columns are translated, since a block
- * reason is a sentence or it is nothing.
+ * Codes rather than labels in the machine columns, because an exported file outlives
+ * the language it was exported in; the two prose columns are translated, since a
+ * block reason is a sentence or it is nothing.
  *
  * The last three columns are only ever filled for a handoff, and they are separate
  * columns rather than one packed cell because this file is opened in a spreadsheet
  * and sorted: which desk asked, what it asked for, and how loudly are three
  * different questions somebody will want to filter on.
+ *
+ * The head above the table is what the CSV could never carry. A queue carried into
+ * a meeting without the narrowing that produced it is a list somebody will read as
+ * the whole queue, and "nothing is waiting" is the worst sentence to be wrong about.
  */
-export function queueCsv(items: readonly WorkItem[], t: Label): string {
-  return csvDocument(
+export function queueTable(items: readonly WorkItem[], filter: InboxFilter, t: Label): TableDocument {
+  return tableDocument(
+    t(QUEUE_TITLE[filter.queue]),
     [
       'queue', 'kind', 'id', 'state', 'reference', 'detail', 'who', 'date', 'age_days',
       'amount', 'currency', 'status', 'blocked_because', 'route', 'intent', 'priority',
@@ -814,11 +827,53 @@ export function queueCsv(items: readonly WorkItem[], t: Label): string {
       item.handoff === null ? '' : item.handoff.intent,
       item.handoff === null ? '' : item.handoff.chainPriority,
     ]),
+    queueMeta(items, filter, t),
   );
 }
 
-export const suggestedFileName = (queue: QueueId, today: string): string =>
-  `inbox-${queue}-${today}.csv`;
+/** Which of the four narrowing controls was on, and what the rows add up to. */
+function queueMeta(items: readonly WorkItem[], filter: InboxFilter, t: Label): readonly TableMeta[] {
+  const say = (ar: string, fr: string, en: string): Localized => ({ ar, fr, en });
+  const count = (state: ItemState): number => items.filter((item) => item.state === state).length;
+  const meta: TableMeta[] = [
+    { label: t(say('القائمة', 'File', 'Queue')), value: t(QUEUE_TITLE[filter.queue]) },
+    { label: t(say('الأسطر', 'Lignes', 'Rows')), value: String(items.length) },
+    {
+      label: t(say('الحالة', 'État', 'State')),
+      value: `${String(count('waiting'))} · ${String(count('blocked'))} · ${String(count('done'))}`,
+    },
+  ];
+  if (filter.search.trim() !== '') meta.push({ label: t(say('بحث', 'Recherche', 'Search')), value: filter.search });
+  if (filter.mineOnly) {
+    meta.push({
+      label: t(say('مُرشَّح', 'Filtré', 'Filtered')),
+      value: t(say('ما يخصّني فقط', 'Les miens seulement', 'Mine only')),
+    });
+  }
+  if (filter.minAge > 0) {
+    meta.push({
+      label: t(say('العمر الأدنى', 'Âge minimum', 'Minimum age')),
+      value: `${String(filter.minAge)} ${t(say('يوم', 'jours', 'days'))}`,
+    });
+  }
+  if (filter.hideBlocked) {
+    meta.push({
+      label: t(say('مُرشَّح', 'Filtré', 'Filtered')),
+      value: t(say('المعطَّلة مخفيّة', 'Bloquées masquées', 'Blocked hidden')),
+    });
+  }
+  const oldest = items.reduce((age, item) => Math.max(age, item.age), 0);
+  meta.push({ label: t(say('أقدم سطر', 'Plus ancienne', 'Oldest')), value: `${String(oldest)} d` });
+  return meta;
+}
+
+/**
+ * `inbox-approvals-2026-08-28` — the queue, then the day it was taken.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends
+ * the one matching the bytes it produced.
+ */
+export const suggestedFileName = (queue: QueueId, today: string): string => `inbox-${queue}-${today}`;
 
 /**
  * One item as pasteable text.

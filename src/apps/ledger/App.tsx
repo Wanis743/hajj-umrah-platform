@@ -33,16 +33,19 @@ import {
   useWindowTitle,
 } from '@/platform/sdk';
 import { type Account, type Currency, toCurrency } from '../shared/ledger';
+import type { ExportFormat } from '../shared/export';
+import { parseExportCommand } from '../shared/export/commands';
 import {
   autoExpands,
   branchIds,
-  chartCsv,
+  chartTable,
   DEFAULT_FILTER,
   isFiltered,
   type LedgerFilter,
   type LedgerView,
   rollupOf,
-  trialCsv,
+  suggestedFileName,
+  trialTable,
 } from './accounts';
 import { hotkey, type LedgerActions, useAccountFocus, useLedgerActions } from './actions';
 import { AccountMenu, LedgerStatus, LedgerToolbar, ViewRail } from './chrome';
@@ -211,13 +214,16 @@ export default function LedgerApp({ runtime }: AppEntryProps) {
 
   /* ---- commands --------------------------------------------------- */
 
-  const exportNow = useCallback(() => {
-    const content =
-      filter.view === 'trial'
-        ? trialCsv(model.trialRows)
-        : chartCsv(model.rows, model.rollups, model.index.byId);
-    actions.exportCsv(filter.view, content, today);
-  }, [actions, filter.view, model.index.byId, model.rollups, model.rows, model.trialRows, today]);
+  const exportNow = useCallback(
+    (format: ExportFormat) => {
+      const doc =
+        filter.view === 'trial'
+          ? trialTable(model.trialRows, tr)
+          : chartTable(model.rows, model.rollups, model.index.byId, tr);
+      actions.exportTable(doc, suggestedFileName(filter.view, today), format);
+    },
+    [actions, filter.view, model.index.byId, model.rollups, model.rows, model.trialRows, today, tr],
+  );
 
   const command = useCallback(
     (id: string) => {
@@ -228,11 +234,14 @@ export default function LedgerApp({ runtime }: AppEntryProps) {
         if (model.selected !== null) openEdit(model.selected);
       } else if (id === 'refresh') model.refresh();
       else if (id === 'find') searchRef.current?.focus();
-      else if (id === 'export') exportNow();
       else if (id === 'expand') setExpanded(new Set(branchIds(model.accounts)));
       else if (id === 'collapse') setExpanded(new Set<string>());
       else if (id === 'view:chart') setFilter((current) => ({ ...current, view: 'chart' }));
       else if (id === 'view:trial') setFilter((current) => ({ ...current, view: 'trial' }));
+      else {
+        const format = parseExportCommand(id);
+        if (format !== null) exportNow(format);
+      }
     },
     [exportNow, model, openEdit, openNew],
   );

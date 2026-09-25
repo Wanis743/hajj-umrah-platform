@@ -30,6 +30,7 @@ import {
   useState,
 } from 'react';
 import { useLocale } from '@/platform/sdk';
+import { parseExportCommand } from '../shared/export/commands';
 import {
   type CrmActions,
   type CrmBusy,
@@ -38,7 +39,14 @@ import {
   useCrmActions,
   useCrmFocus,
 } from './actions';
-import { type Translate, crmCsv, gridClipboardText, recordClipboardText } from './export';
+import {
+  type CrmSource,
+  type Translate,
+  crmDocument,
+  gridClipboardText,
+  recordClipboardText,
+  suggestedFileName,
+} from './export';
 import {
   type CrmEntity,
   type RecordDraft,
@@ -596,6 +604,8 @@ export interface CrmShell {
 interface CommandDeps {
   readonly view: CrmView;
   readonly model: CrmModel;
+  /** What was typed in the search box. Only the export reads it, and only to say so. */
+  readonly search: string;
   readonly selectedRow: CrmRow | null;
   readonly actions: CrmActions;
   readonly dialogs: CrmDialogs;
@@ -627,8 +637,26 @@ interface CrmCommands {
  * sent quote.
  */
 function useCrmCommandPath(deps: CommandDeps): CrmCommands {
-  const { view, model, selectedRow, actions, dialogs, today, tr, searchRef, changeView } = deps;
+  const { view, model, search, selectedRow, actions, dialogs, today, tr, searchRef, changeView } = deps;
   const { dialog, open } = dialogs;
+
+  /**
+   * What the exported grid is a grid of.
+   *
+   * Both counts are read off the model rather than off the file: `shown` is what the
+   * search left, `total` is what the app had loaded, and a file that carried only the
+   * first of those reads as the whole book.
+   */
+  const source = useMemo<CrmSource>(
+    () => ({
+      view,
+      search,
+      shown: model.visible[VIEW_ROWS[view]].length,
+      total: model.all[VIEW_ROWS[view]].length,
+      truncated: model.truncated,
+    }),
+    [model.all, model.truncated, model.visible, search, view],
+  );
 
   /** The seven `view:*` ids, which are the jump list and a third of the palette. */
   const runView = useCallback(
@@ -656,8 +684,13 @@ function useCrmCommandPath(deps: CommandDeps): CrmCommands {
         searchRef.current?.focus();
         return true;
       }
-      if (id === 'export') {
-        actions.exportCsv(view, crmCsv(view, model.visible, model, tr), today);
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        actions.exportTable(
+          crmDocument(model.visible, model, source, tr),
+          suggestedFileName(view, today),
+          format,
+        );
         return true;
       }
       if (id === 'copy') {
@@ -675,7 +708,7 @@ function useCrmCommandPath(deps: CommandDeps): CrmCommands {
       }
       return false;
     },
-    [actions, model, open, searchRef, today, tr, view],
+    [actions, model, open, searchRef, source, today, tr, view],
   );
 
   /**
@@ -864,6 +897,7 @@ export function useCrmShell(): CrmShell {
   const commands = useCrmCommandPath({
     view: ui.view,
     model,
+    search: ui.search,
     selectedRow,
     actions,
     dialogs,

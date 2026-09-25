@@ -21,7 +21,7 @@
  *     difference instead of assuming zero, and why nothing here calls it a closing
  *     balance.
  */
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import {
   type Account,
   type AccountType,
@@ -591,19 +591,57 @@ const CHART_HEADER = [
   'lines',
 ];
 
+/** The runtime's positional translator, narrowed to what a pure module needs. */
+export type Translate = (ar: string, fr: string, en: string) => string;
+
 /**
- * The chart as CSV, in the order the tree is drawn.
+ * What the reader has to be told about the numbers underneath.
+ *
+ * The broker derives the trial balance from at most four thousand journal lines and
+ * does not filter by entry status, and both of those facts change how a total should
+ * be read. The status bar says so on screen; for as long as the only format was CSV
+ * the file could not, because row one has to be the header. The page formats have a
+ * head above the table, so it goes there — and the difference is stated rather than
+ * assumed to be zero, exactly as the status bar states it.
+ */
+function trialMeta(rows: readonly TrialRow[], tr: Translate): readonly TableMeta[] {
+  const debit = rows.reduce((sum, row) => sum + row.debit, 0);
+  const credit = rows.reduce((sum, row) => sum + row.credit, 0);
+  const lines = rows.reduce((sum, row) => sum + row.lines, 0);
+  const meta: TableMeta[] = [
+    { label: tr('مدين', 'Débit', 'Debit'), value: debit.toFixed(2) },
+    { label: tr('دائن', 'Crédit', 'Credit'), value: credit.toFixed(2) },
+    { label: tr('الأسطر', 'Lignes', 'Lines'), value: String(lines) },
+  ];
+  const gap = debit - credit;
+  if (Math.abs(gap) >= 0.005) {
+    meta.push({
+      label: tr('الفرق', 'Écart', 'Difference'),
+      value: tr(
+        `${gap.toFixed(2)} — تشمل قيودًا غير مُرحَّلة.`,
+        `${gap.toFixed(2)} — des écritures non validées sont incluses.`,
+        `${gap.toFixed(2)} — unposted entries are included.`,
+      ),
+    });
+  }
+  return meta;
+}
+
+/**
+ * The chart as a table, in the order the tree is drawn.
  *
  * Depth is a column rather than indentation in the code cell: a spreadsheet can
  * group, filter and pivot on a number, and cannot do anything at all with three
  * leading spaces. The amounts are the roll-up, which is what the row shows.
  */
-export function chartCsv(
+export function chartTable(
   rows: readonly ChartRow[],
   rollups: RollupIndex,
   byId: ReadonlyMap<string, Account>,
-): string {
-  return csvDocument(
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('دليل الحسابات', 'Plan comptable', 'Chart of accounts'),
     CHART_HEADER,
     rows.map(({ account, depth }) => {
       const totals = rollupOf(rollups, account.id);
@@ -622,13 +660,15 @@ export function chartCsv(
         String(totals.lines),
       ];
     }),
+    [{ label: tr('الحسابات', 'Comptes', 'Accounts'), value: String(rows.length) }],
   );
 }
 
 const TRIAL_HEADER = ['code', 'name', 'account_type', 'currency', 'debit', 'credit', 'balance', 'lines'];
 
-export function trialCsv(rows: readonly TrialRow[]): string {
-  return csvDocument(
+export function trialTable(rows: readonly TrialRow[], tr: Translate): TableDocument {
+  return tableDocument(
+    tr('ميزان المراجعة', 'Balance générale', 'Trial balance'),
     TRIAL_HEADER,
     rows.map((row) => [
       row.code,
@@ -640,12 +680,18 @@ export function trialCsv(rows: readonly TrialRow[]): string {
       row.balance.toFixed(2),
       String(row.lines),
     ]),
+    trialMeta(rows, tr),
   );
 }
 
-/** `trial-balance-2026-08-28.csv` — the view, then the day it was taken. */
+/**
+ * `trial-balance-2026-08-28` — the view, then the day it was taken.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends
+ * the one matching the bytes it produced.
+ */
 export const suggestedFileName = (view: LedgerView, today: string): string =>
-  `${view === 'trial' ? 'trial-balance' : 'chart-of-accounts'}-${today}.csv`;
+  `${view === 'trial' ? 'trial-balance' : 'chart-of-accounts'}-${today}`;
 
 /**
  * One account and its ledger as tab-separated text, for pasting into Sheets.

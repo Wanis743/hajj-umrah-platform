@@ -24,6 +24,7 @@
  * written to disk is the CSV of what did not match, which is the paper somebody
  * takes to the bank.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -83,7 +84,8 @@ export const reconcileManifest = defineApp({
     },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير الفروق CSV', 'Exporter les écarts en CSV', 'Export differences as CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير الفروق', 'Exporter les écarts', 'Export the differences'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'view:open', title: text('غير مطابقة', 'Non rapprochées', 'Unmatched') },
     { id: 'view:matched', title: text('مطابقة', 'Rapprochées', 'Matched') },
     { id: 'view:ledger', title: text('قيود غير مطابقة', 'Écritures non rapprochées', 'Ledger, unreconciled') },

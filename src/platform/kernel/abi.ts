@@ -1325,6 +1325,18 @@ export interface SyscallMap {
     req: { fileName: string; bytes: Uint8Array; contentType: VfsContentType };
     res: { delivered: true };
   };
+  /**
+   * Put a page in front of the browser's own print dialog.
+   *
+   * The OS writes its own PDFs and does not need this for a Latin report. It
+   * needs it for an Arabic one: a PDF built here draws with a font that has no
+   * Arabic glyphs and no way to join them, whereas every browser already ships
+   * the text stack that does, and every print dialog offers "Save as PDF". The
+   * shell renders the document offscreen and asks for the dialog; nothing is
+   * sent anywhere, which is why this costs `fs.write` like the download beside
+   * it and not a capability of its own.
+   */
+  'shell.print': { req: { title: string; html: string }; res: { printed: true } };
 
   'window.setTitle': { req: { window: WindowId; title: string }; res: WindowInfo };
   'window.setDirty': { req: { window: WindowId; dirty: boolean }; res: WindowInfo };
@@ -1426,6 +1438,7 @@ export const SYSCALL_CAPABILITY: { readonly [K in SyscallName]: Capability | nul
   // Not a capability of its own: see the syscall's own note. Handing over a file
   // the app was already entitled to write is the same privilege as writing it.
   'shell.download': 'fs.write',
+  'shell.print': 'fs.write',
   'window.setTitle': null,
   'window.setDirty': null,
   'window.setProgress': null,

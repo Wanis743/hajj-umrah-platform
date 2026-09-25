@@ -3,7 +3,7 @@
  *
  * Nothing here writes to the book, and that is the whole security posture of the window: no
  * `ledger.post`, no privileged capability, no consent prompt. Four things leave this app — a
- * CSV, a paragraph, a saved question and a launch of the ledger — and every one of them was
+ * table, a paragraph, a saved question and a launch of the ledger — and every one of them was
  * asked for by name.
  *
  * `busy` therefore has one job: to spin the control while a file dialog and a write are in
@@ -13,7 +13,9 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { APP_IDS, CHANNEL_ACTIVATED, useApp, useIpc } from '@/platform/sdk';
-import { REPORTS, STATEMENTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { STATEMENTS } from '../shared/paths';
+import { useExport } from '../shared/useExport';
 import { parseReport, reportFileName, type SavedReport, serialiseReport } from './document';
 
 /** The content type the manifest associates `.fxreport` with. */
@@ -48,7 +50,8 @@ export type StatementsBusy = 'export' | 'save' | 'open' | null;
 export interface StatementsActions {
   readonly busy: StatementsBusy;
   copy: (text: string) => void;
-  exportCsv: (content: string, suggestedName: string) => void;
+  /** Save the statement in front of the person, in the format they picked. */
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Writes the question, never the figures. Resolves once the dialog is done with. */
   saveReport: (report: SavedReport, today: string) => void;
   /** `null` when the dialog was cancelled or the file was not a report. */
@@ -60,7 +63,8 @@ export interface StatementsActions {
 export function useStatementsActions(): StatementsActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
-  const [busy, setBusy] = useState<StatementsBusy>(null);
+  const [acting, setBusy] = useState<StatementsBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
 
   const copy = useCallback(
     (text: string) => {
@@ -71,40 +75,6 @@ export function useStatementsActions(): StatementsActions {
             : { kind: 'error', title: tr('تعذّر النسخ.', 'Copie impossible.', 'Could not copy.') },
         );
       });
-    },
-    [runtime, tr],
-  );
-
-  const exportCsv = useCallback(
-    (content: string, suggestedName: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير', 'Exporter', 'Export'),
-          startPath: REPORTS,
-          suggestedName,
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', { path, content, contentType: 'text/csv' });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
     },
     [runtime, tr],
   );
@@ -178,7 +148,11 @@ export function useStatementsActions(): StatementsActions {
     [runtime],
   );
 
-  return { busy, copy, exportCsv, saveReport, openReport, openAccount };
+  // Four acts and one spinner: the export hook owns the dialog and the write for one of
+  // them, and the other three still spin the control that started them.
+  const busy: StatementsBusy = exporting !== null ? 'export' : acting;
+
+  return { busy, copy, exportTable, saveReport, openReport, openAccount };
 }
 
 /**

@@ -1,12 +1,13 @@
 /**
  * Seven tabs, seven rectangles.
  *
- * `biCsv` writes the tab a person is looking at to a file and `biClipboard` writes the same
- * rectangle to the clipboard as tab-separated columns, so the file and the paste can never
- * disagree about what the query log's columns are. One set of column lists, two consumers —
- * the split `../dms/export.ts` and `../crm/export.ts` both make, for the same reason.
+ * `biDocument` writes the tab a person is looking at to a file and `biClipboard` writes the
+ * same rectangle to the clipboard as tab-separated columns, so the file and the paste can
+ * never disagree about what the query log's columns are. One set of column lists, two
+ * consumers — the split `../dms/export.ts` and `../crm/export.ts` both make, for the same
+ * reason.
  *
- * Cells are raw, in the sense `../shared/csv.ts` means it: `DEPRECATED` rather than
+ * Cells are raw, in the sense `../shared/export/csv.ts` means it: `DEPRECATED` rather than
  * `Obsolète`, `2026-09-12T08:14:02Z` rather than `12 sept. 2026`, `0.84` rather than `84 %`.
  * A CSV is opened by a spreadsheet, and a file that arrives pre-formatted cannot be
  * un-formatted. Headers are the exception — they are read by a person and never parsed, so
@@ -32,12 +33,16 @@
  * an audit ledger that exports everything except the part it did not recognize is the wrong
  * trade for a tidy rectangle.
  *
- * What is *not* here: the analysis tab's truncation. A result clamped at five hundred rows
- * exports five hundred rows, and the sentence saying so belongs in the toast the export
- * command raises, not in a footer row that would break the rectangle for every reader who
- * only wanted the numbers.
+ * The analysis tab's truncation used to be the one fact that could not travel. A result
+ * clamped at five hundred rows exports five hundred rows, and for as long as the only
+ * format was CSV the sentence saying so had nowhere to go: row one has to be the header,
+ * and a footer row saying "truncated" breaks the rectangle for every reader who only
+ * wanted the numbers. The page formats have a head above the table, so it goes there, and
+ * the rectangle underneath is still the rectangle.
  */
-import { csvDocument } from '../shared/csv';
+import type { Localized } from '@/platform/sdk';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
+import { VIEW_LABEL } from './labels';
 import {
   BI_OPERATOR_ARITY,
   type BiCounts,
@@ -60,6 +65,9 @@ import {
 
 /** The runtime's positional translator, narrowed to what a pure module needs. */
 export type Translate = (ar: string, fr: string, en: string) => string;
+
+/** The runtime's table lookup, for the `Localized` triples `./labels` holds. */
+export type Label = (value: Localized) => string;
 
 /** A header row and the rows beneath it, all cells already strings. */
 interface BiTable {
@@ -644,6 +652,37 @@ function eventTable(rows: readonly BiEvent[], tr: Translate): BiTable {
  * The two consumers
  * ------------------------------------------------------------------ */
 
+/**
+ * What the tab does not say about itself, as a block the page formats print above
+ * the table.
+ *
+ * Only the analysis tab has anything to declare, and it has the most important thing
+ * any of these seven could: a result the server cut short. The numbers in a truncated
+ * answer are right about the rows they describe and wrong about every total drawn from
+ * them, and an analyst who quotes a sum out of a file that never said so is not making
+ * a mistake anyone can see. The other six tabs are complete lists and say nothing,
+ * which is why this returns an empty block rather than an invented one.
+ */
+function scopeMeta(view: BiView, scope: BiExportScope, tr: Translate): readonly TableMeta[] {
+  if (view !== 'analysis' || scope.result === null) return [];
+  const result = scope.result;
+  const meta: TableMeta[] = [
+    { label: tr('مجموعة البيانات', 'Jeu de données', 'Dataset'), value: result.datasetKey },
+    { label: tr('الصفوف', 'Lignes', 'Rows'), value: String(result.rowCount) },
+  ];
+  if (result.truncated) {
+    meta.push({
+      label: tr('مقتطع', 'Tronqué', 'Truncated'),
+      value: tr(
+        `توقّف عند ${result.rowLimit} صفًّا: كل مجموع هنا حدٌّ أدنى.`,
+        `Arrêté à ${result.rowLimit} lignes : chaque total ci-dessous est un minorant.`,
+        `Stopped at ${result.rowLimit} rows — every total below is a lower bound.`,
+      ),
+    });
+  }
+  return meta;
+}
+
 /** Exhaustive over {@link BiView}: a new tab is a compile error here, not a blank file. */
 function biTable(view: BiView, scope: BiExportScope, tr: Translate): BiTable {
   switch (view) {
@@ -657,11 +696,25 @@ function biTable(view: BiView, scope: BiExportScope, tr: Translate): BiTable {
   }
 }
 
-/** The file. CRLF, the comma and the doubled quote are `csvDocument`'s business. */
-export const biCsv = (view: BiView, scope: BiExportScope, tr: Translate): string => {
+/** The file. CRLF, the comma and the doubled quote are the writers' business. */
+export const biDocument = (
+  view: BiView,
+  scope: BiExportScope,
+  t: Label,
+  tr: Translate,
+): TableDocument => {
   const table = biTable(view, scope, tr);
-  return csvDocument(table.header, table.rows);
+  return tableDocument(t(VIEW_LABEL[view]), table.header, table.rows, scopeMeta(view, scope, tr));
 };
+
+/**
+ * `bi-analysis-2026-09-12` — the tab first, because that is what differs between two
+ * exports taken the same afternoon.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer appends the
+ * one matching the bytes it produced.
+ */
+export const suggestedFileName = (view: BiView, today: string): string => `bi-${view}-${today}`;
 
 /**
  * The same rectangle, tab-separated, for a paste into a sheet that is already open.

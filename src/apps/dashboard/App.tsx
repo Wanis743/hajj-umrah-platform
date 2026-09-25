@@ -28,6 +28,7 @@ import {
   useAppCommands,
   useWindowTitle,
 } from '@/platform/sdk';
+import { parseExportCommand } from '../shared/export/commands';
 import type { Currency } from '../shared/ledger';
 import { type DashboardActions, hotkey, useDashboardActions } from './actions';
 import { ActivityPage } from './activity';
@@ -41,8 +42,10 @@ import {
   type Formatters,
   PAGE_LABEL,
   type PageId,
+  pageTable,
   type RangeId,
   type Snapshot,
+  suggestedFileName,
   windowLabel,
 } from './metrics';
 import { type DashboardModel, useDashboardModel } from './model';
@@ -180,9 +183,14 @@ export default function DashboardApp({ runtime }: AppEntryProps) {
       if (next !== undefined) setPage(next);
       else if (id === 'refresh') model.refresh();
       else if (id === 'copy') actions.copySummary(snap);
-      else if (id === 'export') actions.exportCsv(snap, page);
+      else {
+        const format = parseExportCommand(id);
+        if (format !== null) {
+          actions.exportTable(pageTable(snap, page, locale.t), suggestedFileName(page, snap.today), format);
+        }
+      }
     },
-    [actions, model, page, snap],
+    [actions, locale.t, model, page, snap],
   );
   useAppCommands(command);
 

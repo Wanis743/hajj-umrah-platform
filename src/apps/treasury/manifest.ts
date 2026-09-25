@@ -22,6 +22,7 @@
  * "why do the two balances disagree" belongs to reconciliation.
  */
 import { APP_IDS } from '@/platform/sdk';
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 
 export const treasuryManifest = defineApp({
@@ -93,7 +94,8 @@ export const treasuryManifest = defineApp({
     },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير', 'Exporter', 'Export'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     {
       id: 'copy',
       title: text('نسخ الملخّص', 'Copier le résumé', 'Copy summary'),

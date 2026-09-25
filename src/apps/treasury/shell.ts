@@ -27,6 +27,7 @@ import {
   useState,
 } from 'react';
 import { useLocale } from '@/platform/sdk';
+import { parseExportCommand, type ExportFormat } from '../shared/export/commands';
 import { hotkey, type TreasuryBusy, useTreasuryActions } from './actions';
 import { type CashRow, type Horizon, largest, latest, type Lens, type Sort } from './cash';
 import { type TreasuryModel, useTreasuryModel } from './model';
@@ -34,7 +35,7 @@ import { DEFAULT_QUESTION, lensOf, type Question, sortOf } from './question';
 import {
   type Provenance,
   rowClipboardText,
-  rowsCsv,
+  rowsTable,
   suggestedFileName,
   summaryClipboardText,
 } from './report';
@@ -190,9 +191,16 @@ export function useTreasuryShell(): TreasuryShell {
   /* ---- the command path -------------------------------------------- */
 
   /** "Export" is the table in front of the person, filtered exactly as it is filtered. */
-  const exportTable = useCallback(() => {
-    actions.exportCsv(rowsCsv(model.rows, source, t, tr), suggestedFileName(question.lens, today));
-  }, [actions, model.rows, question.lens, source, t, today, tr]);
+  const exportTable = useCallback(
+    (format: ExportFormat) => {
+      actions.exportTable(
+        rowsTable(model.rows, source, t, tr),
+        suggestedFileName(question.lens, today),
+        format,
+      );
+    },
+    [actions, model.rows, question.lens, source, t, today, tr],
+  );
 
   /**
    * The whole position as a paragraph, with the two rows a treasurer always names in it.
@@ -275,8 +283,12 @@ export function useTreasuryShell(): TreasuryShell {
         searchRef.current?.focus();
         return;
       }
-      if (id === 'export') {
-        exportTable();
+      // `export` and `export:pdf` and the two beside it are all one act with a
+      // format on it; the parser answers `csv` for the bare id, which is what
+      // Ctrl+E has always produced.
+      const format = parseExportCommand(id);
+      if (format !== null) {
+        exportTable(format);
         return;
       }
       if (id === 'copy') {

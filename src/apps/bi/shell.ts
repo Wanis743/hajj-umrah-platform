@@ -47,6 +47,7 @@ import type { KeyboardEvent, MouseEvent, Ref } from 'react';
 
 import { APP_IDS, useLocale, type AppId } from '@/platform/sdk';
 
+import { parseExportCommand } from '../shared/export/commands';
 import { hotkey, useBiActions, useBiFocus } from './actions';
 import type {
   BiActions,
@@ -72,8 +73,8 @@ import {
   toQueryRequest,
 } from './builder';
 import type { BuilderAction, BuilderIssue, BuilderState } from './builder';
-import { biClipboard, biCsv } from './export';
-import type { BiExportScope, Translate } from './export';
+import { biClipboard, biDocument, suggestedFileName } from './export';
+import type { BiExportScope, Label, Translate } from './export';
 import { isoToday } from './format';
 import {
   analysisFormOf,
@@ -982,6 +983,9 @@ interface CommandDeps extends VerbDeps {
   /** Resolved once at mount. It names the exported file and does nothing else. */
   readonly today: string;
   readonly tr: Translate;
+  /** Reads a `Localized` in the reader's language. Only the export needs it, to put a
+   *  view's own title at the head of the page formats. */
+  readonly t: Label;
   /** Read side only. The shell hands the same ref out for the search box. */
   readonly searchRef: { readonly current: HTMLInputElement | null };
 }
@@ -1019,7 +1023,7 @@ function scopeOf(
  * one, so Ctrl+S over a report's analysis renames it rather than forking it.
  */
 function useGlobalCommands(deps: CommandDeps): (id: string) => boolean {
-  const { ui, model, builder, dialogs, actions, visible, today, tr, searchRef } = deps;
+  const { ui, model, builder, dialogs, actions, visible, today, tr, t, searchRef } = deps;
   const { open } = dialogs;
   const view = ui.view;
   const { refreshAll } = model;
@@ -1029,10 +1033,17 @@ function useGlobalCommands(deps: CommandDeps): (id: string) => boolean {
     if (id === 'search') { searchRef.current?.focus(); return true; }
     if (id === 'run') { void builder.runNow(); return true; }
     if (id === 'source:sync') { void actions.syncSources(); return true; }
-    if (id === 'export' || id === 'copy') {
-      const scope = scopeOf(model, visible, builder.result);
-      if (id === 'copy') actions.copy(biClipboard(view, scope, tr));
-      else actions.exportCsv(view, biCsv(view, scope, tr), today);
+    if (id === 'copy') {
+      actions.copy(biClipboard(view, scopeOf(model, visible, builder.result), tr));
+      return true;
+    }
+    const format = parseExportCommand(id);
+    if (format !== null) {
+      actions.exportTable(
+        biDocument(view, scopeOf(model, visible, builder.result), t, tr),
+        suggestedFileName(view, today),
+        format,
+      );
       return true;
     }
     if (id === 'analysis:save') {
@@ -1052,7 +1063,7 @@ function useGlobalCommands(deps: CommandDeps): (id: string) => boolean {
       return true;
     }
     return false;
-  }, [actions, builder, model, open, refreshAll, searchRef, today, tr, view, visible]);
+  }, [actions, builder, model, open, refreshAll, searchRef, t, today, tr, view, visible]);
 }
 
 /**
@@ -1295,7 +1306,7 @@ export interface BiShell extends BiUi, BiCommits, BiCommands, BiDetailVerbs {
  * than on their identity, so memoising here would buy nothing and hide that fact.
  */
 export function useBiShell(): BiShell {
-  const { tr } = useLocale();
+  const { t, tr } = useLocale();
   // Resolved once at mount. It names the exported file and nothing else; a window
   // left open across midnight is not worth a clock.
   const today = useMemo(isoToday, []);
@@ -1325,7 +1336,7 @@ export function useBiShell(): BiShell {
 
   const verbs = useBiDetailVerbs({ ui, model, builder, dialogs, actions });
   const commands = useBiCommandPath({
-    ui, model, builder, dialogs, actions, verbs, visible, selectedRow, today, tr, searchRef,
+    ui, model, builder, dialogs, actions, verbs, visible, selectedRow, today, tr, t, searchRef,
   });
   const counts = tally(model, visible, ui.view, builder.result);
 

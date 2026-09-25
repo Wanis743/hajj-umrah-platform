@@ -10,7 +10,7 @@
  * language but amounts in nobody's. A close pack that renders `1 250,00 DA` is a close
  * pack Excel will read as text in one locale and as a number in the other.
  */
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import { type CloseTask, type FiscalPeriod, PERIOD_STATUS_LABEL, TASK_STATUS_LABEL } from '../shared/ledger';
 import type { Localized } from '@/platform/sdk';
 import { CHECK_LABEL, CHECK_STATE_LABEL, type ChecklistRow, type CloseAssessment, type CloseCheck } from './checks';
@@ -27,15 +27,43 @@ import type { AuditRow } from './model';
 export type Label = (value: Localized) => string;
 export type Translate = (ar: string, fr: string, en: string) => string;
 
-/** `close-2026-03-tasks.csv` — the period first, because that is how it is filed. */
+/**
+ * `close-2026-03-tasks` — the period first, because that is how it is filed.
+ *
+ * No extension: the format is chosen after Export is pressed, and the writer
+ * appends the one matching the bytes it produced.
+ */
 export function suggestedFileName(period: FiscalPeriod | null, view: string, today: string): string {
   const stem = period === null ? today : period.label.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase();
-  return `close-${stem}-${view}.csv`;
+  return `close-${stem}-${view}`;
+}
+
+/**
+ * Which period, and how far along it was — at the head of every close artefact.
+ *
+ * A close pack is read eleven months later by somebody who was not in the room, and
+ * the first thing they need is whether the period was still open when the page was
+ * printed. The CSV has no room for it; the other three do.
+ */
+function closeMeta(period: FiscalPeriod | null, t: Label, tr: Translate): readonly TableMeta[] {
+  if (period === null) {
+    return [{ label: tr('الفترة', 'Période', 'Period'), value: tr('كل الفترات', 'Toutes', 'All periods') }];
+  }
+  return [
+    { label: tr('الفترة', 'Période', 'Period'), value: period.label },
+    { label: tr('الحالة', 'Statut', 'Status'), value: t(PERIOD_STATUS_LABEL[period.status]) },
+  ];
 }
 
 /** The checklist somebody signs: one row per task, in the order it must be worked. */
-export function checklistCsv(rows: readonly ChecklistRow[], t: Label, tr: Translate): string {
-  return csvDocument(
+export function checklistTable(
+  rows: readonly ChecklistRow[],
+  period: FiscalPeriod | null,
+  t: Label,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('قائمة الإقفال', 'Liste de clôture', 'Close checklist'),
     [
       tr('#', '#', '#'),
       tr('المهمة', 'Tâche', 'Task'),
@@ -54,17 +82,19 @@ export function checklistCsv(rows: readonly ChecklistRow[], t: Label, tr: Transl
       row.task.ownerId ?? '',
       row.task.updatedAt ?? '',
     ]),
+    closeMeta(period, t, tr),
   );
 }
 
 /** The gate, as it read at the moment of export — findings, not opinions. */
-export function checkCsv(
+export function checkTable(
   checks: readonly CloseCheck[],
   period: FiscalPeriod | null,
   t: Label,
   tr: Translate,
-): string {
-  return csvDocument(
+): TableDocument {
+  return tableDocument(
+    tr('فحوص الإقفال', 'Contrôles de clôture', 'Close checks'),
     [
       tr('الفترة', 'Période', 'Period'),
       tr('الفحص', 'Contrôle', 'Check'),
@@ -79,12 +109,19 @@ export function checkCsv(
       String(check.count),
       check.amount === null ? '' : check.amount.toFixed(2),
     ]),
+    closeMeta(period, t, tr),
   );
 }
 
 /** The trail, exactly as the kernel handed it over. */
-export function trailCsv(rows: readonly AuditRow[], tr: Translate): string {
-  return csvDocument(
+export function trailTable(
+  rows: readonly AuditRow[],
+  period: FiscalPeriod | null,
+  t: Label,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('سجلّ الإقفال', 'Journal de clôture', 'Close audit trail'),
     [
       tr('الوقت', 'Horodatage', 'Timestamp'),
       tr('الإجراء', 'Action', 'Action'),
@@ -93,6 +130,7 @@ export function trailCsv(rows: readonly AuditRow[], tr: Translate): string {
       tr('المستخدم', 'Utilisateur', 'User'),
     ],
     rows.map((row) => [row.at, row.action, row.resource, row.resourceId ?? '', row.email]),
+    closeMeta(period, t, tr),
   );
 }
 
@@ -102,14 +140,19 @@ export function trailCsv(rows: readonly AuditRow[], tr: Translate): string {
  * `state` is exported alongside `last_result` rather than instead of it, because the
  * two disagree on purpose: a control whose last test passed in March is `passed` and
  * `overdue`, and a file that carried only the first would be the misleading half.
+ *
+ * Which is why the head of the page carries the instant it was judged at. "Overdue"
+ * is a statement about a date, and a page that does not say which date is a page
+ * that ages into a lie.
  */
-export function controlCsv(
+export function controlTable(
   rows: readonly FinancialControl[],
   now: number,
   t: Label,
   tr: Translate,
-): string {
-  return csvDocument(
+): TableDocument {
+  return tableDocument(
+    tr('سجل الضوابط', 'Registre des contrôles', 'Control register'),
     [
       tr('الرمز', 'Code', 'Code'),
       tr('الوصف', 'Description', 'Description'),
@@ -132,6 +175,13 @@ export function controlCsv(
       row.population,
       row.exceptions,
     ]),
+    [
+      {
+        label: tr('محسوبة في', 'Évalué le', 'Judged at'),
+        value: new Date(now).toISOString().slice(0, 16).replace('T', ' '),
+      },
+      { label: tr('عدد الضوابط', 'Contrôles', 'Controls'), value: String(rows.length) },
+    ],
   );
 }
 

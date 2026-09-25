@@ -34,7 +34,6 @@ import {
   ClipboardList,
   Clock,
   Copy,
-  FileDown,
   FileText,
   type LucideIcon,
   Megaphone,
@@ -68,6 +67,7 @@ import {
   ToolbarSpacer,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { CrmBusy } from './actions';
 import type { CrmSummary, CrmView } from './model';
 import { type CrmAnchor, type CrmRow, labelOf } from './shell';
@@ -335,15 +335,12 @@ export function CrmToolbar(props: CrmToolbarProps) {
         width={220}
         placeholder={VIEW[props.view].hint(tr)}
       />
-      <Button
-        icon={FileDown}
-        onClick={() => props.onCommand('export')}
-        disabled={working}
+      <ExportButton
         busy={props.busy === 'export'}
-        title={tr('تصدير CSV (Ctrl+E)', 'Exporter en CSV (Ctrl+E)', 'Export as CSV (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+        disabled={working}
+        onCommand={props.onCommand}
+        title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
+      />
       <IconButton
         icon={RefreshCw}
         label={tr('تحديث (F5)', 'Actualiser (F5)', 'Refresh (F5)')}

@@ -644,6 +644,15 @@ class Dispatcher implements DispatcherHandle {
           ? succeed({ delivered: true as const })
           : fail('IO_ERROR', `The browser refused to deliver ${r.fileName}`);
       }
+      case 'shell.print': {
+        // Same shape, same reason: the page is HTML and the print dialog is the
+        // browser's, so the kernel names the document and the shell shows it.
+        const r = as<'shell.print'>(request);
+        const printed = await host.print(r.title, r.html);
+        return printed
+          ? succeed({ printed: true as const })
+          : fail('IO_ERROR', `The browser refused to print ${r.title}`);
+      }
       default:
         return fail('NOT_SUPPORTED', `Unhandled syscall: ${name}`);
     }

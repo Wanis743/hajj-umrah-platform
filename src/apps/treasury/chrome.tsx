@@ -31,7 +31,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  FileDown,
   Filter,
   Gauge,
   ListChecks,
@@ -60,6 +59,7 @@ import {
   type Tone,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { TreasuryBusy } from './actions';
 import {
   type Bucket,
@@ -246,15 +246,16 @@ export function TreasuryToolbar(props: ToolbarProps) {
       >
         {tr('نسخ', 'Copier', 'Copy')}
       </Button>
-      <Button
-        icon={FileDown}
+      <ExportButton
         busy={busy === 'export'}
         disabled={working}
-        onClick={() => onCommand('export')}
-        title={tr('تصدير CSV (Ctrl+E)', 'Exporter en CSV (Ctrl+E)', 'Export to CSV (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+        onCommand={onCommand}
+        title={tr(
+          'تصدير الجدول كما هو مُرشَّح (Ctrl+E للـ CSV)',
+          'Exporter le tableau tel qu’il est filtré (Ctrl+E pour le CSV)',
+          'Export the table exactly as it is filtered (Ctrl+E for CSV)',
+        )}
+      />
       <ToolbarSeparator />
       <IconButton
         icon={RefreshCw}
@@ -663,20 +664,18 @@ export function TreasuryRail(props: RailProps) {
                 : tr('الأفق مُغطّى', 'Horizon couvert', 'The horizon is covered')}
           </Badge>
         )}
-        <Button
-          icon={FileDown}
+        <ExportButton
           block
           busy={props.busy === 'export'}
           disabled={props.busy !== null}
-          onClick={() => props.onCommand('export')}
+          onCommand={props.onCommand}
+          label={tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
           title={tr(
             'كل سطر في الملف يحمل الأفق والتاريخ والسعر الذي سعّره.',
             'Chaque ligne du fichier porte l’horizon, la date et le taux qui l’a valorisée.',
             'Every row in the file carries the horizon, the date and the rate that priced it.',
           )}
-        >
-          {tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
-        </Button>
+        />
         <Button icon={Copy} block variant="subtle" onClick={() => props.onCommand('copy')}>
           {tr('نسخ الموقف', 'Copier la position', 'Copy the position')}
         </Button>

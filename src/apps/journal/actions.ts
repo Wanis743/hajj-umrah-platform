@@ -18,10 +18,12 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { CHANNEL_ACTIVATED, useApp, useIpc, useLedgerCommand } from '@/platform/sdk';
+import type { ExportFormat, TableDocument } from '../shared/export';
 import type { JournalEntry, JournalLine } from '../shared/ledger';
 import { DOCUMENTS } from '../shared/paths';
+import { useExport } from '../shared/useExport';
 import { type Draft, draftPayload, parseDraftFile, serialiseDraft, suggestedFileName } from './draft';
-import { entriesCsv, entryClipboardText } from './entries';
+import { entryClipboardText } from './entries';
 
 /** The content type the manifest claims for `.fxjournal`. */
 const DRAFT_TYPE = 'application/vnd.financeos.journal';
@@ -62,7 +64,8 @@ export interface JournalActions {
     lines: readonly JournalLine[],
     labelOf: (accountId: string | null) => string,
   ) => void;
-  exportCsv: (entries: readonly JournalEntry[], today: string) => void;
+  /** Save the entries on screen, in the format they picked. */
+  readonly exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Resolves to the path written, or null when cancelled or refused. */
   saveDraft: (draft: Draft) => Promise<string | null>;
   openDraft: (today: string) => Promise<Draft | null>;
@@ -72,7 +75,11 @@ export function useJournalActions(): JournalActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<JournalBusy>(null);
+  const [acting, setBusy] = useState<JournalBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
+  // Two spinners folded into one. The export hook owns its own dialog and its own
+  // write; the five RPCs and the two draft files still raise their own token.
+  const busy: JournalBusy = exporting !== null ? 'export' : acting;
 
   const post = useCallback(
     (entry: JournalEntry) => {
@@ -151,49 +158,6 @@ export function useJournalActions(): JournalActions {
     [runtime, tr],
   );
 
-  const exportCsv = useCallback(
-    (entries: readonly JournalEntry[], today: string) => {
-      const run = async () => {
-        setBusy('export');
-        const suggested = `journal-${today}.csv`;
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير القيود', 'Exporter les écritures', 'Export entries'),
-          startPath: DOCUMENTS,
-          suggestedName: suggested,
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content: entriesCsv(entries),
-          contentType: 'text/csv',
-        });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? {
-                kind: 'success',
-                title: tr('تم التصدير.', 'Export terminé.', 'Exported.'),
-                body: path,
-              }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, tr],
-  );
-
   const saveDraft = useCallback(
     async (draft: Draft): Promise<string | null> => {
       setBusy('save');
@@ -252,7 +216,7 @@ export function useJournalActions(): JournalActions {
     [runtime, tr],
   );
 
-  return { busy, post, voidEntry, create, copy, exportCsv, saveDraft, openDraft };
+  return { busy, post, voidEntry, create, copy, exportTable, saveDraft, openDraft };
 }
 
 /**

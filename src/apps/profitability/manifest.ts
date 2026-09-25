@@ -17,6 +17,7 @@
  * belongs to the general ledger.
  */
 import { APP_IDS } from '@/platform/sdk';
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 
 export const profitabilityManifest = defineApp({
@@ -93,7 +94,8 @@ export const profitabilityManifest = defineApp({
     },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     {
       id: 'copy',
       title: text('نسخ الملخّص', 'Copier le résumé', 'Copy summary'),

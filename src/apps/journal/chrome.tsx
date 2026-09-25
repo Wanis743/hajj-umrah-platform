@@ -17,7 +17,6 @@ import {
   CircleSlash,
   ClipboardCopy,
   Copy,
-  FileDown,
   FilePlus2,
   FolderOpen,
   Files,
@@ -43,6 +42,7 @@ import {
   fmt,
   useApp,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { Ref } from 'react';
 import {
   type Currency,
@@ -102,20 +102,18 @@ export function JournalToolbar({
         placeholder={tr('المرجع أو الوصف أو المصدر', 'Référence, libellé, origine', 'Reference, description, source')}
       />
       <ToolbarSpacer />
-      <Button
+      <ExportButton
         size="sm"
-        icon={FileDown}
         busy={busy === 'export'}
         disabled={!canExport}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
+        label={tr('تصدير', 'Exporter', 'Export')}
         title={tr(
-          'تصدير القيود المعروضة إلى CSV',
-          'Exporter les écritures affichées en CSV',
-          'Export the visible entries as CSV',
+          'تصدير القيود المعروضة (Ctrl+E)',
+          'Exporter les écritures affichées (Ctrl+E)',
+          'Export the visible entries (Ctrl+E)',
         )}
-      >
-        {tr('تصدير CSV', 'Exporter CSV', 'Export CSV')}
-      </Button>
+      />
     </>
   );
 }

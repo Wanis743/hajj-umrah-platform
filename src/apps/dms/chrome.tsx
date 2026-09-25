@@ -38,7 +38,6 @@ import {
   ClipboardCopy,
   Clock,
   Eye,
-  FileDown,
   FilePlus2,
   Files,
   Gauge,
@@ -79,6 +78,7 @@ import {
   type AppLang,
   type MenuEntry,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { DmsBusy } from './actions';
 import type { Translate } from './export';
 import { VIEW_LABEL } from './labels';
@@ -471,15 +471,12 @@ export function DmsToolbar(props: DmsToolbarProps) {
           placeholder={hint(tr)}
         />
       ) : null}
-      <Button
-        icon={FileDown}
-        onClick={() => props.onCommand('export')}
-        disabled={working}
+      <ExportButton
         busy={props.busy === 'export'}
-        title={tr('تصدير CSV (Ctrl+E)', 'Exporter en CSV (Ctrl+E)', 'Export as CSV (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+        disabled={working}
+        onCommand={props.onCommand}
+        title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
+      />
       <IconButton
         icon={RefreshCw}
         label={tr('تحديث (F5)', 'Actualiser (F5)', 'Refresh (F5)')}

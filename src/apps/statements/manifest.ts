@@ -17,6 +17,7 @@
  * question, not this window's.
  */
 import { APP_IDS } from '@/platform/sdk';
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 
 export const statementsManifest = defineApp({
@@ -72,7 +73,8 @@ export const statementsManifest = defineApp({
     { id: 'ledger', title: text('فتح الحساب في الدفتر', 'Ouvrir le compte dans le grand livre', 'Open the account in the ledger') },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'copy', title: text('نسخ الملخّص', 'Copier le résumé', 'Copy summary'), accelerator: 'Ctrl+Shift+C' },
     { id: 'save', title: text('حفظ التقرير…', 'Enregistrer le rapport…', 'Save the report…'), accelerator: 'Ctrl+S' },
     { id: 'open', title: text('فتح تقرير…', 'Ouvrir un rapport…', 'Open a report…'), accelerator: 'Ctrl+O' },

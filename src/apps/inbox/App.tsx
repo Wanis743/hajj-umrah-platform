@@ -34,11 +34,13 @@ import {
   type AppLocale,
   type ContextMenuController,
   fmt,
+  useApp,
   useAppCommands,
   useContextMenu,
   usePrincipal,
   useWindowTitle,
 } from '@/platform/sdk';
+import { parseExportCommand } from '../shared/export/commands';
 import type { Currency, JournalEntry } from '../shared/ledger';
 import { hotkey, type InboxActions, type InboxBusy, type SweepReport, useInboxActions } from './actions';
 import { InboxStatus, InboxToolbar, ItemMenu, QueueRail } from './chrome';
@@ -53,7 +55,9 @@ import {
   type InboxFilter,
   isFiltered,
   type QueueId,
+  queueTable,
   type SweepPlan,
+  suggestedFileName,
   sweepPlan,
   type Viewer,
   type WorkItem,
@@ -318,6 +322,9 @@ interface CommandPath {
 function useInboxCommandPath(options: CommandPathOptions): CommandPath {
   const { actions, model, plan, filter, selected, today, searchRef, menu } = options;
   const { setFilter, setSelection, setModal } = options;
+  // Only the export needs it, to put a title and the narrowing that produced the
+  // rows at the head of the page formats.
+  const { t } = useApp().locale;
 
   // Every act takes its row out of the queue, so the selection that named it goes
   // with it — and a dialog that got what it asked for closes itself.
@@ -416,11 +423,19 @@ function useInboxCommandPath(options: CommandPathOptions): CommandPath {
       if (queue !== undefined) setQueue(queue);
       else if (id === 'refresh') model.refresh();
       else if (id === 'find') searchRef.current?.focus();
-      else if (id === 'export') actions.exportCsv(model.visible, filter.queue, today);
       else if (id === 'sweep') runSweep();
-      else if (item !== null) actOn(id, item);
+      else {
+        const format = parseExportCommand(id);
+        if (format !== null) {
+          actions.exportTable(
+            queueTable(model.visible, filter, t),
+            suggestedFileName(filter.queue, today),
+            format,
+          );
+        } else if (item !== null) actOn(id, item);
+      }
     },
-    [actOn, actions, filter.queue, model, runSweep, searchRef, setQueue, today],
+    [actOn, actions, filter, model, runSweep, searchRef, setQueue, t, today],
   );
 
   // The toolbar, the accelerators, the jump list and the palette all mean "the row the

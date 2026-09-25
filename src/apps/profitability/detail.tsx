@@ -26,7 +26,6 @@ import {
   ClipboardCopy,
   ClipboardList,
   ExternalLink,
-  FileDown,
   Gauge,
   Landmark,
   Percent,
@@ -35,6 +34,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Button, Card, fmt, InfoBar, KpiTile, PropertyRow, Section, useLocale } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { ProfitabilityBusy } from './actions';
 import {
   coverageTone,
@@ -275,15 +275,13 @@ export function SlicePane(props: SlicePaneProps) {
         <Button block variant="subtle" icon={ClipboardCopy} onClick={() => props.onCommand('copy')}>
           {tr('نسخ الملخّص', 'Copier la synthèse', 'Copy the summary')}
         </Button>
-        <Button
+        <ExportButton
           block
-          icon={FileDown}
           busy={props.busy === 'export'}
           disabled={props.busy !== null}
-          onClick={() => props.onCommand('export')}
-        >
-          {tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
-        </Button>
+          onCommand={props.onCommand}
+          label={tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
+        />
       </div>
     </div>
   );

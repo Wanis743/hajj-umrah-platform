@@ -19,10 +19,11 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { APP_IDS, CHANNEL_ACTIVATED, useApp, useIpc, useLedgerCommand } from '@/platform/sdk';
-import type { BankStatement, BankTransaction } from '../shared/ledger';
-import { DOCUMENTS } from '../shared/paths';
-import type { AutoMatch, Candidate, LedgerRow } from './match';
-import { differenceCsv, suggestedFileName, transactionClipboardText } from './report';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import type { BankTransaction } from '../shared/ledger';
+import { useExport } from '../shared/useExport';
+import type { AutoMatch, Candidate } from './match';
+import { transactionClipboardText } from './report';
 
 /**
  * In-window accelerators, the manifest's set exactly.
@@ -61,12 +62,8 @@ export interface ReconcileActions {
   unmatch: (transaction: BankTransaction) => Promise<boolean>;
   sweep: (plan: readonly AutoMatch[]) => Promise<SweepReport>;
   copy: (transaction: BankTransaction, candidate: Candidate | null) => void;
-  exportCsv: (
-    transactions: readonly BankTransaction[],
-    ledgerRows: readonly LedgerRow[],
-    statement: BankStatement | null,
-    today: string,
-  ) => void;
+  /** Save the difference report, in the format they picked. */
+  readonly exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   /** Hand-off: Ledger's account focus reads `args.accountId`. */
   openLedgerAccount: (accountId: string) => void;
 }
@@ -75,7 +72,11 @@ export function useReconcileActions(): ReconcileActions {
   const runtime = useApp();
   const { t, tr } = runtime.locale;
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<ReconcileBusy>(null);
+  const [acting, setBusy] = useState<ReconcileBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
+  // Two spinners folded into one. The export hook owns its own dialog and its own
+  // write; matching, unmatching and the sweep still raise the token that names them.
+  const busy: ReconcileBusy = exporting !== null ? 'export' : acting;
 
   const match = useCallback(
     async (transaction: BankTransaction, candidate: Candidate): Promise<boolean> => {
@@ -170,49 +171,6 @@ export function useReconcileActions(): ReconcileActions {
     [runtime, t, tr],
   );
 
-  const exportCsv = useCallback(
-    (
-      transactions: readonly BankTransaction[],
-      ledgerRows: readonly LedgerRow[],
-      statement: BankStatement | null,
-      today: string,
-    ) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير الفروق', 'Exporter les écarts', 'Export the differences'),
-          startPath: DOCUMENTS,
-          suggestedName: suggestedFileName(statement, today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content: differenceCsv(transactions, ledgerRows),
-          contentType: 'text/csv',
-        });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, tr],
-  );
-
   const openLedgerAccount = useCallback(
     (accountId: string) => {
       void runtime.launch(APP_IDS.ledger, { accountId });
@@ -220,7 +178,7 @@ export function useReconcileActions(): ReconcileActions {
     [runtime],
   );
 
-  return { busy, match, unmatch, sweep, copy, exportCsv, openLedgerAccount };
+  return { busy, match, unmatch, sweep, copy, exportTable, openLedgerAccount };
 }
 
 /**

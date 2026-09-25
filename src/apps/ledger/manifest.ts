@@ -8,9 +8,10 @@
  * raises its own consent before either runs, so nothing here asks first.
  *
  * No file association. An account is not a document — it is a row other people's
- * postings point at — so the only thing this app writes to disk is a CSV of what
+ * postings point at — so the only thing this app writes to disk is a table of what
  * is on screen, which is why it takes `fs.write` and not `fs.read`.
  */
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 import { defineApp, text } from '../shared/manifest';
 import { APP_IDS } from '@/platform/kernel/abi';
 
@@ -56,7 +57,8 @@ export const ledgerManifest = defineApp({
     { id: 'edit', title: text('تعديل الحساب', 'Modifier le compte', 'Edit account'), accelerator: 'F2' },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export as CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'view:chart', title: text('دليل الحسابات', 'Plan comptable', 'Chart of accounts') },
     { id: 'view:trial', title: text('ميزان المراجعة', 'Balance générale', 'Trial balance') },
     { id: 'expand', title: text('توسيع الكل', 'Tout déplier', 'Expand all') },

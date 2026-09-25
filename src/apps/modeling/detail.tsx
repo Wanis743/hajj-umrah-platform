@@ -17,7 +17,6 @@ import {
   ClipboardCopy,
   ClipboardList,
   ExternalLink,
-  FileDown,
   Gauge,
   LineChart as LineChartIcon,
   Pencil,
@@ -39,6 +38,7 @@ import {
   Section,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { ACCOUNT_TYPE_LABEL, type Budget } from '../shared/ledger';
 import type { ModelingBusy } from './actions';
 import { adverseGap, type ForecastRow, METHOD_LABEL, type Projection, type Scenario } from './forecast';
@@ -210,15 +210,13 @@ export function ScenarioPane({ projection, scenario, budget, coveredFrom, busy, 
         <Button block variant="subtle" icon={ClipboardCopy} onClick={() => onCommand('copy')}>
           {tr('نسخ الملخّص', 'Copier la synthèse', 'Copy summary')}
         </Button>
-        <Button
+        <ExportButton
           block
-          icon={FileDown}
           busy={busy === 'export'}
           disabled={busy !== null}
-          onClick={() => onCommand('export')}
-        >
-          {tr('تصدير المعروض', 'Exporter la vue', 'Export this view')}
-        </Button>
+          onCommand={onCommand}
+          label={tr('تصدير المعروض', 'Exporter la vue', 'Export this view')}
+        />
       </div>
     </div>
   );

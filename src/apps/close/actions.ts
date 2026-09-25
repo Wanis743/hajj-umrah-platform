@@ -19,7 +19,8 @@
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { type AppId, APP_IDS, CHANNEL_ACTIVATED, useApp, useIpc, useLedgerCommand } from '@/platform/sdk';
 import type { CloseTask, FiscalPeriod } from '../shared/ledger';
-import { REPORTS } from '../shared/paths';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { useExport } from '../shared/useExport';
 import type { CheckId } from './checks';
 import type { ControlFrequency, ControlResult } from './controls';
 
@@ -105,7 +106,8 @@ export interface CloseActions {
   recordTest: (input: TestInput) => Promise<boolean>;
   retireControl: (controlId: string, reason: string) => Promise<boolean>;
   copy: (text: string) => void;
-  exportCsv: (content: string, suggestedName: string) => void;
+  /** Save the table in front of the person, in the format they picked. */
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   open: (app: AppId) => void;
 }
 
@@ -225,7 +227,8 @@ export function useCloseActions(): CloseActions {
   const runtime = useApp();
   const { tr } = runtime.locale;
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<CloseBusy>(null);
+  const [acting, setBusy] = useState<CloseBusy>(null);
+  const { busy: exporting, exportTable } = useExport();
 
   const closePeriod = useCallback(
     async (period: FiscalPeriod): Promise<boolean> => {
@@ -308,41 +311,11 @@ export function useCloseActions(): CloseActions {
     [runtime, tr],
   );
 
-  const exportCsv = useCallback(
-    (content: string, suggestedName: string) => {
-      const run = async () => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير', 'Exporter', 'Export'),
-          startPath: REPORTS,
-          suggestedName,
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', { path, content, contentType: 'text/csv' });
-        setBusy(null);
-        await runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير.', 'Export terminé.', 'Exported.'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير.', 'Export impossible.', 'Could not export.'),
-                body: written.error.message,
-              },
-        );
-      };
-      void run();
-    },
-    [runtime, tr],
-  );
-
   const open = useCallback((app: AppId) => void runtime.launch(app), [runtime]);
+
+  // One name for the act in flight, whichever of the four formats is being written:
+  // the toolbar has one Export control and it is the one that spins.
+  const busy: CloseBusy = exporting !== null ? 'export' : acting;
 
   return {
     busy,
@@ -353,7 +326,7 @@ export function useCloseActions(): CloseActions {
     recordTest,
     retireControl,
     copy,
-    exportCsv,
+    exportTable,
     open,
   };
 }

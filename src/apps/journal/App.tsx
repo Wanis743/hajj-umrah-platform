@@ -48,6 +48,8 @@ export default function JournalApp({ runtime }: AppEntryProps) {
     actions,
     today,
     visible: page.visible,
+    filter,
+    tr,
     lines: page.lines,
     labelOf: page.labelOf,
     menuTarget: menu.menu?.target ?? null,

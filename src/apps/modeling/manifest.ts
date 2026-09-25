@@ -25,6 +25,7 @@
  */
 import { APP_IDS } from '@/platform/sdk';
 import { defineApp, text } from '../shared/manifest';
+import { EXPORT_COMMANDS } from '../shared/export/commands';
 
 export const modelingManifest = defineApp({
   id: APP_IDS.modeling,
@@ -93,7 +94,8 @@ export const modelingManifest = defineApp({
     { id: 'ledger', title: text('فتح في الدفتر', 'Ouvrir dans le grand livre', 'Open in the ledger') },
     { id: 'refresh', title: text('تحديث', 'Actualiser', 'Refresh'), accelerator: 'F5' },
     { id: 'find', title: text('بحث', 'Rechercher', 'Find'), accelerator: 'Ctrl+F' },
-    { id: 'export', title: text('تصدير CSV', 'Exporter en CSV', 'Export CSV'), accelerator: 'Ctrl+E' },
+    { id: 'export', title: text('تصدير المعروض', 'Exporter la vue', 'Export this view'), accelerator: 'Ctrl+E' },
+    ...EXPORT_COMMANDS,
     { id: 'copy', title: text('نسخ الملخّص', 'Copier le résumé', 'Copy summary'), accelerator: 'Ctrl+Shift+C' },
     { id: 'reset', title: text('إعادة ضبط السيناريو', 'Réinitialiser le scénario', 'Reset the scenario') },
     // Deliberately without accelerators. Certifying and publishing are the two

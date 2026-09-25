@@ -18,7 +18,6 @@ import {
   ClipboardCopy,
   Clock,
   Database,
-  FileDown,
   History,
   Layout,
   ListChecks,
@@ -40,6 +39,7 @@ import {
   ToolbarSpacer,
   useApp,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import type { Currency } from '../shared/ledger';
 import type { DashboardBusy } from './actions';
 import {
@@ -132,15 +132,13 @@ export function DashboardToolbar({
       >
         {tr('نسخ الملخص', 'Copier le résumé', 'Copy summary')}
       </Button>
-      <Button
+      <ExportButton
         size="sm"
-        icon={FileDown}
         busy={busy === 'export'}
-        onClick={() => onCommand('export')}
+        onCommand={onCommand}
+        label={tr('تصدير', 'Exporter', 'Export')}
         title={tr('تصدير هذه الصفحة (Ctrl+E)', 'Exporter cette page (Ctrl+E)', 'Export this page (Ctrl+E)')}
-      >
-        {tr('تصدير CSV', 'Exporter CSV', 'Export CSV')}
-      </Button>
+      />
     </>
   );
 }

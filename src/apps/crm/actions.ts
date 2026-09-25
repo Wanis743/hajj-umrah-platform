@@ -24,8 +24,8 @@
  */
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { type AppId, CHANNEL_ACTIVATED, useApp, useIpc, useLedgerCommand } from '@/platform/sdk';
-import { REPORTS } from '../shared/paths';
-import { suggestedFileName } from './export';
+import type { ExportFormat, TableDocument } from '../shared/export';
+import { type ExportBusy, useExport } from '../shared/useExport';
 import {
   type CrmEntity,
   type RecordDraft,
@@ -374,55 +374,29 @@ export function useLifecycleCommands(
 }
 
 export interface TransferActions {
-  /** Write the grid the user is looking at to a CSV the user names. */
-  exportCsv: (view: CrmView, content: string, today: string) => void;
+  /** Save the grid in front of the person, in the format they picked. */
+  exportTable: (doc: TableDocument, suggestedName: string, format: ExportFormat) => void;
   copy: (text: string) => void;
   /** The app's only cross-app verb. It carries nothing: no neighbour reads a CRM id. */
   openApp: (app: AppId) => void;
 }
 
+/**
+ * What this seam knows that the interface does not.
+ *
+ * The export hook owns its own dialog and its own spinner, and the app's single `busy`
+ * has to be told about it. It is not part of `TransferActions` because no toolbar reads
+ * it: `useCrmActions` folds it into `busy` and nothing downstream sees two answers.
+ */
+interface TransferSeam extends TransferActions {
+  readonly exporting: ExportBusy;
+}
+
 /** The three acts that leave the app: a file, the clipboard, another window. */
-export function useTransferActions(setBusy: (busy: CrmBusy) => void): TransferActions {
+function useTransferActions(): TransferSeam {
   const runtime = useApp();
   const { tr } = runtime.locale;
-
-  const exportCsv = useCallback(
-    (view: CrmView, content: string, today: string): void => {
-      const run = async (): Promise<void> => {
-        setBusy('export');
-        const chosen = await runtime.invoke('shell.fileDialog', {
-          mode: 'save',
-          title: tr('تصدير CSV', 'Exporter en CSV', 'Export as CSV'),
-          startPath: REPORTS,
-          suggestedName: suggestedFileName(view, today),
-          contentTypes: ['text/csv'],
-        });
-        // A cancelled dialog is an answer, not a failure: nothing is said about it.
-        const path = chosen.ok ? chosen.value.path : null;
-        if (path === null) {
-          setBusy(null);
-          return;
-        }
-        const written = await runtime.invoke('fs.writeText', {
-          path,
-          content,
-          contentType: 'text/csv',
-        });
-        runtime.toast(
-          written.ok
-            ? { kind: 'success', title: tr('تم التصدير', 'Exporté', 'Exported'), body: path }
-            : {
-                kind: 'error',
-                title: tr('تعذّر التصدير', 'Export impossible', 'Export failed'),
-                body: written.error.message,
-              },
-        );
-        setBusy(null);
-      };
-      void run();
-    },
-    [runtime, setBusy, tr],
-  );
+  const { busy: exporting, exportTable } = useExport();
 
   const copy = useCallback(
     (text: string): void => {
@@ -443,7 +417,7 @@ export function useTransferActions(setBusy: (busy: CrmBusy) => void): TransferAc
 
   const openApp = useCallback((app: AppId) => void runtime.launch(app), [runtime]);
 
-  return { exportCsv, copy, openApp };
+  return { exporting, exportTable, copy, openApp };
 }
 
 /** Everything the toolbar, the grids and the dialogs are allowed to do. */
@@ -458,9 +432,12 @@ export interface CrmActions extends RecordCommands, LifecycleCommands, TransferA
  */
 export function useCrmActions(): CrmActions {
   const ledger = useLedgerCommand();
-  const [busy, setBusy] = useState<CrmBusy>(null);
+  const [acting, setBusy] = useState<CrmBusy>(null);
   const records = useRecordCommands(ledger, setBusy);
   const lifecycle = useLifecycleCommands(ledger, setBusy);
-  const transfer = useTransferActions(setBusy);
+  const { exporting, ...transfer } = useTransferActions();
+  // Thirty-one acts and one spinner. The export hook owns the dialog and the write for
+  // one of them, and the other thirty still raise the token that names themselves.
+  const busy: CrmBusy = exporting !== null ? 'export' : acting;
   return { busy, ...records, ...lifecycle, ...transfer };
 }

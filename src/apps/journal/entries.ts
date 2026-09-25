@@ -14,7 +14,7 @@
  *   • The page is capped at 500 rows by the broker, so the status bar says when
  *     the list it is describing is a window rather than the whole book.
  */
-import { csvDocument } from '../shared/csv';
+import { type TableDocument, type TableMeta, tableDocument } from '../shared/export';
 import type { JournalEntry, JournalLine } from '../shared/ledger';
 import { EPSILON, type EntryStatus, isBalanced } from '../shared/ledger';
 
@@ -189,16 +189,69 @@ const CSV_HEADER = [
   'posted_at',
 ];
 
+/** The runtime's positional translator, narrowed to what a pure module needs. */
+export type Translate = (ar: string, fr: string, en: string) => string;
+
+const VIEW_NAME: Readonly<Record<ViewId, (tr: Translate) => string>> = {
+  all: (tr) => tr('كل القيود', 'Toutes les écritures', 'All entries'),
+  draft: (tr) => tr('مسودات', 'Brouillons', 'Drafts'),
+  pending: (tr) => tr('قيد الاعتماد', 'En attente', 'Pending'),
+  posted: (tr) => tr('مُرحَّلة', 'Validées', 'Posted'),
+  void: (tr) => tr('ملغاة', 'Annulées', 'Void'),
+};
+
+/** Which of the filter's seven fields is actually narrowing, said in words. */
+function entriesMeta(
+  entries: readonly JournalEntry[],
+  filter: JournalFilter,
+  tr: Translate,
+): readonly TableMeta[] {
+  const meta: TableMeta[] = [
+    { label: tr('العرض', 'Vue', 'View'), value: VIEW_NAME[filter.view](tr) },
+    { label: tr('القيود', 'Écritures', 'Entries'), value: String(entries.length) },
+  ];
+  if (filter.from !== '' || filter.to !== '') {
+    meta.push({
+      label: tr('الفترة', 'Période', 'Period'),
+      value: `${filter.from === '' ? '…' : filter.from} → ${filter.to === '' ? '…' : filter.to}`,
+    });
+  }
+  if (filter.search !== '') meta.push({ label: tr('بحث', 'Recherche', 'Search'), value: filter.search });
+  if (filter.source !== null) meta.push({ label: tr('المصدر', 'Source', 'Source'), value: filter.source });
+  if (filter.unbalancedOnly) {
+    meta.push({
+      label: tr('مُرشَّح', 'Filtré', 'Filtered'),
+      value: tr('غير المتوازنة فقط', 'Déséquilibrées seulement', 'Unbalanced only'),
+    });
+  }
+  const debit = entries.reduce((sum, entry) => sum + entry.debit, 0);
+  const credit = entries.reduce((sum, entry) => sum + entry.credit, 0);
+  meta.push({ label: tr('مدين', 'Débit', 'Debit'), value: debit.toFixed(2) });
+  meta.push({ label: tr('دائن', 'Crédit', 'Credit'), value: credit.toFixed(2) });
+  return meta;
+}
+
 /**
- * The entry list as CSV.
+ * The entry list as a table.
  *
- * Values are raw: ISO dates and unformatted decimals, not `1 250,00 DA`. A CSV
- * is read by a spreadsheet, and a spreadsheet that has to guess whether `1.250`
+ * Values are raw: ISO dates and unformatted decimals, not `1 250,00 DA`. A table
+ * is opened by a spreadsheet, and a spreadsheet that has to guess whether `1.250`
  * is one thousand or one and a quarter will guess wrong in one of the two
  * languages this OS runs in.
+ *
+ * What the head carries is the thing the file could never say before. These rows
+ * are *the visible ones* — one status filter and one search box away from the whole
+ * book — and a rectangle of rows cannot state its own filter. Row one has to be the
+ * header. The page formats have a head above the table, so the filter goes there,
+ * and a reader who is handed the file a week later knows what they are holding.
  */
-export function entriesCsv(entries: readonly JournalEntry[]): string {
-  return csvDocument(
+export function entriesTable(
+  entries: readonly JournalEntry[],
+  filter: JournalFilter,
+  tr: Translate,
+): TableDocument {
+  return tableDocument(
+    tr('دفتر اليومية', 'Journal', 'Journal'),
     CSV_HEADER,
     entries.map((entry) => [
       entry.date,
@@ -211,8 +264,12 @@ export function entriesCsv(entries: readonly JournalEntry[]): string {
       entry.periodId ?? '',
       entry.postedAt ?? '',
     ]),
+    entriesMeta(entries, filter, tr),
   );
 }
+
+/** `journal-2026-08-28` — the book, then the day it was taken. */
+export const entriesFileName = (today: string): string => `journal-${today}`;
 
 /**
  * One entry and its lines as tab-separated text, for pasting into Sheets.

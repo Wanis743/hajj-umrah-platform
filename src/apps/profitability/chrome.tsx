@@ -33,7 +33,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  FileDown,
   Filter,
   Gauge,
   Landmark,
@@ -63,6 +62,7 @@ import {
   ToolbarSpacer,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { type Basis, type FiscalPeriod, PERIOD_STATUS_LABEL } from '../shared/ledger';
 import type { ProfitabilityBusy } from './actions';
 import {
@@ -181,15 +181,12 @@ export function ProfitabilityToolbar(props: ToolbarProps) {
       >
         {tr('نسخ', 'Copier', 'Copy')}
       </Button>
-      <Button
-        icon={FileDown}
+      <ExportButton
         busy={busy === 'export'}
         disabled={working}
-        onClick={() => onCommand('export')}
-        title={tr('تصدير CSV (Ctrl+E)', 'Exporter en CSV (Ctrl+E)', 'Export to CSV (Ctrl+E)')}
-      >
-        {tr('تصدير', 'Exporter', 'Export')}
-      </Button>
+        onCommand={onCommand}
+        title={tr('تصدير المعروض (Ctrl+E)', 'Exporter la vue (Ctrl+E)', 'Export this view (Ctrl+E)')}
+      />
       <ToolbarSeparator />
       <IconButton
         icon={RefreshCw}
@@ -632,20 +629,18 @@ export function ProfitabilityRail(props: RailProps) {
             )}
           </Badge>
         )}
-        <Button
-          icon={FileDown}
+        <ExportButton
           block
           busy={props.busy === 'export'}
           disabled={props.busy !== null}
-          onClick={() => props.onCommand('export')}
+          onCommand={props.onCommand}
+          label={tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
           title={tr(
             'كل سطر في الملف يحمل الأساس والنافذة والتغطية.',
             'Chaque ligne du fichier porte la base, la fenêtre et la couverture.',
             'Every row in the file carries the basis, the window and the coverage.',
           )}
-        >
-          {tr('تصدير الجدول', 'Exporter le tableau', 'Export the table')}
-        </Button>
+        />
         <Button icon={Copy} block variant="subtle" onClick={() => props.onCommand('copy')}>
           {tr('نسخ التقرير', 'Copier le rapport', 'Copy the report')}
         </Button>

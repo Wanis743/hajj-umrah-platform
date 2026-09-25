@@ -100,6 +100,7 @@ class Controller implements ShellHostController {
       clipboardWrite: (text) => writeClipboard(text),
       clipboardRead: () => readClipboard(),
       download: (fileName, bytes, contentType) => deliverDownload(fileName, bytes, contentType),
+      print: (title, html) => showPrintDialog(title, html),
       power: (action) => this.options.onPower(action),
     };
   }
@@ -248,8 +249,16 @@ async function readClipboard(): Promise<string> {
  * would get mojibake in every row. The other three formats declare their own
  * encoding internally and must not be prefixed with anything.
  */
-async function deliverDownload(fileName: string, bytes: Uint8Array, contentType: string): Promise<boolean> {
+async function deliverDownload(fileName: string, input: Uint8Array, contentType: string): Promise<boolean> {
   try {
+    // Copied into a buffer this function owns, rather than passed straight to the
+    // `Blob`. A `Uint8Array` carries its backing store in its type, and `BlobPart`
+    // takes a view over a plain `ArrayBuffer` only — a `SharedArrayBuffer` cannot
+    // be handed to a `Blob` at all. Nothing in this OS allocates a shared buffer,
+    // so a cast would be true today and silently false the first time something
+    // does; the copy is true either way, and an export is kilobytes.
+    const bytes = new Uint8Array(input.byteLength);
+    bytes.set(input);
     const parts: BlobPart[] = contentType.startsWith('text/csv') ? ['﻿', bytes] : [bytes];
     const url = URL.createObjectURL(new Blob(parts, { type: contentType }));
     const anchor = document.createElement('a');
@@ -262,6 +271,66 @@ async function deliverDownload(fileName: string, bytes: Uint8Array, contentType:
     document.body.removeChild(anchor);
     // Revoked on a later frame: Safari reads the URL after the click returns.
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The print dialog, for the one document the OS cannot draw itself.
+ *
+ * An offscreen iframe rather than a new tab: a tab needs `window.open`, which
+ * the boundary gate bans and a pop-up blocker eats anyway, and the iframe's own
+ * `print()` prints only the iframe. The page is written through `srcdoc` so it
+ * is a document in its own right, with its own `@page` rules.
+ *
+ * No `sandbox` attribute. It would be the obvious hardening and it does not
+ * work here: `print()` is a modal dialog, so the frame would need
+ * `allow-modals`, and `contentWindow` is only reachable across a same-origin
+ * boundary, so it would also need `allow-same-origin` -- which together give
+ * back everything the attribute was meant to take away. The document is built
+ * by `printableTable` from cells this OS already holds and every one of them is
+ * escaped on the way in; the frame carries no `allow-scripts` either way.
+ *
+ * The frame is left standing for a minute. Chromium's print dialog reads the
+ * document while it is open, and removing the frame on the next line prints a
+ * blank page.
+ */
+async function showPrintDialog(title: string, html: string): Promise<boolean> {
+  try {
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.title = title;
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.style.opacity = '0';
+    const ready = new Promise<void>((resolve) => {
+      frame.addEventListener('load', () => resolve(), { once: true });
+    });
+    frame.srcdoc = html;
+    document.body.appendChild(frame);
+    await ready;
+
+    const view = frame.contentWindow;
+    if (view === null) {
+      frame.remove();
+      return false;
+    }
+    // Fonts first: printing before the Arabic face has loaded prints the
+    // fallback, which is the failure this whole path exists to avoid.
+    try {
+      await view.document.fonts.ready;
+    } catch {
+      // A browser without the font-loading API prints with what it has.
+    }
+    view.focus();
+    view.print();
+    setTimeout(() => frame.remove(), 60_000);
     return true;
   } catch {
     return false;

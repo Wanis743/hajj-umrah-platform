@@ -17,7 +17,6 @@ import {
   ClipboardCopy,
   ClipboardList,
   ExternalLink,
-  FileDown,
   Lock,
   Pencil,
   ShieldAlert,
@@ -35,6 +34,7 @@ import {
   StackedBar,
   useLocale,
 } from '@/platform/sdk';
+import { ExportButton } from '../shared/ExportButton';
 import { ACCOUNT_TYPE_LABEL, type Budget, type BudgetLine, type FiscalPeriod } from '../shared/ledger';
 import type { BudgetBusy } from './actions';
 import type { Translate } from './report';
@@ -95,15 +95,13 @@ export function BudgetPane({ budget, period, assessment, busy, onCommand }: Budg
         <Button block variant="subtle" icon={ClipboardCopy} onClick={() => onCommand('copy')}>
           {tr('نسخ الملخّص', 'Copier le résumé', 'Copy summary')}
         </Button>
-        <Button
+        <ExportButton
           block
-          icon={FileDown}
           busy={busy === 'export'}
           disabled={busy !== null}
-          onClick={() => onCommand('export')}
-        >
-          {tr('تصدير المعروض', 'Exporter la vue', 'Export this view')}
-        </Button>
+          onCommand={onCommand}
+          label={tr('تصدير المعروض', 'Exporter la vue', 'Export this view')}
+        />
       </div>
     </div>
   );
