@@ -30,7 +30,6 @@ import { notepadManifest } from './notepad/manifest';
 import { profitabilityManifest } from './profitability/manifest';
 import { reconcileManifest } from './reconcile/manifest';
 import { settingsManifest } from './settings/manifest';
-import { sheetsManifest } from './sheets/manifest';
 import { statementsManifest } from './statements/manifest';
 import { treasuryManifest } from './treasury/manifest';
 
@@ -39,7 +38,6 @@ export const APP_PACKAGES: readonly AppPackage[] = [
   { manifest: eventViewerManifest, load: () => import('./eventviewer/App') },
   { manifest: notepadManifest, load: () => import('./notepad/App') },
   { manifest: calculatorManifest, load: () => import('./calculator/App') },
-  { manifest: sheetsManifest, load: () => import('./sheets/App') },
   // Before the book, the desk the book is written from: a lead becomes a customer, a quote
   // becomes a booking, and the booking is what everything below this line later records.
   // Nothing in the finance suite has anything to post until this window has been worked.

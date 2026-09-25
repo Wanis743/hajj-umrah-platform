@@ -3,9 +3,15 @@
  *
  * The associations are the important half. `handlerFor` is first-match-wins over
  * the installed manifests, so whatever Notepad claims here is what a double-click
- * on the desktop opens — and by claiming `text/plain`, `text/markdown` and
- * `application/json` it becomes the default opener for everything in the image
- * that is text and is not a spreadsheet or a ledger document.
+ * on the desktop opens — and by claiming `text/plain`, `text/markdown`,
+ * `text/csv` and `application/json` it becomes the default opener for everything
+ * in the image that is text and is not a ledger document.
+ *
+ * `text/csv` came here when Sheets was removed. It is the one association in the
+ * list Notepad did not choose: a CSV is a table, and a text editor shows it as
+ * the commas it literally is. But every finance app in the suite exports CSV, so
+ * the alternative was a file type the OS could produce and then refuse to open —
+ * and Notepad displaying it plainly is a smaller lie than that.
  *
  * `singleInstance` is deliberate and not laziness: Notepad has tabs, so a second
  * launch should hand the running window another tab rather than open a second
@@ -32,6 +38,7 @@ export const notepadManifest = defineApp({
   fileAssociations: [
     { contentType: 'text/plain', extensions: ['.txt', '.log', '.ini'] },
     { contentType: 'text/markdown', extensions: ['.md'] },
+    { contentType: 'text/csv', extensions: ['.csv'] },
     { contentType: 'application/json', extensions: ['.json'] },
   ],
   jumpList: [

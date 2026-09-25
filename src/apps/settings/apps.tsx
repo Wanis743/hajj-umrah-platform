@@ -54,7 +54,6 @@ const FILE_TYPES: readonly { readonly ext: string; readonly label: Localized }[]
   { ext: '.md', label: { ar: 'ماركداون', fr: 'Markdown', en: 'Markdown' } },
   { ext: '.csv', label: { ar: 'قيم مفصولة بفواصل', fr: 'Valeurs séparées', en: 'Comma-separated values' } },
   { ext: '.json', label: { ar: 'جيسون', fr: 'JSON', en: 'JSON' } },
-  { ext: '.fxsheet', label: { ar: 'جدول', fr: 'Feuille de calcul', en: 'Spreadsheet' } },
   { ext: '.fxjournal', label: { ar: 'قيد يومية', fr: 'Écriture comptable', en: 'Journal entry' } },
   { ext: '.fxreport', label: { ar: 'تقرير', fr: 'Rapport', en: 'Report' } },
 ];

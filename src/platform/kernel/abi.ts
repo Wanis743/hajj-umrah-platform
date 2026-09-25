@@ -201,7 +201,6 @@ export type VfsContentType =
   | 'text/markdown'
   | 'text/csv'
   | 'application/json'
-  | 'application/vnd.financeos.sheet'
   | 'application/vnd.financeos.journal'
   | 'application/vnd.financeos.report'
   | 'application/vnd.financeos.shortcut'
@@ -1125,8 +1124,9 @@ export type PowerAction = 'lock' | 'signOut' | 'restart' | 'shutdown' | 'sleep';
 
 /**
  * The `fs.*` family above is a *virtual* filesystem: paths, text content and
- * `VfsStat`, serving Notepad and Sheets out of the registry-backed tree. It has
- * no way to move a 20 MB scanned PDF, and no bucket behind it if it did.
+ * `VfsStat`, serving Notepad and the file manager out of the registry-backed
+ * tree. It has no way to move a 20 MB scanned PDF, and no bucket behind it if
+ * it did.
  *
  * These two syscalls are that path. They are separate from `fs.*` on purpose
  * rather than bolted on as `fs.writeBytes`, because a document is not a file in
@@ -1736,7 +1736,6 @@ export const APP_IDS = {
   eventViewer: appId('com.financeos.eventviewer'),
   notepad: appId('com.financeos.notepad'),
   calculator: appId('com.financeos.calculator'),
-  sheets: appId('com.financeos.sheets'),
   inbox: appId('com.financeos.inbox'),
   dashboard: appId('com.financeos.dashboard'),
   journal: appId('com.financeos.journal'),

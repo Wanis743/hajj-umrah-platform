@@ -694,7 +694,7 @@ export const suggestedFileName = (view: LedgerView, today: string): string =>
   `${view === 'trial' ? 'trial-balance' : 'chart-of-accounts'}-${today}`;
 
 /**
- * One account and its ledger as tab-separated text, for pasting into Sheets.
+ * One account and its ledger as tab-separated text, for pasting into a spreadsheet.
  *
  * Tabs rather than commas because that is what a paste into a grid splits on, and
  * because an account name legitimately contains a comma.

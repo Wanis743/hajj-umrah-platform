@@ -2,7 +2,7 @@
  * Content-type glyphs.
  *
  * The shell has its own copy for the desktop and the taskbar; apps cannot import
- * it across the boundary, and duplicating a nine-entry lookup is cheaper than
+ * it across the boundary, and duplicating an eight-entry lookup is cheaper than
  * widening the ABI to carry icon names for files. Lucide is a third-party
  * package, so it is fair game on either side.
  */
@@ -21,8 +21,12 @@ import type { VfsContentType, VfsStat } from '@/platform/sdk';
 export function iconForFile(contentType: VfsContentType, kind: VfsStat['kind']): LucideIcon {
   if (kind === 'directory') return Folder;
   switch (contentType) {
+    // A workbook is a table whatever wrote it, and the OS now writes both. The
+    // other two export formats keep the generic document glyph on purpose: a PDF
+    // and a Word file are pages of text, and Lucide has no honest glyph that
+    // tells them apart from a `.txt`.
     case 'text/csv':
-    case 'application/vnd.financeos.sheet':
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
       return FileSpreadsheet;
     case 'application/json':
       return Database;
@@ -53,8 +57,6 @@ export function typeLabel(
       return tr('قيم مفصولة بفواصل', 'Valeurs séparées par virgules', 'CSV file');
     case 'application/json':
       return tr('مستند JSON', 'Document JSON', 'JSON document');
-    case 'application/vnd.financeos.sheet':
-      return tr('جدول بيانات', 'Feuille de calcul', 'Sheets workbook');
     case 'application/vnd.financeos.journal':
       return tr('دفعة قيود', 'Lot d’écritures', 'Journal batch');
     case 'application/vnd.financeos.report':
@@ -76,8 +78,6 @@ export function contentTypeForName(name: string): VfsContentType {
       return 'text/csv';
     case '.json':
       return 'application/json';
-    case '.fxsheet':
-      return 'application/vnd.financeos.sheet';
     case '.fxjournal':
       return 'application/vnd.financeos.journal';
     case '.fxreport':

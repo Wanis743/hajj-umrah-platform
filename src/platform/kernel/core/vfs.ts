@@ -34,7 +34,6 @@ const EXTENSION_TYPES: Readonly<Record<string, VfsContentType>> = {
   '.md': 'text/markdown',
   '.csv': 'text/csv',
   '.json': 'application/json',
-  '.fsheet': 'application/vnd.financeos.sheet',
   '.fjournal': 'application/vnd.financeos.journal',
   '.freport': 'application/vnd.financeos.report',
   '.lnk': 'application/vnd.financeos.shortcut',

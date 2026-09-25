@@ -30,7 +30,7 @@ export function iconForContentType(contentType: string, kind: 'file' | 'director
   if (kind === 'directory') return Folder;
   switch (contentType) {
     case 'text/csv':
-    case 'application/vnd.financeos.sheet':
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
       return FileSpreadsheet;
     case 'application/json':
       return Database;

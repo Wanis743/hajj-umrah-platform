@@ -26,7 +26,6 @@ import {
   Plus,
   RefreshCw,
   SquareArrowOutUpRight,
-  Table2,
   Trash2,
 } from 'lucide-react';
 import {
@@ -364,7 +363,7 @@ interface DeskFiles {
   /** Path being renamed in place, or `null`. */
   readonly renaming: string | null;
   readonly beginRename: (path: string | null) => void;
-  readonly create: (what: 'folder' | 'text' | 'sheet', taken: Selection) => void;
+  readonly create: (what: 'folder' | 'text', taken: Selection) => void;
   readonly rename: (item: FileItem, next: string) => void;
   readonly remove: (targets: readonly DeskItem[]) => Promise<void>;
   readonly copyPath: (path: string) => Promise<void>;
@@ -390,7 +389,7 @@ function useDeskFiles(locale: AppLocale, setSelection: Dispatch<SetStateAction<S
   );
 
   const create = useCallback(
-    (what: 'folder' | 'text' | 'sheet', taken: Selection) => {
+    (what: 'folder' | 'text', taken: Selection) => {
       const title = locale.tr('عنصر جديد', 'Nouvel élément', 'New item');
       if (what === 'folder') {
         const name = uniqueName(taken, locale.tr('مجلد جديد', 'Nouveau dossier', 'New folder'), '');
@@ -398,20 +397,9 @@ function useDeskFiles(locale: AppLocale, setSelection: Dispatch<SetStateAction<S
         if (stat !== null) setRenaming(stat.path);
         return;
       }
-      const sheet = what === 'sheet';
-      const base = sheet
-        ? locale.tr('جدول جديد', 'Nouvelle feuille', 'New Spreadsheet')
-        : locale.tr('مستند نصي جديد', 'Nouveau document texte', 'New Text Document');
-      const name = uniqueName(taken, base, sheet ? '.fsheet' : '.txt');
-      const stat = settle(
-        title,
-        kernel.vfs.writeText(
-          `${DESKTOP_FOLDER}\\${name}`,
-          sheet ? '{"cells":{}}' : '',
-          sheet ? 'application/vnd.financeos.sheet' : 'text/plain',
-          true,
-        ),
-      );
+      const base = locale.tr('مستند نصي جديد', 'Nouveau document texte', 'New Text Document');
+      const name = uniqueName(taken, base, '.txt');
+      const stat = settle(title, kernel.vfs.writeText(`${DESKTOP_FOLDER}\\${name}`, '', 'text/plain', true));
       if (stat !== null) setRenaming(stat.path);
     },
     [kernel, locale, settle],
@@ -569,7 +557,7 @@ export function Desktop({ locale, appearance }: DesktopProps) {
     else if (id.startsWith('sort:')) kernel.registry.set(REG.userDesktop, 'SortBy', id.slice(5));
     else if (id.startsWith('new:')) {
       const taken = new Set(items.filter((item) => item.kind === 'file').map((item) => item.label.toLowerCase()));
-      files.create(id.slice(4) as 'folder' | 'text' | 'sheet', taken);
+      files.create(id.slice(4) as 'folder' | 'text', taken);
     } else if (id === 'icons') kernel.registry.set(REG.userDesktop, 'ShowIcons', !appearance.showDesktopIcons);
     else if (id === 'refresh') refresh();
     else if (id === 'display') settings('system');
@@ -857,7 +845,6 @@ function desktopEntries(
       submenu: [
         { id: 'new:folder', label: locale.tr('مجلد', 'Dossier', 'Folder'), icon: Folder },
         { id: 'new:text', label: locale.tr('مستند نصي', 'Document texte', 'Text document'), icon: FileText },
-        { id: 'new:sheet', label: locale.tr('جدول بيانات', 'Feuille de calcul', 'Spreadsheet'), icon: Table2 },
       ],
     },
     { id: 'sep-open', kind: 'separator' },

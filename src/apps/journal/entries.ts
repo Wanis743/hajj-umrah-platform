@@ -272,7 +272,7 @@ export function entriesTable(
 export const entriesFileName = (today: string): string => `journal-${today}`;
 
 /**
- * One entry and its lines as tab-separated text, for pasting into Sheets.
+ * One entry and its lines as tab-separated text, for pasting into a spreadsheet.
  *
  * Tabs rather than commas because that is what a paste into a grid splits on,
  * and because an account label legitimately contains a comma.
