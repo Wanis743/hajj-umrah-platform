@@ -27,6 +27,7 @@
  * allowed to compete with the shell's own chrome.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { FluentProvider } from '@fluentui/react-components';
 import { useAuth } from '@/lib/auth';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
@@ -66,6 +67,7 @@ import { Switcher, TaskView } from './TaskView';
 import { ConsentDialog, FileDialog, MessageBox, ToastHost } from './Dialogs';
 import { BootScreen, LockScreen, PowerScreen, type PowerScreenAction } from './Screens';
 import { CrashPane } from './appHost';
+import { fluentTheme } from './fluentTheme';
 import './fluent.css';
 
 /** Taskbar height, mirroring `--fx-taskbar`; the work area stops here. */
@@ -409,9 +411,15 @@ function Shell({
   const barShown = !appearance.taskbarAutoHide || peek || ui.flyout !== null;
 
   return (
-    <div
+    <FluentProvider
       ref={rootRef}
       className="fos"
+      // The provider *is* the shell root rather than a layer inside it: Fluent's
+      // tokens are emitted on the element carrying its theme, and the `--fx-*`
+      // ladder the theme points back at is declared on `.fos`. One element means
+      // the two tables resolve against each other, and means no extra div in the
+      // layer stack the z-index bands are counted against.
+      theme={fluentTheme(appearance.theme, appearance.accent)}
       dir={locale.rtl ? 'rtl' : 'ltr'}
       lang={locale.lang}
       data-theme={appearance.theme}
@@ -499,7 +507,7 @@ function Shell({
         onPowerOn={onPowerOn}
         onRequestClose={requestClose}
       />
-    </div>
+    </FluentProvider>
   );
 }
 

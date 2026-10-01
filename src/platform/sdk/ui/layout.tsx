@@ -6,6 +6,16 @@
  * means every window in the OS has the same anatomy, the same spacing and the
  * same scroll behaviour.
  */
+import {
+  MessageBar,
+  MessageBarActions,
+  MessageBarBody,
+  MessageBarTitle,
+  Tab,
+  TabList,
+  makeStyles,
+  mergeClasses,
+} from '@fluentui/react-components';
 import clsx from 'clsx';
 import { ChevronRight, Inbox, PanelLeft, PanelRight, X, type LucideIcon } from 'lucide-react';
 import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -402,6 +412,43 @@ export function NavGroupLabel({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The two places the OS disagrees with Fluent's tab metrics.
+ *
+ * Fluent's large tab is padded 16px all round with its underline inset 12px at
+ * each end; the pivot this OS has always drawn sits tight against its label,
+ * with the underline running the label's full width and the strip carrying a
+ * hairline beneath it. Only those differences are stated here — the type ramp,
+ * the colours and the sliding indicator are Fluent's, and already resolve to
+ * `--fx-*` values through the provider's theme.
+ *
+ * Longhand only: Griffel types the shorthands it cannot expand as `undefined`,
+ * so writing `padding` or `borderBottom` here is a type error rather than a
+ * silent fallback. Not exported either, because `react-refresh` treats any
+ * non-component export from a module of components as an error.
+ */
+const useStyles = makeStyles({
+  pivotList: {
+    columnGap: '20px',
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'var(--fx-divider)',
+  },
+  pivotTab: {
+    paddingTop: '8px',
+    paddingRight: '2px',
+    paddingBottom: '10px',
+    paddingLeft: '2px',
+    /* The underline spans the label instead of being inset inside it, and sits
+     * on the strip's hairline rather than a pixel above it. */
+    '::after': {
+      left: '0',
+      right: '0',
+      bottom: '-1px',
+    },
+  },
+});
+
 export interface PivotTab<T extends string> {
   readonly id: T;
   readonly label: ReactNode;
@@ -415,29 +462,42 @@ export interface PivotProps<T extends string> {
   className?: string;
 }
 
-/** Fluent pivot (underlined tab strip). */
+/**
+ * Fluent pivot (underlined tab strip).
+ *
+ * A real `TabList`, because the strip this replaces had the ARIA roles and none
+ * of the behaviour behind them: `role="tablist"` and `role="tab"` were printed,
+ * but there was no roving tabindex and no arrow, Home or End handling, so a
+ * keyboard user tabbed through every tab one at a time and a screen reader was
+ * promised a widget the markup did not implement. It also changed the selected
+ * tab to semibold with no space reserved for the extra width, which shifted
+ * every tab after it on each change.
+ *
+ * Fluent implements the keyboard contract, reserves the bold width
+ * (`reserveSelectedTabSpace`, on by default), and slides the underline from the
+ * old tab to the new one rather than fading it in place.
+ */
 export function Pivot<T extends string>({ tabs, active, onChange, className }: PivotProps<T>) {
+  const styles = useStyles();
   return (
-    <div className={clsx('fx-pivot', className)} role="tablist">
+    <TabList
+      appearance="transparent"
+      size="large"
+      selectedValue={active}
+      onTabSelect={(_, data) => onChange(data.value as T)}
+      className={mergeClasses(styles.pivotList, className)}
+    >
       {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          aria-selected={tab.id === active}
-          className="fx-pivot-item"
-          data-selected={tab.id === active ? 'true' : undefined}
-          onClick={() => onChange(tab.id)}
-        >
+        <Tab key={tab.id} value={tab.id} className={styles.pivotTab}>
           {tab.label}
           {tab.badge !== null && tab.badge !== undefined && tab.badge > 0 ? (
             <span style={{ marginInlineStart: 6, fontSize: 11, color: 'var(--fx-accent-text)', fontWeight: 700 }}>
               {tab.badge}
             </span>
           ) : null}
-        </button>
+        </Tab>
       ))}
-    </div>
+    </TabList>
   );
 }
 
@@ -538,7 +598,37 @@ export function Section({ title, action, children }: { title: ReactNode; action?
   );
 }
 
-/** Fluent info bar — inline, non-blocking status inside a window. */
+/**
+ * Fluent recognises four intents where this kit has six tones, and its `info`
+ * is a neutral grey where the OS's is blue — so the intent is only ever used to
+ * choose the fallback glyph and the announcement's urgency, never the colour.
+ */
+const MESSAGE_BAR_INTENT: Record<Tone, 'info' | 'warning' | 'error' | 'success'> = {
+  neutral: 'info',
+  info: 'info',
+  accent: 'info',
+  success: 'success',
+  warning: 'warning',
+  danger: 'error',
+};
+
+/**
+ * Fluent info bar — inline, non-blocking status inside a window.
+ *
+ * A real `MessageBar`, for the anatomy rather than the palette. It is a grid of
+ * four named areas that measures its own width and folds the actions onto a
+ * second line once the message no longer fits beside them; the flex row it
+ * replaces could only ever squeeze. The fill, the icon and the title colour
+ * stay the OS's, set inline so they sit above every class Fluent merges.
+ *
+ * `role="status"` is kept in place of Fluent's `role="group"`. Fluent announces
+ * through an `AnnounceProvider`, which `FluentProvider` does not install and
+ * this shell does not either, so its `announce` is a no-op — without the live
+ * region an error appearing in a window would be silent. `aria-labelledby` is
+ * cleared for the same honesty: Fluent points it at a title id whether or not a
+ * title is rendered, and the title, when there is one, is read as content
+ * anyway.
+ */
 export function InfoBar({
   tone = 'info',
   title,
@@ -556,27 +646,37 @@ export function InfoBar({
 }) {
   const background = toneSurface(tone);
   const foreground = tone === 'accent' ? 'var(--fx-accent-text)' : toneColor(tone);
+  /*
+   * Built then mutated, not spread with a ternary: Fluent merges a slot by plain
+   * object spread, so an explicit `children: undefined` would erase the intent
+   * glyph it falls back to instead of leaving it alone.
+   */
+  const icon: { style: CSSProperties; children?: ReactNode } = {
+    style: { color: foreground, fontSize: 16 },
+  };
+  if (Glyph !== undefined) icon.children = <Glyph size={16} />;
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 10,
-        padding: '10px 12px',
-        borderRadius: 'var(--fx-radius-control)',
-        background,
-        border: '1px solid var(--fx-stroke)',
-      }}
+    <MessageBar
+      intent={MESSAGE_BAR_INTENT[tone]}
+      icon={icon}
       role="status"
+      aria-labelledby={undefined}
+      style={{ background, borderColor: 'var(--fx-stroke)' }}
     >
-      {Glyph ? <Glyph size={16} style={{ color: foreground, flex: 'none', marginTop: 1 }} /> : null}
-      <div style={{ flex: 1, minWidth: 0, fontSize: 'var(--fx-caption)', lineHeight: 1.5 }}>
-        {title !== undefined ? <div style={{ fontWeight: 600, color: foreground }}>{title}</div> : null}
+      <MessageBarBody>
+        {title !== undefined ? <MessageBarTitle style={{ color: foreground }}>{title}</MessageBarTitle> : null}
         {children}
-      </div>
-      {action}
-      {onDismiss ? <IconButton icon={X} label="Dismiss" onClick={onDismiss} size={14} /> : null}
-    </div>
+      </MessageBarBody>
+      {action === undefined && onDismiss === undefined ? null : (
+        <MessageBarActions
+          containerAction={
+            onDismiss === undefined ? undefined : <IconButton icon={X} label="Dismiss" onClick={onDismiss} size={14} />
+          }
+        >
+          {action}
+        </MessageBarActions>
+      )}
+    </MessageBar>
   );
 }
 

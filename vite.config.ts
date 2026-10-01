@@ -2,6 +2,24 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
+/**
+ * Everything that ships as part of the Fluent design system, checked against the
+ * dependency graph rather than guessed: `@griffel/*` is its styling runtime,
+ * `@emotion/hash` and `stylis` are Griffel's own two dependencies, `tabster` and
+ * `keyborg` are the focus machinery behind its tab lists and menus, and
+ * `@swc/helpers` is what every one of its compiled packages calls at runtime. No
+ * other dependency in the tree imports any of the six.
+ */
+const FLUENT_SCOPES = [
+  '@fluentui/',
+  '@griffel/',
+  '@emotion/hash',
+  'stylis/',
+  'tabster/',
+  'keyborg/',
+  '@swc/helpers',
+] as const;
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -15,7 +33,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         /**
-         * Two groupings, both because the default split was paying for the same
+         * Three groupings, all because the default split was paying for the same
          * bytes more than once.
          *
          * The icon set is imported by nearly every lazy route, and the icons a
@@ -33,6 +51,23 @@ export default defineConfig({
          * (`src/apps/crm`); with nothing importing the old folder there is no chunk
          * left to group, and the rule went with it.
          *
+         * Fluent is the design system the Finance OS controls are built on, and it
+         * arrives as one package with fifty-odd siblings plus a CSS-in-JS runtime.
+         * Left alone, Rollup folds all of it into the OS's own lazy chunk, which
+         * then carries both the desktop shell and the whole control library in a
+         * single download and lands well over the largest-chunk budget. Split out,
+         * the shell and the design system are fetched in parallel on first boot and
+         * the design system is then cached for every later visit, which is the one
+         * part of the OS that does not change when the apps do. The six support
+         * libraries named beside it -- Griffel's runtime and its two hashing and
+         * serialising helpers, Tabster and Keyborg for focus, and the SWC helpers
+         * every Fluent package's compiled output calls -- are imported by nothing
+         * else in the tree, so they belong in the same chunk as the thing that
+         * needs them rather than scattered through the routes.
+         *
+         * `scheduler` is deliberately absent from that list: it is React's, and
+         * moving it here would make the React chunk import from the Fluent one.
+         *
          * Narrow on purpose. Grouping all of node_modules, or the App-* route
          * chunks, or the BI studio's ten panels, each buys a smaller total with a
          * chunk big enough to fail the largest-chunk budget, or with a first paint
@@ -41,6 +76,7 @@ export default defineConfig({
         manualChunks: (id: string) => {
           const file = id.replace(/\\/g, '/');
           if (file.includes('node_modules/lucide-react')) return 'vendor-icons';
+          if (FLUENT_SCOPES.some((scope) => file.includes(`node_modules/${scope}`))) return 'vendor-fluent';
           return undefined;
         },
         /**

@@ -66,6 +66,8 @@
     "test:maintainability": "node scripts/verify-maintainability.mjs && node scripts/verify-any.mjs && node scripts/verify-source.mjs && node scripts/verify-migrations.mjs && node scripts/verify-architecture.mjs && node scripts/verify-toolchain-config.mjs && node scripts/verify-ui-safety.mjs"
   },
   "dependencies": {
+    "@fluentui/react-components": "9.74.7",
+    "@fluentui/react-icons": "2.0.341",
     "@number-flow/react": "0.5.14",
     "@supabase/supabase-js": "^2.57.4",
     "@visx/curve": "4.0.1-alpha.0",

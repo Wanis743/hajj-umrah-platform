@@ -244,12 +244,11 @@ export function SplitButton({
         >
           {children}
         </Button>
-        <button
+        <Button
           ref={chevron}
-          type="button"
-          className="fx-btn fx-split-more"
-          data-variant={variant}
-          data-size={size}
+          className="fx-split-more"
+          variant={variant}
+          size={size}
           disabled={off}
           aria-label={menuLabel}
           aria-haspopup="menu"
@@ -258,7 +257,7 @@ export function SplitButton({
           onClick={toggle}
         >
           <ChevronDown size={glyph} />
-        </button>
+        </Button>
       </div>
       {point === null ? null : (
         <MenuFlyout

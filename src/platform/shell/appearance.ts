@@ -231,6 +231,42 @@ export function accentVariables(hex: string): Readonly<Record<string, string>> {
   };
 }
 
+/**
+ * The same ladder, widened to the sixteen stops Fluent's theme builder wants.
+ *
+ * `createLightTheme` and `createDarkTheme` read a `BrandVariants` — stops 10
+ * (darkest) through 160 (lightest) — and derive every `colorBrand*` token from
+ * it: button fills, focus rings, selected rows, link text, the lot. Building it
+ * here rather than importing one of Microsoft's means the OS's own accent is the
+ * thing Fluent themes itself from, so the eight swatches in `ACCENTS` and any
+ * custom hex a user picks all reach Fluent's controls.
+ *
+ * The chosen accent sits at 80 because that is the stop `createLightTheme` uses
+ * for `colorBrandBackground` — the primary button fill. Everything below mixes
+ * toward black and everything above toward white, on the same tint ladder
+ * `accentVariables` uses, so the two palettes cannot drift apart.
+ */
+const DARKER = [0.84, 0.72, 0.6, 0.48, 0.36, 0.24, 0.12] as const;
+const LIGHTER = [0.1, 0.2, 0.31, 0.42, 0.54, 0.66, 0.79, 0.92] as const;
+
+export type BrandStop =
+  | 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80
+  | 90 | 100 | 110 | 120 | 130 | 140 | 150 | 160;
+
+export function brandRamp(hex: string): Readonly<Record<BrandStop, string>> {
+  const base = parseHex(hex);
+  const steps = [
+    ...DARKER.map((amount) => toHex(mix(base, BLACK, amount))),
+    toHex(base),
+    ...LIGHTER.map((amount) => toHex(mix(base, WHITE, amount))),
+  ];
+  const ramp: Partial<Record<BrandStop, string>> = {};
+  steps.forEach((colour, index) => {
+    ramp[((index + 1) * 10) as BrandStop] = colour;
+  });
+  return ramp as Record<BrandStop, string>;
+}
+
 /* ------------------------------------------------------------------ *
  * Registry projection
  * ------------------------------------------------------------------ */
