@@ -48,8 +48,10 @@ import {
   ProgressBar,
   PropertyRow,
   StackedBar,
+  TileWall,
   useApp,
   Waterfall,
+  type WallTile,
   type WaterfallStep,
 } from '@/platform/sdk';
 import {
@@ -209,6 +211,18 @@ export interface PageProps {
 /**
  * The four numbers somebody wants before their first meeting, and three pictures.
  *
+ * A wall rather than a page. The other four pages stack a fixed KPI grid above a fixed
+ * card grid, which is the right shape when the author knows what matters; the overview
+ * is the one page where they do not, because what matters is whatever is wrong today.
+ * So every piece is a tile on one wall, each tile declares how many columns it would
+ * like, and a person can widen the one they are actually reading — by dragging its grip
+ * or by pressing an arrow key on it — without anything else leaving the window.
+ *
+ * The spans are requests, not promises. `TileWall` measures its own box, works out how
+ * many columns actually fit, and clamps every span against that count, so the same wall
+ * is four tiles across on a maximised window and one tile across on a quarter-snapped
+ * one without a media query anywhere.
+ *
  * The tiles that lead somewhere are clickable and the ones that do not are not: assets
  * open the trial balance, the result opens the posted entries, the backlog opens the
  * approvals queue. Cash has no window of its own in this suite yet, so it stays inert
@@ -218,10 +232,12 @@ export function OverviewPage({ snap, f, onOpen }: PageProps) {
   const { t, tr } = useApp().locale;
   const p = snap.position;
   const waiting = snap.activity.waiting.length;
-  return (
-    <div style={PAGE}>
-      <MixedCurrencyBar currencies={p.currencies} />
-      <div style={KPI_GRID}>
+
+  const tiles: WallTile[] = [
+    {
+      id: 'assets',
+      name: t(ACCOUNT_TYPE_LABEL.ASSET),
+      node: (
         <KpiTile
           label={t(ACCOUNT_TYPE_LABEL.ASSET)}
           value={f.money(p.assets)}
@@ -229,6 +245,12 @@ export function OverviewPage({ snap, f, onOpen }: PageProps) {
           icon={Landmark}
           onClick={() => onOpen(TO_TRIAL)}
         />
+      ),
+    },
+    {
+      id: 'result',
+      name: tr('النتيجة', 'Résultat', 'Result'),
+      node: (
         <KpiTile
           label={tr('النتيجة', 'Résultat', 'Result')}
           value={f.money(p.result)}
@@ -241,6 +263,12 @@ export function OverviewPage({ snap, f, onOpen }: PageProps) {
           tone={p.result >= 0 ? 'success' : 'danger'}
           onClick={() => onOpen(TO_POSTED)}
         />
+      ),
+    },
+    {
+      id: 'cash',
+      name: tr('النقد', 'Trésorerie', 'Cash'),
+      node: (
         <KpiTile
           label={tr('النقد', 'Trésorerie', 'Cash')}
           value={f.money(snap.cash.total)}
@@ -251,6 +279,12 @@ export function OverviewPage({ snap, f, onOpen }: PageProps) {
           )}
           icon={Wallet}
         />
+      ),
+    },
+    {
+      id: 'waiting',
+      name: tr('في انتظار الاعتماد', 'En attente', 'Waiting on approval'),
+      node: (
         <KpiTile
           label={tr('في انتظار الاعتماد', 'En attente', 'Waiting on approval')}
           value={f.integer(waiting)}
@@ -259,25 +293,58 @@ export function OverviewPage({ snap, f, onOpen }: PageProps) {
           tone={waiting === 0 ? 'success' : 'warning'}
           onClick={() => onOpen(TO_APPROVALS)}
         />
-      </div>
-      <OverviewCharts snap={snap} f={f} onOpen={onOpen} />
+      ),
+    },
+    {
+      id: 'nature',
+      name: tr('الميزانية بالطبيعة', 'Bilan par nature', 'Balance sheet by nature'),
+      span: 2,
+      tall: true,
+      node: <NatureCard snap={snap} f={f} />,
+    },
+    {
+      id: 'volume',
+      name: tr('حجم الترحيل', 'Volume d’écritures', 'Posting volume'),
+      span: 2,
+      tall: true,
+      node: <VolumeCard snap={snap} f={f} />,
+    },
+  ];
+
+  // The close is a tile only when there is a close. An empty progress bar claiming
+  // 0 / 0 is a worse answer than the wall simply closing up around the gap.
+  if (snap.close.total > 0) {
+    tiles.push({
+      id: 'close',
+      name: tr('الإقفال', 'Clôture', 'The close'),
+      span: 4,
+      node: <CloseGlance snap={snap} f={f} onOpen={onOpen} />,
+    });
+  }
+
+  return (
+    <div style={PAGE}>
+      <MixedCurrencyBar currencies={p.currencies} />
+      <TileWall
+        tiles={tiles}
+        resizable
+        track={248}
+        rowHeight={128}
+        label={tr('بطاقات النظرة العامة', 'Tuiles de la vue d’ensemble', 'Overview tiles')}
+      />
     </div>
   );
 }
 
-/**
- * The three pictures under the tiles.
- *
- * The trend is labelled *volume*, and it counts entries rather than adding up money,
- * because `journal_lines` carries no date: a revenue-by-month series would have to
- * join four thousand lines to five hundred entries in the browser and would still be
- * wrong for anything older than the page the broker returned. Counting entries is
- * something the entries themselves can answer exactly.
- */
-function OverviewCharts({ snap, f, onOpen }: PageProps) {
+interface ChartCardProps {
+  readonly snap: Snapshot;
+  readonly f: Formatters;
+}
+
+/** The balance sheet as one ring, which is the only comparative this data supports. */
+function NatureCard({ snap, f }: ChartCardProps) {
   const { t, tr } = useApp().locale;
   const p = snap.position;
-  const months = snap.activity.months;
   const slices: readonly DonutSlice[] = p.byType
     .filter((total) => BALANCE_TYPES.includes(total.type) && Math.abs(total.total) >= EPSILON)
     .map((total, index) => ({
@@ -286,78 +353,88 @@ function OverviewCharts({ snap, f, onOpen }: PageProps) {
       color: colorAt(index),
     }));
   return (
-    <>
-      <div style={CARD_GRID}>
-        <Card
-          title={tr('الميزانية بالطبيعة', 'Bilan par nature', 'Balance sheet by nature')}
-          subtitle={tr('حتى تاريخه', 'À ce jour', 'Book to date')}
+    <Card
+      title={tr('الميزانية بالطبيعة', 'Bilan par nature', 'Balance sheet by nature')}
+      subtitle={tr('حتى تاريخه', 'À ce jour', 'Book to date')}
+      icon={Scale}
+    >
+      {slices.length === 0 ? (
+        <EmptyState
+          compact
           icon={Scale}
-        >
-          {slices.length === 0 ? (
-            <EmptyState
-              compact
-              icon={Scale}
-              title={tr('لا أرصدة', 'Aucun solde', 'No balances')}
-              description={tr(
-                'لا قيود معتمدة على حسابات الميزانية بعد.',
-                'Aucune écriture comptabilisée sur les comptes de bilan.',
-                'Nothing has been posted to a balance-sheet account yet.',
-              )}
-            />
-          ) : (
-            <DonutChart
-              slices={slices}
-              size={168}
-              thickness={20}
-              format={f.money}
-              center={
-                <div style={{ textAlign: 'center' }}>
-                  <div className="fx-mono" style={{ fontWeight: 600 }}>
-                    {f.money(p.assets)}
-                  </div>
-                  <div style={{ fontSize: 'var(--fx-caption)', color: 'var(--fx-text-secondary)' }}>
-                    {t(ACCOUNT_TYPE_LABEL.ASSET)}
-                  </div>
-                </div>
-              }
-            />
+          title={tr('لا أرصدة', 'Aucun solde', 'No balances')}
+          description={tr(
+            'لا قيود معتمدة على حسابات الميزانية بعد.',
+            'Aucune écriture comptabilisée sur les comptes de bilan.',
+            'Nothing has been posted to a balance-sheet account yet.',
           )}
-        </Card>
-        <Card
-          title={tr('حجم الترحيل', 'Volume d’écritures', 'Posting volume')}
-          subtitle={tr('عدد القيود بالشهر', 'Nombre d’écritures par mois', 'Entries per month, not money')}
+        />
+      ) : (
+        <DonutChart
+          slices={slices}
+          size={168}
+          thickness={20}
+          format={f.money}
+          center={
+            <div style={{ textAlign: 'center' }}>
+              <div className="fx-mono" style={{ fontWeight: 600 }}>
+                {f.money(p.assets)}
+              </div>
+              <div style={{ fontSize: 'var(--fx-caption)', color: 'var(--fx-text-secondary)' }}>
+                {t(ACCOUNT_TYPE_LABEL.ASSET)}
+              </div>
+            </div>
+          }
+        />
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The trend, which counts entries rather than adding up money.
+ *
+ * `journal_lines` carries no date: a revenue-by-month series would have to join four
+ * thousand lines to five hundred entries in the browser and would still be wrong for
+ * anything older than the page the broker returned. Counting entries is something the
+ * entries themselves can answer exactly, so the card is labelled *volume* and means it.
+ */
+function VolumeCard({ snap, f }: ChartCardProps) {
+  const { tr } = useApp().locale;
+  const months = snap.activity.months;
+  return (
+    <Card
+      title={tr('حجم الترحيل', 'Volume d’écritures', 'Posting volume')}
+      subtitle={tr('عدد القيود بالشهر', 'Nombre d’écritures par mois', 'Entries per month, not money')}
+      icon={TrendingUp}
+    >
+      {months.length < 2 ? (
+        <EmptyState
+          compact
           icon={TrendingUp}
-        >
-          {months.length < 2 ? (
-            <EmptyState
-              compact
-              icon={TrendingUp}
-              title={tr('لا يكفي للرسم', 'Pas assez de données', 'Not enough to draw')}
-              description={tr(
-                'يحتاج الرسم إلى شهرين على الأقل داخل النطاق.',
-                'Il faut au moins deux mois dans la portée.',
-                'A trend needs at least two months inside the range.',
-              )}
-            />
-          ) : (
-            <LineChart
-              categories={months.map((point) => point.label)}
-              series={[
-                { label: tr('قيود', 'Écritures', 'Entries'), values: months.map((point) => point.count) },
-                {
-                  label: tr('معتمدة', 'Comptabilisées', 'Posted'),
-                  values: months.map((point) => point.posted),
-                  color: colorAt(1),
-                },
-              ]}
-              height={196}
-              format={f.integer}
-            />
+          title={tr('لا يكفي للرسم', 'Pas assez de données', 'Not enough to draw')}
+          description={tr(
+            'يحتاج الرسم إلى شهرين على الأقل داخل النطاق.',
+            'Il faut au moins deux mois dans la portée.',
+            'A trend needs at least two months inside the range.',
           )}
-        </Card>
-      </div>
-      <CloseGlance snap={snap} f={f} onOpen={onOpen} />
-    </>
+        />
+      ) : (
+        <LineChart
+          categories={months.map((point) => point.label)}
+          series={[
+            { label: tr('قيود', 'Écritures', 'Entries'), values: months.map((point) => point.count) },
+            {
+              label: tr('معتمدة', 'Comptabilisées', 'Posted'),
+              values: months.map((point) => point.posted),
+              color: colorAt(1),
+            },
+          ]}
+          height={196}
+          format={f.integer}
+        />
+      )}
+    </Card>
   );
 }
 

@@ -1,12 +1,18 @@
 /**
- * The seven registers.
+ * The six registers, and the one surface that is not a register.
  *
- * One exported dispatcher and seven private grids. `CrmList` switches on the view and each
- * branch owns its own columns, its own empty state and its own loading rule. The grids are
+ * One exported dispatcher, six private grids and one board. `CrmList` switches on the view and
+ * each branch owns its own columns, its own empty state and its own loading rule. The grids are
  * private because `react-refresh/only-export-components` is error-level here and a `.tsx` may
  * export nothing but components — a shared `columnsFor(view)` would have to live in a `.ts`
  * file, where it could not contain JSX. Keeping each column list beside its grid is the better
  * trade anyway: the array closes over `t`/`tr`/`lang` and reads as a table of the surface.
+ *
+ * The pipeline is the exception and lives in `board.tsx`. A deal's stage is a place the deal is
+ * rather than a column to sort by, so that surface is a kanban and not a grid; it is a separate
+ * module because it shares none of the plumbing below and folding it in would push this file
+ * past a thousand lines for nothing. The dispatcher at the bottom is still exhaustive over
+ * `CrmView`, which is what keeps an eighth surface a type error rather than a blank pane.
  *
  * Loading is per branch, measured against that branch's *unfiltered* length — `close/App.tsx`'s
  * rule verbatim: a search that matches nothing must say "no matches" rather than spin forever.
@@ -18,9 +24,6 @@
  * for a customer's type and `activity_type` for an activity's. Tones come from the tables in
  * `tones.ts`, keyed by the uppercase code; `toneOf` upper-cases before it looks up, which is
  * what lets a projection that lower-cased its status on read still find its colour.
- *
- * A stage is the one enum with no option table — it belongs to the pipeline RPC — so it narrows
- * through `asStage` and labels through `stageLabel`, exactly as the funnel band above it does.
  *
  * Foreign keys resolve through the model's `*ById` maps and show an em-dash when the lookup
  * misses. That folds two different facts — "this row has no customer" and "that customer fell
@@ -36,14 +39,13 @@ import {
   type LucideIcon,
   Megaphone,
   MessageSquare,
-  Target,
   UserPlus,
   Users,
 } from 'lucide-react';
 import { type Column, DataGrid, EmptyState, fmt, type Localized, useLocale } from '@/platform/sdk';
-import { Chip, Dash, Funnel, Stack, TagList, Tinted } from './cells';
+import { PipelineBoard } from './board';
+import { Chip, Dash, Stack, TagList, Tinted } from './cells';
 import type { CrmEntity } from './form';
-import { asStage, stageLabel } from './lifecycle';
 import type {
   Activity,
   Campaign,
@@ -52,8 +54,8 @@ import type {
   Customer,
   Followup,
   Lead,
-  Opportunity,
   Quote,
+  Stage,
 } from './model';
 import type { CrmRow } from './shell';
 import {
@@ -66,7 +68,6 @@ import {
   OUTCOME_TONE,
   PRIORITY_TONE,
   quoteState,
-  STAGE_TONE,
   toneOf,
   type ToneTable,
   wordFor,
@@ -81,6 +82,12 @@ export interface CrmListProps {
   readonly onSelect: (id: string | null) => void;
   readonly onContext: (row: CrmRow, event: ReactMouseEvent) => void;
   readonly onActivate: (row: CrmRow) => void;
+  /**
+   * The pipeline's one extra verb. It lives on this interface rather than on `Desk` because
+   * six of the seven surfaces have no stages to move anything between, and a prop every grid
+   * carries and one grid reads is a prop that will eventually be read by the wrong one.
+   */
+  readonly onMoveStage: (opportunityId: string, to: Stage) => void;
 }
 
 /**
@@ -381,135 +388,6 @@ function CustomerGrid({ model, searching, selectedId, onSelect, onContext, onAct
         />
       }
     />
-  );
-}
-
-/**
- * The pipeline.
- *
- * The only grid with a band above it: `Funnel` reads across the six stages, the grid reads down
- * the deals inside them. Probability arrives 0–100 from the projection — `STAGE_PROBABILITY`'s
- * `NEW: 10 … NEGOTIATION: 75` fix that scale — so it is divided before `fmt.percent`, which
- * expects a fraction. Expected close tints only while the deal is open: a closed deal's date is
- * a record, not a debt.
- */
-function PipelineGrid({ model, searching, selectedId, onSelect, onContext, onActivate }: Desk) {
-  const { t, tr, lang } = useLocale();
-  const now = Date.now();
-  const columns: readonly Column<Opportunity>[] = [
-    {
-      id: 'reference',
-      header: tr('المرجع', 'Référence', 'Reference'),
-      width: 122,
-      mono: true,
-      sort: (a, b) => a.reference.localeCompare(b.reference),
-      render: (row) => link(row.reference),
-    },
-    {
-      id: 'title',
-      header: tr('الفرصة', 'Opportunité', 'Deal'),
-      sort: (a, b) => a.title.localeCompare(b.title),
-      render: (row) => (
-        <Stack
-          title={row.title}
-          caption={row.customerId === null ? null : model.customerById.get(row.customerId)?.name}
-          hint={row.title}
-        />
-      ),
-    },
-    {
-      id: 'stage',
-      header: tr('المرحلة', 'Étape', 'Stage'),
-      width: 130,
-      render: (row) => {
-        const known = asStage(row.stage);
-        return (
-          <Chip
-            text={known === null ? row.stage.toUpperCase() : t(stageLabel(known))}
-            tone={toneOf(STAGE_TONE, row.stage)}
-          />
-        );
-      },
-    },
-    {
-      id: 'probability',
-      header: tr('الاحتمال', 'Probabilité', 'Probability'),
-      width: 104,
-      align: 'end',
-      mono: true,
-      sort: (a, b) => a.probability - b.probability,
-      render: (row) => fmt.percent(row.probability / 100, lang, 0),
-    },
-    {
-      id: 'value',
-      header: tr('القيمة', 'Valeur', 'Value'),
-      width: 148,
-      align: 'end',
-      mono: true,
-      sort: (a, b) => a.valueDzd - b.valueDzd,
-      render: (row) => fmt.money(row.valueDzd, 'DZD', lang),
-    },
-    {
-      id: 'weighted',
-      header: tr('مرجّحة', 'Pondérée', 'Weighted'),
-      width: 148,
-      align: 'end',
-      mono: true,
-      sort: (a, b) => a.weightedDzd - b.weightedDzd,
-      render: (row) => fmt.money(row.weightedDzd, 'DZD', lang),
-    },
-    {
-      id: 'travelers',
-      header: tr('المسافرون', 'Voyageurs', 'Travelers'),
-      width: 96,
-      align: 'end',
-      mono: true,
-      render: (row) => fmt.integer(row.travelers, lang),
-    },
-    {
-      id: 'close',
-      header: tr('الإغلاق المتوقع', 'Clôture prévue', 'Expected close'),
-      width: 138,
-      mono: true,
-      render: (row) =>
-        row.expectedCloseDate === null ? (
-          <Dash />
-        ) : (
-          <Tinted
-            text={fmt.date(row.expectedCloseDate, lang)}
-            tone={
-              row.wonAt === null && row.lostAt === null && due(row.expectedCloseDate, now)
-                ? 'warning'
-                : undefined
-            }
-          />
-        ),
-    },
-  ];
-  return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <Funnel stages={model.pipeline} />
-      <DataGrid
-        rows={model.visible.opportunities}
-        columns={columns}
-        rowKey={(row) => row.id}
-        loading={model.loading && model.all.opportunities.length === 0}
-        density="compact"
-        virtualized
-        style={{ flex: 1, minHeight: 0 }}
-        selectedKeys={selectedId === null ? undefined : new Set([selectedId])}
-        onSelectionChange={pick(onSelect)}
-        onRowContextMenu={onContext}
-        onActivate={onActivate}
-        empty={
-          <Blank
-            icon={Target}
-            searching={searching}
-            noun={tr('لا فرص', 'Aucune opportunité', 'No deals')}
-          />
-        }
-      />
-    </div>
   );
 }
 
@@ -907,6 +785,7 @@ export function CrmList({
   onSelect,
   onContext,
   onActivate,
+  onMoveStage,
 }: CrmListProps) {
   const desk: Desk = {
     model,
@@ -922,7 +801,7 @@ export function CrmList({
     case 'customers':
       return <CustomerGrid {...desk} />;
     case 'pipeline':
-      return <PipelineGrid {...desk} />;
+      return <PipelineBoard {...desk} onMoveStage={onMoveStage} />;
     case 'quotes':
       return <QuoteGrid {...desk} />;
     case 'activities':

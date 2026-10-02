@@ -29,6 +29,7 @@ import {
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -363,12 +364,33 @@ export interface BoardCardProps {
   tone?: Tone;
   selected?: boolean;
   onClick?: () => void;
+  /**
+   * Open the thing on the card. Separate from `onClick`, which selects it, for the
+   * reason every grid in this suite keeps the two separate: selecting is how a person
+   * looks at a record and opening is how they commit to editing one.
+   */
+  onActivate?: () => void;
+  /**
+   * The right-click menu. The kit does not own menus — this OS's menus are anchored,
+   * not portalled, and the app knows where its own anchor is — so the card forwards
+   * the event and keeps its own hands off it.
+   */
+  onContextMenu?: (event: ReactMouseEvent<HTMLElement>) => void;
   /** A card that cannot change stage: no drag, no Ctrl+Arrow. */
   locked?: boolean;
 }
 
 /** One movable card. Only meaningful inside a `KanbanBoard` column. */
-export function BoardCard({ id, children, tone, selected = false, onClick, locked = false }: BoardCardProps) {
+export function BoardCard({
+  id,
+  children,
+  tone,
+  selected = false,
+  onClick,
+  onActivate,
+  onContextMenu,
+  locked = false,
+}: BoardCardProps) {
   const board = useContext(BoardContext);
   const tr = useKitLabels();
   const rtl = useKitRtl();
@@ -397,6 +419,8 @@ export function BoardCard({ id, children, tone, selected = false, onClick, locke
       }}
       onDragEnd={() => board?.setDragging(null)}
       onClick={onClick}
+      onDoubleClick={onActivate}
+      onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (movable && event.ctrlKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
           event.preventDefault();
@@ -404,9 +428,13 @@ export function BoardCard({ id, children, tone, selected = false, onClick, locke
           step(forward ? 1 : -1);
           return;
         }
-        if (onClick !== undefined && (event.key === 'Enter' || event.key === ' ')) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          // Enter opens when there is somewhere to open to, and selects when there is
+          // not. A card whose Enter key does nothing is a card a keyboard cannot use.
+          const act = onActivate ?? onClick;
+          if (act === undefined) return;
           event.preventDefault();
-          onClick();
+          act();
         }
       }}
       style={{
@@ -418,7 +446,7 @@ export function BoardCard({ id, children, tone, selected = false, onClick, locke
         padding: '9px 11px',
         display: 'grid',
         gap: 4,
-        cursor: movable ? 'grab' : onClick === undefined ? 'default' : 'pointer',
+        cursor: movable ? 'grab' : onClick === undefined && onActivate === undefined ? 'default' : 'pointer',
         boxShadow: selected ? 'var(--fx-shadow-card)' : undefined,
         opacity: board?.dragging === id ? 0.5 : 1,
       }}
@@ -542,6 +570,13 @@ export interface GalleryProps {
   selected?: string | null;
   onSelect?: (id: string) => void;
   onOpen?: (id: string) => void;
+  /**
+   * The right-click menu, reported as `(id, event)` — the argument order
+   * `DataGrid`'s `onRowContextMenu` uses, so an app driving both a wall and a
+   * register keeps one handler shape. The kit owns no menus: this OS's menus are
+   * anchored rather than portalled, and only the app knows where its anchor is.
+   */
+  onContextMenu?: (id: string, event: ReactMouseEvent<HTMLElement>) => void;
   /** Tile edge length; the column count follows from it and the measured width. */
   size?: number;
   label?: string;
@@ -557,7 +592,16 @@ export interface GalleryProps {
  * column count is the measured one, so Down moves to the tile visually below
  * rather than to a position computed from a guess about the window.
  */
-export function Gallery({ items, selected = null, onSelect, onOpen, size = 168, label, empty }: GalleryProps) {
+export function Gallery({
+  items,
+  selected = null,
+  onSelect,
+  onOpen,
+  onContextMenu,
+  size = 168,
+  label,
+  empty,
+}: GalleryProps) {
   const [frame, width] = useElementWidth<HTMLDivElement>();
   const rtl = useKitRtl();
   const gap = 12;
@@ -613,6 +657,9 @@ export function Gallery({ items, selected = null, onSelect, onOpen, size = 168, 
 
             onClick={() => onSelect?.(item.id)}
             onDoubleClick={() => onOpen?.(item.id)}
+            onContextMenu={
+              onContextMenu === undefined ? undefined : (event) => onContextMenu(item.id, event)
+            }
             style={{
               display: 'grid',
               gridTemplateRows: 'auto auto',

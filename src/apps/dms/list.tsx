@@ -1,18 +1,25 @@
 /**
- * The five grids, and the forty-five columns that are the app's actual reading surface.
+ * Four queues, one shelf, and the columns that are the app's actual reading surface.
  *
- * One file because the five tabs are one control in five configurations: same `DataGrid`, same
- * selection semantics, same context menu, same empty state — different rectangles. CRM
+ * One file because the four queues are one control in four configurations: same `DataGrid`,
+ * same selection semantics, same context menu, same empty state — different rectangles. CRM
  * settled this shape first (seven grids, each declaring its own column table inline, one
  * exported switch) and it holds here for the same reason: a column table read next to the
  * component that renders it is checkable at a glance, and a column table hoisted to module
  * scope for reuse-that-never-comes is a lookup away from its only caller.
  *
+ * The library is the exception and is built out of `Gallery` instead, because it is the one
+ * tab whose rows are documents a person recognises rather than work items a person works
+ * through. It still lives here: it is a surface of this app's reading area, it shares the
+ * empty state, the search and the selection the other four use, and splitting it into a
+ * fourth file would separate it from the three helpers it has in common. Its own doc comment
+ * below says what the trade costs.
+ *
  * The cells themselves are all in `./cells`. What is left here is genuinely per-column:
  * which field, how wide, whether it sorts, and what the header says. A grid body is
  * consequently a column table and a `<DataGrid>` call, and nothing else.
  *
- * Four of the five grids select and activate; the extraction grid does neither, because its
+ * Three of the four queues select and activate; the extraction grid does neither, because its
  * rows are `GROUP BY field_key` aggregates with no document behind them — the same fact that
  * makes `EMPTY_SELECTION.extraction` unreachable and `findRow` return null for that tab.
  *
@@ -28,9 +35,11 @@ import {
   DataGrid,
   EmptyState,
   fmt,
+  Gallery,
   useLocale,
   type AppLang,
   type Column,
+  type GalleryItem,
 } from '@/platform/sdk';
 import {
   Chip,
@@ -56,7 +65,6 @@ import {
 import type { DmsShell } from './shell';
 import { confidenceTone, CONFIDENTIALITY_TONE, PACKAGE_TONE, REVIEW_TONE } from './tones';
 import type {
-  DmsDocument,
   DmsExpiryDocument,
   DmsPackage,
   DmsQualityField,
@@ -133,101 +141,69 @@ function Blank({ icon, searching, noun, hint }: BlankProps) {
 }
 
 /**
- * The library: every document on the page, which is the tab the other four are read against.
+ * What a tile shows in place of a thumbnail.
+ *
+ * There are no thumbnails: a `.pdf` on this desk is bytes in Supabase Storage that no
+ * `<img>` can point at without a signed URL, and minting one per tile to draw a preview
+ * nobody asked for would be a syscall per document per render. So the glyph carries the
+ * whole visual load, and it says what *kind* of thing the document is rather than which
+ * version of it this is — the file-stack reading the tab has always had.
+ *
+ * Module scope because every tile draws the same one. A per-mime map would be a lie here
+ * anyway: `documentType` is workspace-defined free text with no enum behind it, so there is
+ * nothing to key a glyph table on that would not be re-derived per workspace.
+ */
+const GLYPH = FileStack;
+
+/**
+ * The library: every document on the page, as a wall of tiles.
+ *
+ * The one tab in this file that is not a queue. The other four are registers over rows whose
+ * interesting fact is a date or a state, and a clerk reads them down a column; the library is
+ * the shelf, and what a person does on a shelf is recognise a document by its face. So it is
+ * the SDK's `Gallery` rather than its `DataGrid`, and the four facts a tile can carry are the
+ * four that identify a document at a glance — the title, the kind of thing it is, the number
+ * it was filed under, and how recently it moved.
+ *
+ * Seven of the grid's eight columns are consequently not on the tile, and that is the trade
+ * rather than an oversight: review state is the tile's tone, and confidentiality, tags,
+ * version count, expiry days and the updated stamp are all still in the inspector beside this
+ * wall, which is where a person goes once they have recognised the document they wanted. What
+ * the wall buys is that recognising it no longer means reading forty rows of text.
  *
  * `model.visible` and not `model.documents.rows` — the search box narrows in the model, over
  * the page the broker returned, because the broker's `where` speaks equality and `in` and has
  * no `ilike` to push a title search down into.
  *
- * `rowHeight={44}` on every grid in this file, because `Stack` puts two lines in a cell and
- * virtualization needs the height it is told. The SDK's default 33 is for one-line rows.
+ * Both verbs resolve their id through `model.byId` before acting, because the wall speaks ids
+ * and the shell speaks rows. `byId` is built over every document the app holds rather than
+ * over the page, so a tile a keystroke has just filtered off the wall still resolves. The two
+ * then part company on a missing row, following the signatures: `perform` takes a nullable row
+ * and already treats null as "nothing selected", while `openMenu` takes a row, so a menu with
+ * nothing behind it is not opened at all. That case is a refresh landing between the render
+ * and the click, and a context menu whose every verb would fail is worse than no menu.
  */
-function LibraryGrid({ shell }: Desk) {
+function LibraryGallery({ shell }: Desk) {
   const { tr, lang } = useLocale();
   const { model } = shell;
-  const columns: readonly Column<DmsDocument>[] = [
-    {
-      id: 'title',
-      header: tr('المستند', 'Document', 'Document'),
-      render: (row) => (
-        <Stack title={row.title} caption={row.documentNumber} hint={row.description} />
-      ),
-      sort: (a, b) => byText(a.title, b.title),
-    },
-    {
-      id: 'type',
-      header: tr('النوع', 'Type', 'Type'),
-      width: 140,
-      render: (row) => <Chip text={humanize(row.documentType)} />,
-      sort: (a, b) => byText(a.documentType, b.documentType),
-    },
-    {
-      id: 'review',
-      header: tr('المراجعة', 'Revue', 'Review'),
-      width: 132,
-      render: (row) => (
-        <StateChip value={row.reviewStatus} tones={REVIEW_TONE} labels={REVIEW_LABEL} />
-      ),
-      sort: (a, b) => byText(a.reviewStatus, b.reviewStatus),
-    },
-    {
-      id: 'confidentiality',
-      header: tr('السرية', 'Confidentialité', 'Classification'),
-      width: 124,
-      render: (row) => (
-        <StateChip
-          value={row.confidentiality}
-          tones={CONFIDENTIALITY_TONE}
-          labels={CONFIDENTIALITY_LABEL}
-        />
-      ),
-    },
-    {
-      id: 'tags',
-      header: tr('الوسوم', 'Étiquettes', 'Tags'),
-      width: 150,
-      render: (row) => <TagList tags={row.tags} />,
-    },
-    {
-      id: 'versions',
-      header: tr('نسخ', 'Vers.', 'Vers.'),
-      width: 64,
-      align: 'end',
-      title: tr('عدد النسخ', 'Nombre de versions', 'Version count'),
-      render: (row) => int(row.versionCount, lang),
-      sort: (a, b) => byNum(a.versionCount, b.versionCount),
-    },
-    {
-      id: 'expiry',
-      header: tr('أيام', 'Jours', 'Days'),
-      width: 72,
-      align: 'end',
-      title: tr('أيام حتى الانتهاء', 'Jours avant expiration', 'Days to expiry'),
-      render: (row) => <Days days={row.daysRemaining} on={row.expiresOn} />,
-      sort: (a, b) => byNum(a.daysRemaining, b.daysRemaining),
-    },
-    {
-      id: 'updated',
-      header: tr('آخر تحديث', 'Modifié', 'Updated'),
-      width: 116,
-      render: (row) => ago(row.updatedAt, lang),
-      sort: (a, b) => byStamp(a.updatedAt, b.updatedAt),
-    },
-  ];
+  const items: GalleryItem[] = model.visible.map((row) => ({
+    id: row.id,
+    icon: GLYPH,
+    title: row.title,
+    meta: `${row.documentNumber ?? DASH} · ${int(row.versionCount, lang)} · ${ago(row.updatedAt, lang)}`,
+    tone: REVIEW_TONE[row.reviewStatus],
+  }));
   return (
-    <DataGrid
-      rows={model.visible}
-      columns={columns}
-      rowKey={(row) => row.id}
-      selectedKeys={only(shell.selectedId)}
-      onSelectionChange={pick(shell.pickRow)}
-      onActivate={(row) => shell.perform('preview', row)}
-      onRowContextMenu={(row, event) => shell.openMenu(event, row)}
-      loading={model.documents.loading}
-      density="compact"
-      virtualized
-      rowHeight={44}
-      initialSort={{ columnId: 'updated', direction: 'desc' }}
+    <Gallery
+      items={items}
+      selected={shell.selectedId}
+      onSelect={shell.pickRow}
+      onOpen={(id) => shell.perform('preview', model.byId.get(id) ?? null)}
+      onContextMenu={(id, event) => {
+        const row = model.byId.get(id);
+        if (row !== undefined) shell.openMenu(event, row);
+      }}
+      label={tr('مكتبة المستندات', 'Bibliothèque de documents', 'Document library')}
       empty={
         <Blank
           icon={FileStack}
@@ -761,7 +737,7 @@ export function DmsList({ shell }: DmsListProps): ReactElement | null {
     case 'dashboard':
       return null;
     case 'library':
-      return <LibraryGrid shell={shell} />;
+      return <LibraryGallery shell={shell} />;
     case 'review':
       return <ReviewGrid shell={shell} />;
     case 'expiry':

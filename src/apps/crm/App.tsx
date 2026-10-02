@@ -159,6 +159,7 @@ export default function CrmApp({ runtime }: AppEntryProps) {
             onSelect={shell.pickRow}
             onContext={(row, event) => shell.openMenu(event, row)}
             onActivate={(row) => shell.perform('edit', row)}
+            onMoveStage={shell.moveStage}
           />
         </div>
       </AppFrame>

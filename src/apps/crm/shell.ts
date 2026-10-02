@@ -29,7 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useLocale } from '@/platform/sdk';
+import { useApp, useLocale } from '@/platform/sdk';
 import { parseExportCommand } from '../shared/export/commands';
 import {
   type CrmActions,
@@ -64,6 +64,7 @@ import {
   emptyConvert,
   emptyStage,
   stageChoices,
+  stageLabel,
 } from './lifecycle';
 import {
   type Activity,
@@ -78,6 +79,7 @@ import {
   type Quote,
   type QuoteLine,
   type SourceRow,
+  type Stage,
   useCrmModel,
 } from './model';
 
@@ -589,6 +591,8 @@ export interface CrmShell {
   addLine: (quote: Quote) => void;
   editLine: (line: QuoteLine) => void;
   removeLine: (line: QuoteLine) => void;
+  /** A card moved on the pipeline board. Opens the stage dialog on the chosen column. */
+  moveStage: (opportunityId: string, to: Stage) => void;
 }
 
 /* ------------------------------------------------------------------ *
@@ -624,6 +628,60 @@ interface CrmCommands {
   readonly addLine: (quote: Quote) => void;
   readonly editLine: (line: QuoteLine) => void;
   readonly removeLine: (line: QuoteLine) => void;
+  readonly moveStage: (opportunityId: string, to: Stage) => void;
+}
+
+/**
+ * A deal dragged — or Ctrl+arrowed — from one column of the pipeline board to another.
+ *
+ * It opens the same dialog the context menu's *Move stage* opens, with the destination
+ * already chosen, rather than posting the move on the drop. Both reasons are the
+ * database's: `crm_opportunities_terminal_reason` refuses a LOST row that carries no
+ * reason, and `private.move_crm_opportunity_stage` refuses any transition outside its
+ * own table. A board that posted on drop would therefore be a board that sometimes
+ * failed after the card had already visibly moved, which is the worst of both.
+ *
+ * Illegal drops do arrive, and that is by design. The board shows all six stages because
+ * seeing where every deal stands is the whole point of a board, and `STAGE_TRANSITIONS`
+ * permits only three or four moves out of any one of them — nothing may enter WON at all,
+ * since a deal is won by accepting its quote. So a refusal is a normal outcome here, not
+ * an error path, and it has to be audible: a card that springs back with no explanation
+ * reads as a broken board rather than as a closed door.
+ *
+ * Its own hook rather than another thirty lines inside `useCrmCommandPath`, which is at
+ * its line ceiling, and because this is the one verb in the file that needs the runtime
+ * directly: everything else writes through `actions`.
+ */
+function usePipelineMove(
+  model: CrmModel,
+  open: (dialog: CrmDialog) => void,
+  tr: Translate,
+): (opportunityId: string, to: Stage) => void {
+  const runtime = useApp();
+  const { t } = useLocale();
+  return useCallback(
+    (opportunityId: string, to: Stage): void => {
+      const row = model.all.opportunities.find((item) => item.id === opportunityId);
+      if (row === undefined) return;
+      const from = asStage(row.stage);
+      if (from === null || !stageChoices(from).includes(to)) {
+        const fromWord = t(stageLabel(from ?? 'NEW'));
+        const toWord = t(stageLabel(to));
+        runtime.toast({
+          kind: 'warning',
+          title: tr('نقل غير مسموح', 'Déplacement refusé', 'Move not allowed'),
+          body: tr(
+            `لا يمكن نقل فرصة من ${fromWord} إلى ${toWord}.`,
+            `Une opportunité ne passe pas de ${fromWord} à ${toWord}.`,
+            `A deal cannot move from ${fromWord} to ${toWord}.`,
+          ),
+        });
+        return;
+      }
+      open({ kind: 'stage', draft: { ...emptyStage(row.id, from), toStage: to } });
+    },
+    [model.all.opportunities, open, runtime, t, tr],
+  );
 }
 
 /**
@@ -864,7 +922,9 @@ function useCrmCommandPath(deps: CommandDeps): CrmCommands {
     [actions],
   );
 
-  return { perform, command, keyDown, addLine, editLine, removeLine };
+  const moveStage = usePipelineMove(model, open, tr);
+
+  return { perform, command, keyDown, addLine, editLine, removeLine, moveStage };
 }
 
 /* ------------------------------------------------------------------ *
