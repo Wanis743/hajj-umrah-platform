@@ -42,6 +42,7 @@ export const closeManifest = defineApp({
   ),
   category: 'accounting',
   icon: 'calendar',
+  accent: 'indigo',
   capabilities: [
     'ledger.read',
     'ledger.post',

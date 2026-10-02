@@ -24,6 +24,7 @@ export const biManifest = defineApp({
   ),
   category: 'analysis',
   icon: 'bar-chart',
+  accent: 'violet',
 
   /**
    * Five capabilities, and the split between the first two is the whole point.

@@ -33,6 +33,7 @@ export const budgetsManifest = defineApp({
   ),
   category: 'planning',
   icon: 'target',
+  accent: 'amber',
   capabilities: ['ledger.read', 'ledger.post', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
   defaultSize: { w: 1360, h: 840 },
   minSize: { w: 940, h: 560 },

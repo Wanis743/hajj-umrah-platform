@@ -9,6 +9,7 @@
  * animation timers), so a re-render produces an identical frame.
  */
 import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useElementWidth } from './responsive';
 import { colorAt, niceCeil } from './tokens';
 
 /* ------------------------------------------------------------------ *
@@ -613,6 +614,214 @@ export function StackedBar({
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Treemap
+ * ------------------------------------------------------------------ */
+
+interface Rect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** Worst aspect ratio in a row laid `sum / side` deep along `side`. */
+function worstRatio(row: readonly number[], sum: number, side: number): number {
+  if (sum <= 0 || side <= 0) return Number.POSITIVE_INFINITY;
+  const thickness = sum / side;
+  let worst = 1;
+  for (const area of row) {
+    const other = area / thickness;
+    if (other <= 0) return Number.POSITIVE_INFINITY;
+    worst = Math.max(worst, thickness / other, other / thickness);
+  }
+  return worst;
+}
+
+/**
+ * Squarified treemap (Bruls, Huizing & van Wijk, 2000).
+ *
+ * The naïve slice-and-dice treemap produces slivers — a two per cent share in a
+ * wide box becomes a six-pixel ribbon with nowhere to put its label, which is
+ * the failure mode that gives treemaps their reputation. Squarifying greedily
+ * grows each row until taking the next tile would make that row's worst aspect
+ * ratio worse, which keeps tiles near square and therefore labellable.
+ *
+ * `areas` must arrive sorted descending and already scaled so their sum is the
+ * area of `into`. The caller does both, because it is the caller that knows
+ * which values were dropped for being non-positive.
+ */
+function squarify(areas: readonly number[], into: Rect): Rect[] {
+  const out: Rect[] = [];
+  const queue = [...areas];
+  let free = into;
+
+  while (queue.length > 0 && free.w > 0.01 && free.h > 0.01) {
+    const side = Math.min(free.w, free.h);
+    const row: number[] = [];
+    let sum = 0;
+    let best = Number.POSITIVE_INFINITY;
+
+    while (queue.length > 0) {
+      const next = queue[0] as number;
+      const ratio = worstRatio([...row, next], sum + next, side);
+      if (row.length > 0 && ratio > best) break;
+      row.push(next);
+      queue.shift();
+      sum += next;
+      best = ratio;
+    }
+
+    const thickness = sum / side;
+    if (free.w >= free.h) {
+      let y = free.y;
+      for (const area of row) {
+        const h = area / thickness;
+        out.push({ x: free.x, y, w: thickness, h });
+        y += h;
+      }
+      free = { x: free.x + thickness, y: free.y, w: free.w - thickness, h: free.h };
+    } else {
+      let x = free.x;
+      for (const area of row) {
+        const w = area / thickness;
+        out.push({ x, y: free.y, w, h: thickness });
+        x += w;
+      }
+      free = { x: free.x, y: free.y + thickness, w: free.w, h: free.h - thickness };
+    }
+  }
+  return out;
+}
+
+export interface TreemapCell {
+  readonly label: string;
+  readonly value: number;
+  readonly color?: string;
+  /** A second line — a margin, a share, a delta — shown when the tile is tall enough. */
+  readonly secondary?: string;
+}
+
+export interface TreemapProps {
+  cells: readonly TreemapCell[];
+  height?: number;
+  format?: (value: number) => string;
+  selected?: string | null;
+  onSelect?: (label: string) => void;
+  label?: string;
+}
+
+/**
+ * Composition by area, for the question "what is this made of".
+ *
+ * Profitability asks which products, destinations and seasons carry the result,
+ * and a bar chart answers it by making the reader compare lengths down a sorted
+ * list. A treemap answers it by area, so the largest contributor is literally
+ * the biggest thing on the screen and the long tail is visibly a tail rather
+ * than forty more rows to scroll.
+ *
+ * HTML boxes rather than SVG `<rect>`s, which is the one place this file departs
+ * from the rest of itself. A treemap's tiles carry text, and text inside an SVG
+ * scaled by `preserveAspectRatio="none"` is stretched and cannot ellipsize.
+ * Positioned `<div>`s keep the type upright and let each tile be a real button.
+ *
+ * The layout is computed from the measured box rather than a normalised square,
+ * because squarifying for a square and then stretching to 2:1 gives every tile
+ * the wrong aspect ratio — which is the sliver problem the algorithm exists to
+ * avoid, arrived at by a different route.
+ */
+export function Treemap({ cells, height = 260, format, selected = null, onSelect, label }: TreemapProps) {
+  const [frame, width] = useElementWidth<HTMLDivElement>();
+  const fmt = format ?? ((value: number) => value.toLocaleString());
+
+  const laid = useMemo(() => {
+    const kept = cells
+      .map((cell, index) => ({ cell, index }))
+      .filter((entry) => Number.isFinite(entry.cell.value) && entry.cell.value > 0)
+      .sort((a, b) => b.cell.value - a.cell.value);
+    const total = kept.reduce((sum, entry) => sum + entry.cell.value, 0);
+    if (kept.length === 0 || total <= 0) return [];
+    // Before the first measurement the box is squarified against a 16:9 guess
+    // rather than skipped. `useElementWidth` reads `clientWidth` in a layout
+    // effect, so this frame is not painted in a browser — but an empty
+    // rectangle is the wrong answer anywhere it is, and a treemap that renders
+    // nothing until a resize observer fires is indistinguishable from one that
+    // is broken.
+    const box: Rect = { x: 0, y: 0, w: width > 0 ? width : Math.round(height * (16 / 9)), h: height };
+    const rects = squarify(
+      kept.map((entry) => (entry.cell.value * (box.w * box.h)) / total),
+      box,
+    );
+    return kept.map((entry, position) => ({ ...entry, rect: rects[position], share: entry.cell.value / total }));
+  }, [cells, width, height]);
+
+  return (
+    <div ref={frame} role="group" aria-label={label} style={{ position: 'relative', width: '100%', height }}>
+      {laid.map((entry) => {
+        const rect = entry.rect;
+        if (rect === undefined) return null;
+        const chosen = entry.cell.label === selected;
+        const named = rect.w >= 54 && rect.h >= 24;
+        const detailed = named && rect.h >= 46 && rect.w >= 74;
+        return (
+          <button
+            key={entry.cell.label}
+            type="button"
+            disabled={onSelect === undefined}
+            onClick={onSelect === undefined ? undefined : () => onSelect(entry.cell.label)}
+            title={`${entry.cell.label} · ${fmt(entry.cell.value)} · ${Math.round(entry.share * 1000) / 10}%`}
+            style={{
+              position: 'absolute',
+              left: rect.x,
+              top: rect.y,
+              width: Math.max(0, rect.w - 2),
+              height: Math.max(0, rect.h - 2),
+              background: entry.cell.color ?? colorAt(entry.index),
+              border: chosen ? '2px solid var(--fx-text-primary)' : 'none',
+              borderRadius: 3,
+              paddingInline: named ? 7 : 0,
+              paddingBlock: named ? 5 : 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 1,
+              overflow: 'hidden',
+              cursor: onSelect === undefined ? 'default' : 'pointer',
+              font: 'inherit',
+              /* The palette is the same eight hues in both themes, so the type on
+               * top of it is a fixed dark. A theme-following colour would put
+               * white on #ffb900 the moment the OS went dark. */
+              color: '#101418',
+              textAlign: 'start',
+            }}
+          >
+            {named ? (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.2,
+                }}
+              >
+                {entry.cell.label}
+              </span>
+            ) : null}
+            {detailed ? (
+              <span className="fx-mono" style={{ fontSize: 11, opacity: 0.78, lineHeight: 1.2 }}>
+                {entry.cell.secondary ?? fmt(entry.cell.value)}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -47,6 +47,8 @@ export const inboxManifest = defineApp({
   ),
   category: 'productivity',
   icon: 'inbox',
+  accent: 'coral',
+  density: 'compact',
   capabilities: [
     'ledger.read',
     'eventlog.read',

@@ -37,6 +37,7 @@ export const modelingManifest = defineApp({
   ),
   category: 'planning',
   icon: 'line-chart',
+  accent: 'violet',
   capabilities: [
     'ledger.read',
     'model.write',

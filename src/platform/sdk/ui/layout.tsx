@@ -18,21 +18,11 @@ import {
 } from '@fluentui/react-components';
 import clsx from 'clsx';
 import { ChevronRight, Inbox, PanelLeft, PanelRight, X, type LucideIcon } from 'lucide-react';
-import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { AppRuntimeContext } from '../context';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useKitAppearance, useKitLabels } from './kitRuntime';
 import { Button, IconButton } from './primitives';
 import { fitRails, splitGeometry, useElementWidth, type RailFit } from './responsive';
 import { toneColor, toneSurface, type Tone } from './tokens';
-
-/**
- * Trilingual labels for chrome this kit adds on its own — the fold toggles have
- * no author to write their tooltips. The context is read optionally and falls
- * back to English, so every component here still renders outside an app window.
- */
-function useKitLabels(): (ar: string, fr: string, en: string) => string {
-  const runtime = useContext(AppRuntimeContext);
-  return runtime === null ? (_ar, _fr, en) => en : runtime.locale.tr;
-}
 
 /* ------------------------------------------------------------------ *
  * App frame
@@ -183,7 +173,9 @@ function FrameBody({ nav, navWidth, aside, asideWidth, fold, padded, scroll, chi
           flex: 1,
           minWidth: 0,
           minHeight: 0,
-          padding: padded === true ? 16 : 0,
+          // Scaled by the manifest's density. `comfortable` is 1, so every app
+          // that declares nothing computes the 16px it has always had.
+          padding: padded === true ? 'calc(16px * var(--fx-density, 1))' : 0,
           display: 'flex',
           flexDirection: 'column',
           overflow: scroll ? 'auto' : 'hidden',
@@ -233,6 +225,7 @@ export function AppFrame({
 }: AppFrameProps) {
   const [frame, width] = useElementWidth<HTMLDivElement>();
   const tr = useKitLabels();
+  const appearance = useKitAppearance();
   const [drawer, setDrawer] = useState<'nav' | 'aside' | null>(null);
   const close = useCallback(() => setDrawer(null), []);
   const toggle = useCallback((side: 'nav' | 'aside') => {
@@ -263,6 +256,14 @@ export function AppFrame({
   return (
     <div
       ref={frame}
+      // The two presentation choices the manifest declares, published here
+      // because this is the outermost element the app itself owns: the ramp
+      // behind each name is in `fluent.css`, and Fluent's brand tokens read the
+      // same variables, so a declared accent retints the app's controls too.
+      // `undefined` leaves the attribute off entirely, which is what makes the
+      // user's accent reach a system tool unchanged.
+      data-fx-accent={appearance.accent ?? undefined}
+      data-fx-density={appearance.density}
       style={{
         display: 'flex',
         flexDirection: 'column',

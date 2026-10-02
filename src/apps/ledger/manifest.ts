@@ -25,6 +25,8 @@ export const ledgerManifest = defineApp({
   ),
   category: 'accounting',
   icon: 'list-tree',
+  accent: 'indigo',
+  density: 'compact',
   capabilities: ['ledger.read', 'ledger.post', 'fs.write', 'clipboard', 'notify'],
   defaultSize: { w: 1180, h: 720 },
   minSize: { w: 780, h: 460 },

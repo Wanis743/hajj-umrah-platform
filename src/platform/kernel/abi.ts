@@ -1676,6 +1676,34 @@ export interface AppFileAssociation {
   readonly extensions: readonly string[];
 }
 
+/**
+ * An app's own hue, declared rather than chosen at render time.
+ *
+ * Every app inherited the single user accent, so two windows open side by side
+ * were the same blue and nothing but the title told them apart. These eight are
+ * named rather than free-form on purpose: the ramp behind each one is declared
+ * once in the shell stylesheet and contrast-checked against both themes, so an
+ * app picks from a set the OS already owns instead of inventing a colour.
+ *
+ * It reaches the app's own window only — the title bar, taskbar and Start keep
+ * the user's accent, because those are the user's chrome and not the app's.
+ *
+ * Omitted, or `null`, means the user's accent. That is the right answer for the
+ * system tools: Settings should not have a hue of its own.
+ */
+export type AppAccent = 'sky' | 'mint' | 'amber' | 'coral' | 'violet' | 'teal' | 'rose' | 'indigo';
+
+/**
+ * How tightly the app packs its own content.
+ *
+ * `comfortable` is the default and what every app has been. `compact` is for the
+ * ones whose work is reading many rows at once — a ledger, an event log — and
+ * `roomy` for the ones whose work is reading one thing carefully, like a
+ * statement. It is advisory: `AppFrame` publishes it as a scalar custom property
+ * and an app's own layout decides what, if anything, to multiply by it.
+ */
+export type AppDensity = 'compact' | 'comfortable' | 'roomy';
+
 export interface AppManifest {
   readonly id: AppId;
   readonly name: Localized;
@@ -1696,6 +1724,10 @@ export interface AppManifest {
   readonly desktopShortcut: boolean;
   /** Ships with the OS image and cannot be uninstalled. */
   readonly systemComponent: boolean;
+  /** Hue the shell publishes as `--fx-accent` inside this app's window. */
+  readonly accent?: AppAccent | null;
+  /** How tightly this app packs its content. Advisory; defaults to comfortable. */
+  readonly density?: AppDensity;
   readonly fileAssociations?: readonly AppFileAssociation[];
   /** Jump-list entries surfaced on taskbar right-click and Start context. */
   readonly jumpList?: readonly AppCommandDef[];

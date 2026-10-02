@@ -30,6 +30,7 @@ export const profitabilityManifest = defineApp({
   ),
   category: 'analysis',
   icon: 'chart-pie',
+  accent: 'violet',
   capabilities: ['ledger.read', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
   defaultSize: { w: 1360, h: 880 },
   minSize: { w: 980, h: 620 },

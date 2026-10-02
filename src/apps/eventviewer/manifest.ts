@@ -23,6 +23,7 @@ export const eventViewerManifest = defineApp({
   ),
   category: 'system',
   icon: 'scroll-text',
+  density: 'compact',
   capabilities: [
     'eventlog.read',
     'eventlog.write',

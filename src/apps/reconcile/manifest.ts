@@ -38,6 +38,8 @@ export const reconcileManifest = defineApp({
   ),
   category: 'accounting',
   icon: 'check-circle',
+  accent: 'mint',
+  density: 'compact',
   capabilities: ['ledger.read', 'ledger.post', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
   defaultSize: { w: 1320, h: 800 },
   minSize: { w: 900, h: 540 },

@@ -81,6 +81,47 @@ export {
 export type { Column, DataGridProps, KpiTileProps, SortState, TreeNode, TreeViewProps } from './data';
 export { DataGrid, KpiTile, PropertyRow, TreeView } from './data';
 
+/*
+ * The arrangements that are not a grid.
+ *
+ * `AppFrame` and `DataGrid` above are the shape sixteen of the eighteen apps
+ * were built in, and building every app in it is why the suite read as one
+ * program with eighteen datasets. These two modules are the vocabulary for the
+ * other shapes — spatial in `boards`, documentary in `documents` — and an app
+ * reaches for the one its own work actually has.
+ */
+export type {
+  BoardCardProps,
+  BoardColumn,
+  GalleryItem,
+  GalleryProps,
+  KanbanBoardProps,
+  MatchBoardProps,
+  ReaderPaneProps,
+  TileWallProps,
+  WallTile,
+} from './boards';
+export { BoardCard, Gallery, KanbanBoard, MatchBoard, ReaderPane, TileWall } from './boards';
+
+export type {
+  DocumentPageProps,
+  HeroBandProps,
+  HeroFact,
+  RegisterLine,
+  RegisterProps,
+  RegisterTotals,
+  RibbonCommand,
+  RibbonGroup,
+  RibbonProps,
+  RibbonTab,
+  TimelineGate,
+  TimelineProps,
+  TimelineState,
+  TimelineStep,
+  VarianceRowProps,
+} from './documents';
+export { DocumentPage, HeroBand, Register, Ribbon, Timeline, VarianceRow } from './documents';
+
 export type { RailFit, SplitGeometry } from './responsive';
 export { CONTENT_MIN, fitRails, splitGeometry, useElementWidth } from './responsive';
 
@@ -92,9 +133,11 @@ export type {
   LineChartProps,
   LineSeries,
   SparklineProps,
+  TreemapCell,
+  TreemapProps,
   WaterfallStep,
 } from './charts';
-export { BarChart, DonutChart, LineChart, Sparkline, StackedBar, Waterfall } from './charts';
+export { BarChart, DonutChart, LineChart, Sparkline, StackedBar, Treemap, Waterfall } from './charts';
 
 export type { MenuBarMenu, MenuEntry, MenuFlyoutProps, SplitButtonProps } from './menu';
 export { MenuBar, MenuFlyout, SplitButton } from './menu';

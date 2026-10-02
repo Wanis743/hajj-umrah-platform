@@ -35,6 +35,7 @@ export const treasuryManifest = defineApp({
   ),
   category: 'treasury',
   icon: 'wallet',
+  accent: 'mint',
   capabilities: ['ledger.read', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
   defaultSize: { w: 1400, h: 900 },
   minSize: { w: 1000, h: 640 },

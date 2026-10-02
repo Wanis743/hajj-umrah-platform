@@ -30,6 +30,8 @@ export const statementsManifest = defineApp({
   ),
   category: 'accounting',
   icon: 'library',
+  accent: 'indigo',
+  density: 'roomy',
   capabilities: ['ledger.read', 'fs.read', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
   defaultSize: { w: 1320, h: 860 },
   minSize: { w: 960, h: 600 },

@@ -41,7 +41,9 @@ export function toneSurface(tone: Tone): string {
     case 'info':
       return 'var(--fx-info-bg)';
     case 'accent':
-      return 'var(--fx-info-bg)';
+      // Its own plate, not the information one. They are the same colour until
+      // an app declares an accent of its own, and then they must not be.
+      return 'var(--fx-accent-bg)';
     default:
       return 'var(--fx-control)';
   }

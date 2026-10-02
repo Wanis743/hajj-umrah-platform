@@ -48,6 +48,7 @@ export const crmManifest = defineApp({
   ),
   category: 'productivity',
   icon: 'users',
+  accent: 'rose',
   capabilities: [
     'ledger.read',
     'crm.write',

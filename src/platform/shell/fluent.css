@@ -174,6 +174,10 @@
   --fx-danger-bg: rgba(255, 153, 164, 0.14);
   --fx-info: #60cdff;
   --fx-info-bg: rgba(96, 205, 255, 0.14);
+  /* The accent's own tinted plate. Separate from `--fx-info-bg` even though the
+     default accent and the info hue coincide: an app that declares its own
+     accent retints this and must not retint the information tone with it. */
+  --fx-accent-bg: rgba(76, 194, 255, 0.14);
   --fx-close-hover: #c42b1c;
 
   /*
@@ -265,6 +269,7 @@
   --fx-danger-bg: rgba(196, 43, 28, 0.12);
   --fx-info: #005fb8;
   --fx-info-bg: rgba(0, 95, 184, 0.12);
+  --fx-accent-bg: rgba(0, 120, 212, 0.12);
 
   --fx-shadow-flyout: inset 0 1px 0 var(--fx-sheen), inset 0 -1px 0 var(--fx-shade),
     0 2px 8px -3px rgba(0, 0, 0, 0.12), 0 14px 36px -12px rgba(0, 0, 0, 0.2);
@@ -276,6 +281,171 @@
     0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 20px -12px rgba(0, 0, 0, 0.16);
   --fx-smoke: rgba(255, 255, 255, 0.42);
   color-scheme: light;
+}
+
+/* ---------------- per-app accent and density ---------------- */
+/*
+ * An app declares `accent` and `density` in its manifest; `AppFrame` publishes
+ * them as `data-fx-accent` / `data-fx-density` on the app's own root element,
+ * and these rules turn the name into the ramp.
+ *
+ * Why a table in CSS rather than a function in TypeScript: `--fx-accent-text`
+ * and `--fx-accent` both have to flip with the theme — a hue that is legible as
+ * text on #202020 is not legible on #f3f3f3, and the shell's own light theme
+ * already darkens its accent for exactly that reason. An inline style cannot
+ * ask which theme it is in. A declaration on the element beats an inherited
+ * inline style from `.fos`, so the user's accent reaches every window and an
+ * app that names a hue overrides it for its own subtree only — the title bar,
+ * taskbar and Start keep the user's colour.
+ *
+ * Every stop is mixed from its base on the same ladder `accentVariables()` uses
+ * (light1 +18% white, light2 +42%, dark1 20% black, dark2 40%) and every pair
+ * the OS actually draws was measured: white on the accent fill is 5.38:1 at
+ * worst (sky), light2 on the dark surface 5.84:1 at worst (rose), and dark2 on
+ * the light surface 9.45:1 at worst. All eight clear 4.5:1 in both themes.
+ *
+ * Fluent's brand tokens are mapped to these same variables in `fluentTheme.ts`,
+ * so a declared accent also retints every Fluent control the app renders —
+ * button fills, switch tracks, slider rails, focus rings, the tab indicator.
+ */
+.fos [data-fx-accent] {
+  --fx-on-accent: #ffffff;
+}
+
+.fos [data-fx-accent='sky'] {
+  --fx-accent: #0f6cbd;
+  --fx-accent-light1: #3a86c9;
+  --fx-accent-light2: #74aad9;
+  --fx-accent-dark1: #0c5697;
+  --fx-accent-dark2: #094171;
+  --fx-accent-text: #74aad9;
+  --fx-accent-bg: rgba(116, 170, 217, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='sky'] {
+  --fx-accent: #0c5697;
+  --fx-accent-text: #094171;
+  --fx-accent-bg: rgba(15, 108, 189, 0.12);
+}
+
+.fos [data-fx-accent='mint'] {
+  --fx-accent: #0f7a3d;
+  --fx-accent-light1: #3a9260;
+  --fx-accent-light2: #74b28e;
+  --fx-accent-dark1: #0c6231;
+  --fx-accent-dark2: #094925;
+  --fx-accent-text: #74b28e;
+  --fx-accent-bg: rgba(116, 178, 142, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='mint'] {
+  --fx-accent: #0c6231;
+  --fx-accent-text: #094925;
+  --fx-accent-bg: rgba(15, 122, 61, 0.12);
+}
+
+.fos [data-fx-accent='amber'] {
+  --fx-accent: #8a5a00;
+  --fx-accent-light1: #9f782e;
+  --fx-accent-light2: #bb9f6b;
+  --fx-accent-dark1: #6e4800;
+  --fx-accent-dark2: #533600;
+  --fx-accent-text: #bb9f6b;
+  --fx-accent-bg: rgba(187, 159, 107, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='amber'] {
+  --fx-accent: #6e4800;
+  --fx-accent-text: #533600;
+  --fx-accent-bg: rgba(138, 90, 0, 0.12);
+}
+
+.fos [data-fx-accent='coral'] {
+  --fx-accent: #b3401f;
+  --fx-accent-light1: #c16247;
+  --fx-accent-light2: #d3907d;
+  --fx-accent-dark1: #8f3319;
+  --fx-accent-dark2: #6b2613;
+  --fx-accent-text: #d3907d;
+  --fx-accent-bg: rgba(211, 144, 125, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='coral'] {
+  --fx-accent: #8f3319;
+  --fx-accent-text: #6b2613;
+  --fx-accent-bg: rgba(179, 64, 31, 0.12);
+}
+
+.fos [data-fx-accent='violet'] {
+  --fx-accent: #6b3fc4;
+  --fx-accent-light1: #8662cf;
+  --fx-accent-light2: #a990dd;
+  --fx-accent-dark1: #56329d;
+  --fx-accent-dark2: #402676;
+  --fx-accent-text: #a990dd;
+  --fx-accent-bg: rgba(169, 144, 221, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='violet'] {
+  --fx-accent: #56329d;
+  --fx-accent-text: #402676;
+  --fx-accent-bg: rgba(107, 63, 196, 0.12);
+}
+
+.fos [data-fx-accent='teal'] {
+  --fx-accent: #00706b;
+  --fx-accent-light1: #2e8a86;
+  --fx-accent-light2: #6baca9;
+  --fx-accent-dark1: #005a56;
+  --fx-accent-dark2: #004340;
+  --fx-accent-text: #6baca9;
+  --fx-accent-bg: rgba(107, 172, 169, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='teal'] {
+  --fx-accent: #005a56;
+  --fx-accent-text: #004340;
+  --fx-accent-bg: rgba(0, 112, 107, 0.12);
+}
+
+.fos [data-fx-accent='rose'] {
+  --fx-accent: #b02a63;
+  --fx-accent-light1: #be507f;
+  --fx-accent-light2: #d183a5;
+  --fx-accent-dark1: #8d224f;
+  --fx-accent-dark2: #6a193b;
+  --fx-accent-text: #d183a5;
+  --fx-accent-bg: rgba(209, 131, 165, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='rose'] {
+  --fx-accent: #8d224f;
+  --fx-accent-text: #6a193b;
+  --fx-accent-bg: rgba(176, 42, 99, 0.12);
+}
+
+.fos [data-fx-accent='indigo'] {
+  --fx-accent: #3a4fb8;
+  --fx-accent-light1: #5d6fc5;
+  --fx-accent-light2: #8d99d6;
+  --fx-accent-dark1: #2e3f93;
+  --fx-accent-dark2: #232f6e;
+  --fx-accent-text: #8d99d6;
+  --fx-accent-bg: rgba(141, 153, 214, 0.14);
+}
+.fos[data-theme='light'] [data-fx-accent='indigo'] {
+  --fx-accent: #2e3f93;
+  --fx-accent-text: #232f6e;
+  --fx-accent-bg: rgba(58, 79, 184, 0.12);
+}
+
+/*
+ * Density is one unitless scalar, not a second set of spacing tokens. An app's
+ * layout multiplies its own padding by it where that reads better tighter or
+ * looser; `comfortable` is 1, so an app that declares nothing — and every app
+ * that existed before this attribute did — computes exactly what it did before.
+ */
+.fos [data-fx-density='compact'] {
+  --fx-density: 0.875;
+}
+.fos [data-fx-density='comfortable'] {
+  --fx-density: 1;
+}
+.fos [data-fx-density='roomy'] {
+  --fx-density: 1.15;
 }
 
 /* ---------------- root shell ---------------- */

@@ -25,6 +25,8 @@ export const journalManifest = defineApp({
   ),
   category: 'accounting',
   icon: 'book-open',
+  accent: 'indigo',
+  density: 'compact',
   capabilities: ['ledger.read', 'ledger.post', 'fs.read', 'fs.write', 'clipboard', 'notify'],
   defaultSize: { w: 1200, h: 740 },
   minSize: { w: 760, h: 470 },

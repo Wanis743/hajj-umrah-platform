@@ -34,6 +34,7 @@ export const dashboardManifest = defineApp({
   ),
   category: 'analysis',
   icon: 'layout',
+  accent: 'sky',
   capabilities: ['ledger.read', 'eventlog.read', 'fs.write', 'clipboard', 'shell.launch'],
   defaultSize: { w: 1280, h: 800 },
   minSize: { w: 900, h: 560 },

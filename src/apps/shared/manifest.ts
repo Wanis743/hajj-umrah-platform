@@ -8,7 +8,13 @@
  *
  * `defineApp` exists to make the interesting fields of a manifest the ones you
  * actually read. Size, resizability and instancing have the same answer for most
- * apps; spelling them out 19 times would bury the fields that differ.
+ * apps; spelling them out 18 times would bury the fields that differ.
+ *
+ * `accent` and `density` pass straight through and are deliberately *not*
+ * defaulted here. Both are optional in the ABI and both are resolved where they
+ * are read — `useKitAppearance` in the SDK — so there is exactly one place that
+ * decides what "unset" means, and an app that says nothing about its appearance
+ * carries no field claiming it did.
  */
 import type { AppManifest, Localized } from '@/platform/kernel/abi';
 

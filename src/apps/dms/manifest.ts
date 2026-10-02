@@ -24,6 +24,7 @@ export const dmsManifest = defineApp({
   ),
   category: 'productivity',
   icon: 'files',
+  accent: 'teal',
 
   /**
    * Six capabilities, and the two that look like one are deliberately two.
