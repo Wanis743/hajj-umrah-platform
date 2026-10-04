@@ -21,6 +21,8 @@ import {
   type AppEntryProps,
   type AppLocale,
   fmt,
+  MatchBoard,
+  useApp,
   useAppCommands,
   useContextMenu,
   useWindowTitle,
@@ -33,13 +35,13 @@ import {
   type Currency,
 } from '../shared/ledger';
 import { hotkey, type ReconcileBusy } from './actions';
-import { LineMenu, ReconcileRail, ReconcileStatus, ReconcileToolbar } from './chrome';
+import { LineMenu, MatchSpine, ReconcileRail, ReconcileStatus, ReconcileToolbar } from './chrome';
 import { MatchPane } from './detail';
 import { SweepDialog } from './dialogs';
 import { LedgerGrid, StatementGrid } from './list';
 import type { Candidate } from './match';
-import type { ReconcileModel, ReconcileView } from './model';
-import { useReconcileShell } from './shell';
+import type { ReconcileModel } from './model';
+import { type ReconcileShell, useReconcileShell } from './shell';
 
 /**
  * The window's title: the bank, the statement, and what is left.
@@ -67,65 +69,90 @@ function windowTitle(
  * ------------------------------------------------------------------ */
 
 interface BodyProps {
-  readonly model: ReconcileModel;
-  readonly view: ReconcileView;
-  readonly currency: Currency;
-  readonly planned: ReadonlySet<string>;
-  readonly filtered: boolean;
-  counterpartOf: (row: BankTransaction) => string;
-  onSelect: (row: BankTransaction | null) => void;
+  readonly shell: ReconcileShell;
   onMenu: (row: BankTransaction, event: MouseEvent) => void;
-  onOpenLine: (accountId: string) => void;
 }
 
 /**
- * Which grid is the window.
+ * The board: both books at once, with the difference between them in the middle.
  *
- * The ledger view is not a filter on the statement — it is the other book. Reusing one
- * grid for both would mean a column set that fits neither.
+ * A reconciliation is the one exercise in the suite that is genuinely two-sided, and
+ * showing one side at a time makes the person doing it hold the other in their head.
+ * The old body swapped grids on the view; the board draws the statement on the left
+ * and the mirrored account on the right, permanently, so "does this line exist in the
+ * book" is a question the eye answers rather than a navigation somebody performs.
+ *
+ * That change is what the third view had to move for. `'ledger'` used to mean "show me
+ * the ledger instead of the statement"; on a board that would mean blanking the left
+ * half, so it now narrows the right half to the postings nobody has reconciled and
+ * leaves the statement whole — which is what its own rail label already said.
+ *
+ * The spine reads the selected pairing: the matched counterpart when the line is
+ * settled, otherwise the posting on the table — the one picked out of the grid or out
+ * of the ranked list, and failing both the best candidate, because a press with nothing
+ * picked has always meant "the best one".
  */
-function ReconcileBody({
-  model,
-  view,
-  currency,
-  planned,
-  filtered,
-  counterpartOf,
-  onSelect,
-  onMenu,
-  onOpenLine,
-}: BodyProps) {
-  if (view === 'ledger') {
-    return (
-      <LedgerGrid
-        rows={model.visibleLedger}
-        loading={model.ledgerLoading && model.ledgerRows.length === 0}
-        currency={currency}
-        accountName={model.ledgerAccount === null ? '' : accountLabel(model.ledgerAccount)}
-        filtered={filtered}
-        onActivate={(row) => {
-          const accountId = row.line.accountId;
-          if (accountId !== null) onOpenLine(accountId);
-        }}
-      />
-    );
-  }
+function ReconcileBody({ shell, onMenu }: BodyProps) {
+  const { tr } = useApp().locale;
+  const { model, currency, view, filtered, planned, counterpartOf } = shell;
+  const book =
+    model.counterpart ??
+    (shell.candidateId === null ? null : model.ledgerById.get(shell.candidateId) ?? null) ??
+    model.candidates.matches[0]?.row ??
+    null;
+  const openLedger = useCallback(
+    (row: { readonly line: { readonly accountId: string | null } }) => {
+      const accountId = row.line.accountId;
+      if (accountId !== null) shell.openAccount(accountId);
+    },
+    [shell],
+  );
   return (
-    <StatementGrid
-      view={view}
-      rows={model.visible}
-      loading={model.loading && model.transactions.length === 0}
-      currency={currency}
-      amounts={model.amounts}
-      planned={planned}
-      selectedId={model.selected?.id ?? null}
-      counterpartOf={counterpartOf}
-      onSelect={onSelect}
-      // Double-click is "show me the argument", which is where the pane already is.
-      onActivate={onSelect}
-      onContextMenu={onMenu}
-      filtered={filtered}
-      hasStatement={model.statement !== null}
+    <MatchBoard
+      leftTitle={tr('الكشف', 'Relevé', 'Statement')}
+      rightTitle={tr('الدفتر', 'Livre', 'Ledger')}
+      left={
+        <StatementGrid
+          view={view}
+          rows={model.visible}
+          loading={model.loading && model.transactions.length === 0}
+          currency={currency}
+          amounts={model.amounts}
+          planned={planned}
+          selectedId={model.selected?.id ?? null}
+          counterpartOf={counterpartOf}
+          onSelect={shell.pickLine}
+          // Double-click is "show me the argument", which is where the pane already is.
+          onActivate={shell.pickLine}
+          onContextMenu={onMenu}
+          filtered={filtered}
+          hasStatement={model.statement !== null}
+        />
+      }
+      right={
+        <LedgerGrid
+          rows={model.visibleLedger}
+          loading={model.ledgerLoading && model.ledgerRows.length === 0}
+          currency={currency}
+          accountName={model.ledgerAccount === null ? '' : accountLabel(model.ledgerAccount)}
+          filtered={filtered}
+          view={view}
+          candidateId={shell.candidateId}
+          onSelect={(row) => shell.pickCandidate(row.line.id)}
+          onActivate={openLedger}
+        />
+      }
+      spine={
+        <MatchSpine
+          transaction={model.selected}
+          book={book}
+          currency={currency}
+          canMatch={shell.canMatch}
+          canUnmatch={shell.canUnmatch}
+          busy={shell.busy}
+          onCommand={shell.command}
+        />
+      }
     />
   );
 }
@@ -279,17 +306,7 @@ export default function ReconcileApp({ runtime }: AppEntryProps) {
           />
         }
       >
-        <ReconcileBody
-          model={model}
-          view={shell.view}
-          currency={shell.currency}
-          planned={shell.planned}
-          filtered={shell.filtered}
-          counterpartOf={shell.counterpartOf}
-          onSelect={pickLine}
-          onMenu={onMenu}
-          onOpenLine={shell.openAccount}
-        />
+        <ReconcileBody shell={shell} onMenu={onMenu} />
       </AppFrame>
 
       {menu.menu === null ? null : (

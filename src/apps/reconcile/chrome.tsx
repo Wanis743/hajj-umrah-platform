@@ -42,6 +42,7 @@ import {
   NavItem,
   SearchBox,
   StatusItem,
+  toneColor,
   ToolbarSeparator,
   ToolbarSpacer,
   useApp,
@@ -248,11 +249,139 @@ export function ReconcileRail({
       />
       <NavItem
         icon={BookOpen}
-        label={tr('الدفتر', 'Le livre', 'Ledger')}
+        label={tr('الدفتر غير المطابق', 'Livre non rapproché', 'Unreconciled book')}
         badge={loose === 0 ? null : loose}
         selected={view === 'ledger'}
         onClick={() => onView('ledger')}
       />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * The board's spine
+ * ------------------------------------------------------------------ */
+
+export interface MatchSpineProps {
+  /** The statement line being decided, or null when nothing on the left is picked. */
+  readonly transaction: BankTransaction | null;
+  /** The posting on the table: the picked one, the best one, or the matched one. */
+  readonly book: LedgerRow | null;
+  readonly currency: Currency;
+  readonly canMatch: boolean;
+  readonly canUnmatch: boolean;
+  readonly busy: ReconcileBusy;
+  readonly onCommand: (id: string) => void;
+}
+
+/** One number per line, stacked, so the column reads top to bottom as an argument. */
+function SpineFigure({ label, value, tone }: { label: string; value: string; tone?: 'success' | 'danger' }) {
+  return (
+    <div style={{ display: 'grid', gap: 1, justifyItems: 'center' }}>
+      <span style={{ fontSize: 'var(--fx-caption)', color: 'var(--fx-text-tertiary)' }}>{label}</span>
+      <span
+        className="fx-mono"
+        style={{
+          fontSize: 'var(--fx-body)',
+          fontWeight: 600,
+          color: tone === undefined ? 'var(--fx-text-primary)' : toneColor(tone),
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * What the two sides currently add up to, and the one press that settles it.
+ *
+ * The spine is the whole reason the board is a board. Two grids side by side are two
+ * grids; two grids with the difference between the selected rows written between them is
+ * the exercise. The number in the middle is the only one that decides anything — zero
+ * within a centime and the server will take the pairing, anything else and it will not —
+ * so it is drawn in the tone of its own answer rather than left for somebody to subtract
+ * in their head.
+ *
+ * The verb follows the line rather than the view. The command bar's button is chosen by
+ * which view is open, because a command bar is about the window; here the selected line
+ * is right there on the left, and offering Match on a line that is already matched would
+ * be a button that reports its own refusal. `onCommand` is the same path either way, so
+ * a press here, a press up there and `Ctrl+Enter` are one event.
+ *
+ * A null book side is drawn as a dash and not hidden. "There is no counterpart on this
+ * page" is the most important thing this app ever says: it means the entry was never
+ * booked, or the ledger page stopped short of it, and an empty space would read as the
+ * app still thinking.
+ */
+export function MatchSpine({
+  transaction,
+  book,
+  currency,
+  canMatch,
+  canUnmatch,
+  busy,
+  onCommand,
+}: MatchSpineProps) {
+  const { tr, lang } = useApp().locale;
+  if (transaction === null) {
+    return (
+      <span style={{ fontSize: 'var(--fx-caption)', color: 'var(--fx-text-tertiary)' }}>
+        {tr('اختر سطرًا من الكشف', 'Choisissez une ligne du relevé', 'Pick a statement line')}
+      </span>
+    );
+  }
+  const matched = transaction.state === 'matched';
+  const delta = book === null ? null : book.amount - transaction.amount;
+  return (
+    <>
+      <SpineFigure
+        label={tr('البنك', 'Banque', 'Bank')}
+        value={fmt.money(transaction.amount, currency, lang)}
+      />
+      <Scale size={14} aria-hidden style={{ color: 'var(--fx-text-tertiary)' }} />
+      <SpineFigure
+        label={tr('الفرق', 'Écart', 'Difference')}
+        value={delta === null ? '—' : fmt.money(delta, currency, lang)}
+        tone={delta === null ? undefined : isAgreed(delta) ? 'success' : 'danger'}
+      />
+      <SpineFigure
+        label={tr('الدفتر', 'Livre', 'Book')}
+        value={book === null ? '—' : fmt.money(book.amount, currency, lang)}
+      />
+      {matched ? (
+        <Button
+          size="sm"
+          icon={Ban}
+          busy={busy === 'unmatch'}
+          disabled={!canUnmatch}
+          onClick={() => onCommand('unmatch')}
+          title={tr(
+            'إلغاء المطابقة وإرجاع سطر الدفتر (Ctrl+Backspace)',
+            'Annuler le rapprochement et libérer la ligne (Ctrl+Retour arrière)',
+            'Reverse the match and release the ledger line (Ctrl+Backspace)',
+          )}
+        >
+          {tr('إلغاء', 'Annuler', 'Unmatch')}
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="accent"
+          icon={Check}
+          busy={busy === 'match'}
+          disabled={!canMatch}
+          onClick={() => onCommand('match')}
+          title={tr(
+            'مطابقة السطر مع المرشّح المعروض (Ctrl+Enter)',
+            'Rapprocher la ligne avec le candidat affiché (Ctrl+Entrée)',
+            'Match the line with the candidate shown (Ctrl+Enter)',
+          )}
+        >
+          {tr('مطابقة', 'Rapprocher', 'Match')}
+        </Button>
+      )}
     </>
   );
 }

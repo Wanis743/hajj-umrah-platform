@@ -6,6 +6,12 @@
  * columns the way a bank prints them; the ledger side is a book of postings, and what
  * matters about a posting here is whether it is still available to pair with.
  *
+ * They are drawn at the same time, facing each other across the board's spine, which is
+ * why both carry a selection. The statement grid's selection is the line being decided;
+ * the ledger grid's is the posting proposed for it, and it is the shell's `candidateId`
+ * rather than a key of this file's own — one pairing, named once, so the two sides and
+ * the pane cannot disagree about which it is.
+ *
  * The statement grid's most useful column is the one the eye lands on last: how many
  * ledger lines carry this amount. Zero means the counterpart is not on this page and
  * no amount of clicking will produce it — an entry has to be booked, or the ledger
@@ -16,8 +22,13 @@
  * Rows the sweep would take are tinted, and nothing else is. A grid that colours
  * every open line has said nothing; a grid that colours the seven the machine is
  * about to handle has said exactly one thing.
+ *
+ * Both empty states name which emptiness they mean, because on a board there are four
+ * of them and they do not mean the same thing: no statement picked, nothing left the
+ * search, nothing open on this statement, nothing unreconciled in this book. The last
+ * is the only one that is good news, and it is the only one drawn with a tick.
  */
-import { CircleSlash, Landmark } from 'lucide-react';
+import { BadgeCheck, CircleSlash, Landmark } from 'lucide-react';
 import { type MouseEvent, useMemo } from 'react';
 import { Badge, type Column, DataGrid, EmptyState, fmt, toneColor, useApp } from '@/platform/sdk';
 import {
@@ -267,7 +278,9 @@ export function StatementGrid({
                 ? tr('لا نتائج للبحث', 'Aucun résultat', 'Nothing matches')
                 : view === 'open'
                   ? tr('لا سطر معلّق', 'Rien en suspens', 'Nothing open')
-                  : tr('لا سطر مطابق بعد', 'Rien de rapproché', 'Nothing matched yet')
+                  : view === 'ledger'
+                    ? tr('كشف بلا أسطر', 'Relevé sans lignes', 'This statement has no lines')
+                    : tr('لا سطر مطابق بعد', 'Rien de rapproché', 'Nothing matched yet')
           }
           description={
             !hasStatement
@@ -351,19 +364,60 @@ export interface LedgerGridProps {
   readonly currency: Currency;
   readonly accountName: string;
   readonly filtered: boolean;
+  /** Which view is narrowing this side, so "empty" can say which emptiness it means. */
+  readonly view: ReconcileView;
+  /**
+   * The posting currently on the table, which is the shell's `candidateId` — a ledger
+   * line id, not a row key of this grid's own invention. Both sides of the board point
+   * at the same pairing, so both must point at it by the same id.
+   */
+  readonly candidateId?: string | null;
+  /** Picking a posting proposes it. Absent on a board that only reads. */
+  onSelect?: (row: LedgerRow) => void;
   onActivate: (row: LedgerRow) => void;
 }
 
-export function LedgerGrid({ rows, loading, currency, accountName, filtered, onActivate }: LedgerGridProps) {
+export function LedgerGrid({
+  rows,
+  loading,
+  currency,
+  accountName,
+  filtered,
+  view,
+  candidateId = null,
+  onSelect,
+  onActivate,
+}: LedgerGridProps) {
   const { locale } = useApp();
   const { tr } = locale;
   const columns = useMemo(() => ledgerColumns(currency, locale), [currency, locale]);
+  const selection = useMemo(
+    () => (candidateId === null ? NO_SELECTION : new Set([candidateId])),
+    [candidateId],
+  );
 
   return (
     <DataGrid<LedgerRow>
       rows={rows}
       columns={columns}
       rowKey={(row) => row.line.id}
+      selectedKeys={selection}
+      onSelectionChange={
+        onSelect === undefined
+          ? undefined
+          : (keys) => {
+              // A click that resolves to nothing is dropped rather than reported as a
+              // deselection: the spine's arithmetic needs a row or the ranked list's
+              // best guess, and there is no third state for it to show.
+              for (const key of keys) {
+                const found = rows.find((row) => row.line.id === key);
+                if (found !== undefined) {
+                  onSelect(found);
+                  return;
+                }
+              }
+            }
+      }
       onActivate={onActivate}
       loading={loading}
       density="compact"
@@ -371,13 +425,15 @@ export function LedgerGrid({ rows, loading, currency, accountName, filtered, onA
       virtualized
       empty={
         <EmptyState
-          icon={CircleSlash}
+          icon={accountName === '' ? CircleSlash : view === 'ledger' ? BadgeCheck : CircleSlash}
           title={
             accountName === ''
               ? tr('البنك لا يشير إلى حساب', 'La banque ne pointe aucun compte', 'This bank names no ledger account')
               : filtered
                 ? tr('لا نتائج للبحث', 'Aucun résultat', 'Nothing matches')
-                : tr('لا قيود على الحساب', 'Aucune écriture', 'No postings')
+                : view === 'ledger'
+                  ? tr('لا قيد غير مطابق', 'Rien de non rapproché', 'Nothing unreconciled')
+                  : tr('لا قيود على الحساب', 'Aucune écriture', 'No postings')
           }
           description={
             accountName === ''
@@ -386,7 +442,13 @@ export function LedgerGrid({ rows, loading, currency, accountName, filtered, onA
                   'Renseignez le compte miroir de la banque pour que l’autre côté du rapprochement soit lisible.',
                   'Set the bank’s mirrored ledger account so the other side of the reconciliation can be read.',
                 )
-              : undefined
+              : view === 'ledger' && !filtered
+                ? tr(
+                    'كل قيد مُرحَّل على هذا الحساب مطابق لسطر بنكي.',
+                    'Chaque écriture comptabilisée de ce compte est rapprochée.',
+                    'Every posted entry on this account is matched to a bank line.',
+                  )
+                : undefined
           }
         />
       }

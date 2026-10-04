@@ -1,20 +1,38 @@
 /**
- * Ledger — the chart grid and the trial-balance grid.
+ * Ledger — the chart tree and the trial-balance grid.
  *
- * Two grids because they are two different objects, not two skins of one. The
- * chart is a tree: its order *is* information, so its columns do not sort — a
- * chart sorted by balance would draw children under whatever row happened to land
- * above them, and the indentation would then be a lie. The trial balance is a
- * list, one row per account, and it sorts on every column.
+ * A tree and a grid, because they are two different objects rather than two skins of
+ * one. The chart is navigation: its order *is* information, nothing about it sorts,
+ * and what a person does with it is walk down it until they reach the account they
+ * came for. The trial balance is a report: one row per account, footed, sorting on
+ * every column.
  *
- * The chart carries no footer for the same reason. Its amount columns roll up, so
- * every parent already contains its children; adding the column down would count
- * the same posting once per generation above it. The page's real totals are in the
- * status bar, where they are computed from the trial rows instead.
+ * The chart used to be a grid too — eight columns of rolled-up debit, credit, balance
+ * and posting counts, tree-ordered. Those columns went when the layout changed, and
+ * the reason is that they were the wrong answer to the question the window is for. A
+ * table of every account's totals is the trial balance, which is one press away and
+ * does it better; what the chart is for is finding one account and reading *its*
+ * ledger, and that pane used to get a 336-pixel gutter while the table of totals got
+ * the window. Now the tree gets a column and the account gets the rest. One rolled-up
+ * figure survives, as a badge on the node, because "this branch contains 4.2M" is the
+ * one fact that makes a person open a branch rather than scroll past it.
+ *
+ * Neither carries a footer here. The chart's figures roll up, so adding them down
+ * would count the same posting once per generation above it; the page's real totals
+ * are in the status bar, computed from the trial rows instead.
  */
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { type MouseEvent, useMemo } from 'react';
-import { Badge, type Column, DataGrid, EmptyState, fmt, useApp } from '@/platform/sdk';
+import { type MouseEvent, type ReactNode, useMemo } from 'react';
+import {
+  Badge,
+  type Column,
+  DataGrid,
+  EmptyState,
+  fmt,
+  Spinner,
+  type TreeNode,
+  TreeView,
+  useApp,
+} from '@/platform/sdk';
 import { type Account, ACCOUNT_TYPE_LABEL, type TrialRow } from '../shared/ledger';
 import { type ChartRow, type Rollup, type RollupIndex, rollupOf, type TrialTotals } from './accounts';
 
@@ -28,14 +46,16 @@ const INDENT = 14;
 
 const dash = (value: number, text: string): string => (value === 0 ? '—' : text);
 
-export interface ChartGridProps {
+/** Nothing to do: a filter is deciding what is open, so a chevron reports rather than offers. */
+const FROZEN = (): void => undefined;
+
+export interface ChartTreeProps {
   readonly rows: readonly ChartRow[];
   readonly rollups: RollupIndex;
   readonly loading: boolean;
   readonly selectedId: string | null;
   readonly onSelect: (id: string | null) => void;
   readonly onToggle: (accountId: string) => void;
-  readonly onActivate: (account: Account) => void;
   readonly onContextMenu: (account: Account, event: MouseEvent) => void;
   readonly filtered: boolean;
   /**
@@ -45,186 +65,121 @@ export interface ChartGridProps {
   readonly autoExpanded: boolean;
 }
 
+/** A node under construction: `TreeNode`'s children are readonly once it is finished. */
+interface Building {
+  readonly id: string;
+  readonly label: ReactNode;
+  readonly children: TreeNode[];
+  readonly expandable: boolean;
+  readonly badge: ReactNode;
+}
+
 /**
- * The chart of accounts as a tree.
+ * The flattened rows, folded back into the shape they came from.
  *
- * Amounts are `fmt.amount` and not `fmt.money`: a currency symbol repeated down
- * two hundred rows is noise, and the currency has its own column. A balance that
- * includes descendants is marked and says so on hover — the difference between an
- * account's own balance and its branch's is the whole point of a roll-up.
+ * `chartTable` hands over a list with a depth on each row, which is what a grid wants
+ * and the inverse of what a tree wants. Re-nesting it here rather than walking the
+ * account index again is deliberate: every filter rule — which accounts survived,
+ * which ancestors were dragged along by a search hit, what a narrowed chart opens on
+ * its own — is already decided in that list, and a second traversal would be a second
+ * place for those rules to live.
+ *
+ * A collapsed branch has no children in the list, so `expandable` carries the chevron
+ * instead: `childCount` counts what survived the filter, which is exactly the number
+ * that makes opening the branch worth the click.
  */
-export function ChartGrid({
+function nest(rows: readonly ChartRow[], toNode: (row: ChartRow) => Building): readonly TreeNode[] {
+  const roots: TreeNode[] = [];
+  // One open children array per generation currently being filled.
+  const open: TreeNode[][] = [];
+  for (const row of rows) {
+    const node = toNode(row);
+    const depth = Math.min(row.depth, open.length);
+    (depth === 0 ? roots : open[depth - 1]).push(node);
+    open.length = depth;
+    open.push(node.children);
+  }
+  return roots;
+}
+
+/**
+ * The chart of accounts as a tree, in a column of its own.
+ *
+ * Expansion is read back out of the rows rather than taken as a prop. A row knows
+ * whether it is open, and under a filter that knowledge is the filter's rather than
+ * the person's — deriving the set from the rows means both modes are one code path
+ * and the two cannot disagree about which branches are showing.
+ */
+export function ChartTree({
   rows,
   rollups,
   loading,
   selectedId,
   onSelect,
   onToggle,
-  onActivate,
   onContextMenu,
   filtered,
   autoExpanded,
-}: ChartGridProps) {
-  const { t, tr, lang, rtl } = useApp().locale;
-  const selected = useMemo(
-    () => (selectedId === null ? NO_SELECTION : new Set([selectedId])),
-    [selectedId],
-  );
-
-  const columns = useMemo<readonly Column<ChartRow>[]>(
-    () => [
-      {
-        id: 'code',
-        header: tr('الرمز', 'Code', 'Code'),
-        width: 252,
-        render: (row) => (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              paddingInlineStart: row.depth * INDENT,
-            }}
-          >
-            <TreeToggle row={row} frozen={autoExpanded} rtl={rtl} onToggle={onToggle} />
-            <span className="fx-mono">{row.account.code}</span>
-            {row.childCount === 0 ? null : (
-              <span style={{ fontSize: 11, color: 'var(--fx-text-tertiary)' }}>{row.childCount}</span>
-            )}
-          </span>
-        ),
-      },
-      {
-        id: 'name',
-        header: tr('الاسم', 'Nom', 'Name'),
-        render: (row) => (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="fx-title-ellipsis">{row.account.name}</span>
-            {row.account.active ? null : (
-              <Badge tone="neutral">{tr('موقوف', 'Inactif', 'Inactive')}</Badge>
-            )}
-          </span>
-        ),
-      },
-      {
-        id: 'type',
-        header: tr('النوع', 'Nature', 'Type'),
-        width: 116,
-        render: (row) => (
-          <span style={{ color: 'var(--fx-text-secondary)' }}>{t(ACCOUNT_TYPE_LABEL[row.account.type])}</span>
-        ),
-      },
-      {
-        id: 'currency',
-        header: tr('العملة', 'Devise', 'Currency'),
-        width: 68,
-        mono: true,
-        render: (row) => row.account.currency,
-      },
-      {
-        id: 'debit',
-        header: tr('مدين', 'Débit', 'Debit'),
-        width: 124,
-        align: 'end',
-        mono: true,
-        render: (row) => {
-          const total = rollupOf(rollups, row.account.id);
-          return dash(total.debit, fmt.amount(total.debit, lang));
-        },
-      },
-      {
-        id: 'credit',
-        header: tr('دائن', 'Crédit', 'Credit'),
-        width: 124,
-        align: 'end',
-        mono: true,
-        render: (row) => {
-          const total = rollupOf(rollups, row.account.id);
-          return dash(total.credit, fmt.amount(total.credit, lang));
-        },
-      },
-      {
-        id: 'balance',
-        header: tr('الرصيد', 'Solde', 'Balance'),
-        width: 136,
-        align: 'end',
-        mono: true,
-        render: (row) => <BalanceCell total={rollupOf(rollups, row.account.id)} />,
-      },
-      {
-        id: 'lines',
-        header: tr('حركات', 'Mouvements', 'Postings'),
-        width: 96,
-        align: 'end',
-        mono: true,
-        render: (row) => {
-          const total = rollupOf(rollups, row.account.id);
-          return dash(total.lines, fmt.integer(total.lines, lang));
-        },
-      },
-    ],
-    [t, tr, lang, rtl, rollups, autoExpanded, onToggle],
-  );
-
-  return (
-    <DataGrid<ChartRow>
-      rows={rows}
-      columns={columns}
-      rowKey={(row) => row.account.id}
-      selectedKeys={selected}
-      onSelectionChange={(keys) => {
-        const [first] = [...keys];
-        onSelect(first ?? null);
-      }}
-      onActivate={(row) => onActivate(row.account)}
-      onRowContextMenu={(row, event) => onContextMenu(row.account, event)}
-      loading={loading}
-      density="compact"
-      rowHeight={ROW_HEIGHT}
-      virtualized
-      empty={<ChartEmpty filtered={filtered} />}
-    />
-  );
-}
-
-interface TreeToggleProps {
-  readonly row: ChartRow;
-  /** A filter is deciding what is open, so the glyph reports rather than offers. */
-  readonly frozen: boolean;
-  readonly rtl: boolean;
-  readonly onToggle: (accountId: string) => void;
-}
-
-function TreeToggle({ row, frozen, rtl, onToggle }: TreeToggleProps) {
+}: ChartTreeProps) {
   const { tr } = useApp().locale;
-  if (row.childCount === 0) return <span style={{ display: 'inline-block', width: 14 }} />;
-  const Glyph = row.expanded ? ChevronDown : rtl ? ChevronLeft : ChevronRight;
-  if (frozen) return <Glyph size={13} style={{ color: 'var(--fx-text-tertiary)' }} aria-hidden />;
+
+  const nodes = useMemo(
+    () =>
+      nest(rows, (row) => ({
+        id: row.account.id,
+        label: (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span className="fx-mono" style={{ flex: 'none' }}>
+              {row.account.code}
+            </span>
+            <span className="fx-title-ellipsis">{row.account.name}</span>
+            {row.account.active ? null : <Badge tone="neutral">{tr('موقوف', 'Inactif', 'Inactive')}</Badge>}
+          </span>
+        ),
+        children: [],
+        expandable: row.childCount > 0,
+        badge: <TreeBadge total={rollupOf(rollups, row.account.id)} />,
+      })),
+    [rows, rollups, tr],
+  );
+
+  const expandedIds = useMemo(() => {
+    const open = new Set<string>();
+    for (const row of rows) if (row.expanded) open.add(row.account.id);
+    return open;
+  }, [rows]);
+
+  const accountOf = useMemo(() => {
+    const byId = new Map<string, Account>();
+    for (const row of rows) byId.set(row.account.id, row.account);
+    return byId;
+  }, [rows]);
+
+  if (rows.length === 0) {
+    return loading ? (
+      <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
+        <Spinner />
+      </div>
+    ) : (
+      <ChartEmpty filtered={filtered} />
+    );
+  }
+
   return (
-    <button
-      type="button"
-      aria-expanded={row.expanded}
-      aria-label={row.expanded ? tr('طي', 'Replier', 'Collapse') : tr('توسيع', 'Déplier', 'Expand')}
-      // The click must not reach the row: opening a branch is not selecting it.
-      onClick={(event) => {
-        event.stopPropagation();
-        onToggle(row.account.id);
-      }}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 14,
-        height: 14,
-        padding: 0,
-        border: 'none',
-        background: 'none',
-        color: 'var(--fx-text-secondary)',
-        cursor: 'pointer',
-      }}
-    >
-      <Glyph size={13} />
-    </button>
+    <div className="fx-scroll" role="tree" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 6 }}>
+      <TreeView
+        nodes={nodes}
+        selectedId={selectedId}
+        onSelect={(node) => onSelect(node.id)}
+        expandedIds={expandedIds}
+        onToggle={autoExpanded ? FROZEN : onToggle}
+        onContextMenu={(node, event) => {
+          const account = accountOf.get(node.id);
+          if (account !== undefined) onContextMenu(account, event);
+        }}
+        indent={INDENT}
+      />
+    </div>
   );
 }
 
@@ -232,12 +187,22 @@ interface BalanceCellProps {
   readonly total: Rollup;
 }
 
-/** The balance, marked when descendants are inside it. */
-function BalanceCell({ total }: BalanceCellProps) {
+/**
+ * The branch's balance, on the node that owns it.
+ *
+ * `∑` means descendants are inside the figure, which on a tree is the difference
+ * between "this account holds 4.2M" and "something under this account does". An
+ * account with no postings anywhere beneath it shows nothing at all rather than a
+ * dash: two hundred dashes down a navigation column is noise, and the drill pane
+ * states the zero properly for the one account somebody asked about.
+ */
+function TreeBadge({ total }: BalanceCellProps) {
   const { tr, lang } = useApp().locale;
-  if (total.lines === 0) return <>—</>;
+  if (total.lines === 0) return null;
   return (
     <span
+      className="fx-mono"
+      style={{ flex: 'none', fontSize: 11, color: 'var(--fx-text-tertiary)' }}
       title={
         total.rolled
           ? tr(

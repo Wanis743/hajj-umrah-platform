@@ -4,6 +4,15 @@
  * State, the command path, and the frame; every read and every derivation lives in
  * `model.ts` and `queue.ts`.
  *
+ * The frame is a mail reader and not an app with a grid in it: queues on the left, the
+ * queue's rows next to them, and the selected row read at length on the right. That is
+ * three panes, and only the first belongs to `AppFrame` — the other two are a
+ * `ReaderPane`, which folds list-or-item on a narrow window the way a mail client does,
+ * rather than an aside the frame would sweep into a drawer behind a button. The
+ * difference matters at the one width where it shows: an aside that folds hides the
+ * thing being read behind a press, where a reader that folds replaces the list with it
+ * and offers Back. Reading is the point of this window, so reading is what survives.
+ *
  * One selection set does three jobs, which is why it is held here rather than in the
  * grid. One row selected is the reading pane's subject; several rows are the sweep's
  * scope; the checkboxes are how a person turns the first into the second. The model
@@ -34,6 +43,7 @@ import {
   type AppLocale,
   type ContextMenuController,
   fmt,
+  ReaderPane,
   useApp,
   useAppCommands,
   useContextMenu,
@@ -54,6 +64,7 @@ import {
   handoffActs,
   type InboxFilter,
   isFiltered,
+  QUEUE_TITLE,
   type QueueId,
   queueTable,
   type SweepPlan,
@@ -160,7 +171,7 @@ function windowTitle(queue: QueueId, total: number, locale: AppLocale): string {
   return total === 0 ? `${name} — ${label}` : `${name} — ${label} (${fmt.integer(total, locale.lang)})`;
 }
 
-interface InboxAsideProps {
+interface InboxReadingProps {
   readonly model: InboxModel;
   readonly plan: SweepPlan;
   readonly selectionSize: number;
@@ -172,8 +183,15 @@ interface InboxAsideProps {
   onCommand: (id: string) => void;
 }
 
-/** The reading pane, in the aside's own gutter. */
-function InboxAside({
+/**
+ * The third pane: whatever is selected, read at length.
+ *
+ * It carries its own scroller. This used to sit in the frame's aside, and the aside
+ * is a column with `overflow: auto` on it — moving the pane into the reader moved it
+ * out of that column, and an entry with forty lines would have been clipped by a
+ * container nobody noticed was doing the work.
+ */
+function InboxReading({
   model,
   plan,
   selectionSize,
@@ -183,9 +201,9 @@ function InboxAside({
   onOpenAccount,
   onSweep,
   onCommand,
-}: InboxAsideProps) {
+}: InboxReadingProps) {
   return (
-    <div style={{ padding: 12 }}>
+    <div className="fx-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 12 }}>
       <DetailPane
         item={model.selected}
         selectionSize={selectionSize}
@@ -523,7 +541,6 @@ export default function InboxApp({ runtime }: AppEntryProps) {
       <AppFrame
         scroll={false}
         navWidth={236}
-        asideWidth={352}
         commands={
           <InboxToolbar
             queue={filter.queue}
@@ -546,19 +563,6 @@ export default function InboxApp({ runtime }: AppEntryProps) {
           />
         }
         nav={<QueueRail filter={filter} onFilter={applyFilter} tally={model.tally} />}
-        aside={
-          <InboxAside
-            model={model}
-            plan={plan}
-            selectionSize={selection.size}
-            queue={filter.queue}
-            currency={BOOK_CURRENCY}
-            busy={actions.busy}
-            onOpenAccount={actions.openAccount}
-            onSweep={runSweep}
-            onCommand={command}
-          />
-        }
         status={
           <InboxStatus
             shown={model.visible.length}
@@ -571,20 +575,48 @@ export default function InboxApp({ runtime }: AppEntryProps) {
           />
         }
       >
-        <QueueGrid
-          queue={filter.queue}
-          items={model.visible}
-          loading={model.loading && model.items.length === 0}
-          selection={selection}
-          onSelectionChange={setSelection}
-          // Double-click narrows a batch back to the row under the pointer, which is
-          // how a person reads one of eleven things they have just ticked.
-          onActivate={(item) => setSelection(new Set([item.key]))}
-          onContextMenu={(item, event) => {
-            setSelection(new Set([item.key]));
-            menu.open(event, item);
-          }}
-          filtered={isFiltered(filter)}
+        <ReaderPane
+          listWidth={300}
+          // 300 + 300 folds at 600, and the app's own `minSize` of 840 less the rail's
+          // 236 leaves 604. The reader therefore never folds inside a window the
+          // manifest says is large enough, and folds immediately below it.
+          itemMin={300}
+          listLabel={runtime.locale.t(QUEUE_TITLE[filter.queue])}
+          itemLabel={runtime.locale.tr('التفاصيل', 'Détail', 'Detail')}
+          // Anything picked opens the reading pane, including a batch: eleven ticked
+          // rows have a summary to show, and `selected` is null for all of them.
+          open={selection.size > 0}
+          onBack={() => setSelection(NO_KEYS)}
+          list={
+            <QueueGrid
+              queue={filter.queue}
+              items={model.visible}
+              loading={model.loading && model.items.length === 0}
+              selection={selection}
+              onSelectionChange={setSelection}
+              // Double-click narrows a batch back to the row under the pointer, which is
+              // how a person reads one of eleven things they have just ticked.
+              onActivate={(item) => setSelection(new Set([item.key]))}
+              onContextMenu={(item, event) => {
+                setSelection(new Set([item.key]));
+                menu.open(event, item);
+              }}
+              filtered={isFiltered(filter)}
+            />
+          }
+          item={
+            <InboxReading
+              model={model}
+              plan={plan}
+              selectionSize={selection.size}
+              queue={filter.queue}
+              currency={BOOK_CURRENCY}
+              busy={actions.busy}
+              onOpenAccount={actions.openAccount}
+              onSweep={runSweep}
+              onCommand={command}
+            />
+          }
         />
       </AppFrame>
 

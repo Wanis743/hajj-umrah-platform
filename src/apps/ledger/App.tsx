@@ -1,9 +1,16 @@
 /**
  * Ledger — the shell.
  *
- * Two views over one page of accounts, and one aside that is either an account's
- * general ledger or the shape of the whole chart. The reads and the derivation live
- * in `model.ts`; what is left here is state, the command path, and the frame.
+ * Two views over one page of accounts. The reads and the derivation live in
+ * `model.ts`; what is left here is state, the command path, and the frame.
+ *
+ * The frame is a tree and a drill, not a grid with a gutter. The chart of accounts is
+ * navigation — a thing a person walks down — and what they walk down it *for* is one
+ * account's general ledger. So the chart takes a resizable column and the account
+ * takes the rest of the window, which is the opposite of how this app used to be
+ * arranged: a table of every account's roll-ups had the page and the general ledger
+ * had a 336-pixel aside. The table of roll-ups is still a press away under the trial
+ * balance, which is what a table of every account's totals actually is.
  *
  * Two writes, both `upsert_chart_account`, both bound to `ledger.post`. The kernel
  * counts that as privileged and raises its own consent, so nothing in this app asks
@@ -27,6 +34,7 @@ import {
 import {
   AppFrame,
   type AppEntryProps,
+  SplitPane,
   useAppCommands,
   useContextMenu,
   useDirtyState,
@@ -53,7 +61,7 @@ import { AccountDetail, ChartOverview } from './detail';
 import { AccountDialog } from './dialogs';
 import { type AccountDraft, draftFromAccount, emptyDraft, hasContent, patchDraft, suggestCode } from './form';
 import { type ChartModel, useChartModel } from './model';
-import { ChartGrid, TrialGrid } from './tree';
+import { ChartTree, TrialGrid } from './tree';
 
 /**
  * The currency the page totals are shown in.
@@ -64,7 +72,7 @@ import { ChartGrid, TrialGrid } from './tree';
  */
 const BOOK_CURRENCY: Currency = 'DZD';
 
-interface LedgerAsideProps {
+interface LedgerDrillProps {
   readonly model: ChartModel;
   readonly actions: LedgerActions;
   readonly currency: Currency;
@@ -72,12 +80,20 @@ interface LedgerAsideProps {
   readonly onNewChild: (account: Account) => void;
 }
 
-/** One account in full, or the chart in summary. */
-function LedgerAside({ model, actions, currency, onEdit, onNewChild }: LedgerAsideProps) {
+/**
+ * One account in full, or the chart in summary.
+ *
+ * This is the drill half of the window, and it carries its own scroller. It used to
+ * be the frame's aside — a 336-pixel column with `overflow: auto` on it — which meant
+ * the general ledger of an account, the longest thing this app ever shows, had the
+ * least room of anything on screen. Moving it beside the tree gave it the width; the
+ * scroller had to come with it, because the column that was providing one is gone.
+ */
+function LedgerDrill({ model, actions, currency, onEdit, onNewChild }: LedgerDrillProps) {
   const account = model.selected;
   if (account === null) {
     return (
-      <div style={{ padding: 12 }}>
+      <div className="fx-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16 }}>
         <ChartOverview
           tally={model.tally}
           slices={model.slices}
@@ -88,7 +104,10 @@ function LedgerAside({ model, actions, currency, onEdit, onNewChild }: LedgerAsi
     );
   }
   return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+    <div
+      className="fx-scroll"
+      style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 16, display: 'flex', flexDirection: 'column' }}
+    >
       <AccountDetail
         account={account}
         totals={model.selectedTotals}
@@ -109,31 +128,43 @@ function LedgerAside({ model, actions, currency, onEdit, onNewChild }: LedgerAsi
 
 interface LedgerCanvasProps {
   readonly model: ChartModel;
+  readonly actions: LedgerActions;
   readonly filter: LedgerFilter;
   readonly selectedId: string | null;
   readonly setSelectedId: (id: string | null) => void;
   readonly setExpanded: Dispatch<SetStateAction<ReadonlySet<string>>>;
   readonly setView: (view: LedgerView) => void;
   readonly onEdit: (account: Account) => void;
+  readonly onNewChild: (account: Account) => void;
   readonly onContextMenu: (account: Account, event: MouseEvent) => void;
 }
 
 /**
- * The centre: whichever of the two grids the view asks for.
+ * The centre: a chart to walk and an account to read, or the trial balance.
  *
- * Double-click means "take me to this account" in both, which is not the same act in
- * each. In the chart it opens the account for editing; in the trial balance it goes
- * back to the chart with the row selected, because a balance line answers "how much"
- * and only the tree answers "where".
+ * Under the chart view the window is a splitter, because the two halves are a
+ * navigation and the thing it navigates to — a person dragging the grip is saying
+ * "my codes are short, give the ledger the room", and that is a judgement only they
+ * can make. Under the trial balance there is no splitter and no tree: a trial balance
+ * is a report about every account at once, so there is nothing to select *within* it
+ * that the other half would react to, and a report gets the whole page.
+ *
+ * Double-click in the trial balance goes back to the chart with the row selected,
+ * because a balance line answers "how much" and only the tree answers "where". The
+ * chart has no double-click of its own any more — it used to open the account for
+ * editing, and the Edit button is now permanently on screen beside the account rather
+ * than three hundred pixels away in a gutter.
  */
 function LedgerCanvas({
   model,
+  actions,
   filter,
   selectedId,
   setSelectedId,
   setExpanded,
   setView,
   onEdit,
+  onNewChild,
   onContextMenu,
 }: LedgerCanvasProps) {
   if (filter.view === 'trial') {
@@ -153,23 +184,42 @@ function LedgerCanvas({
     );
   }
   return (
-    <ChartGrid
-      rows={model.rows}
-      rollups={model.rollups}
-      loading={model.loading && model.accounts.length === 0}
-      selectedId={selectedId}
-      onSelect={setSelectedId}
-      onToggle={(accountId) =>
-        setExpanded((current) => {
-          const next = new Set(current);
-          if (!next.delete(accountId)) next.add(accountId);
-          return next;
-        })
+    <SplitPane
+      // 300 and a 220 floor: the splitter stacks below 440, and the narrowest window
+      // the manifest allows leaves 544 of content, where the clamp hands the tree 300
+      // and the account 239. Wider than that and every extra pixel goes to the
+      // account, which is the half with a table in it.
+      initial={300}
+      min={220}
+      max={560}
+      first={
+        <ChartTree
+          rows={model.rows}
+          rollups={model.rollups}
+          loading={model.loading && model.accounts.length === 0}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onToggle={(accountId) =>
+            setExpanded((current) => {
+              const next = new Set(current);
+              if (!next.delete(accountId)) next.add(accountId);
+              return next;
+            })
+          }
+          onContextMenu={onContextMenu}
+          filtered={isFiltered(filter)}
+          autoExpanded={autoExpands(filter)}
+        />
       }
-      onActivate={onEdit}
-      onContextMenu={onContextMenu}
-      filtered={isFiltered(filter)}
-      autoExpanded={autoExpands(filter)}
+      second={
+        <LedgerDrill
+          model={model}
+          actions={actions}
+          currency={BOOK_CURRENCY}
+          onEdit={onEdit}
+          onNewChild={onNewChild}
+        />
+      }
     />
   );
 }
@@ -300,7 +350,6 @@ export default function LedgerApp({ runtime }: AppEntryProps) {
       <AppFrame
         scroll={false}
         navWidth={236}
-        asideWidth={336}
         commands={
           <LedgerToolbar
             view={filter.view}
@@ -315,15 +364,6 @@ export default function LedgerApp({ runtime }: AppEntryProps) {
           />
         }
         nav={<ViewRail filter={filter} onFilter={setFilter} tally={model.tally} />}
-        aside={
-          <LedgerAside
-            model={model}
-            actions={actions}
-            currency={BOOK_CURRENCY}
-            onEdit={openEdit}
-            onNewChild={openNew}
-          />
-        }
         status={
           <LedgerStatus
             shown={shown}
@@ -341,12 +381,14 @@ export default function LedgerApp({ runtime }: AppEntryProps) {
       >
         <LedgerCanvas
           model={model}
+          actions={actions}
           filter={filter}
           selectedId={selectedId}
           setSelectedId={setSelectedId}
           setExpanded={setExpanded}
           setView={(view) => setFilter((current) => ({ ...current, view }))}
           onEdit={openEdit}
+          onNewChild={openNew}
           onContextMenu={(account, event) => {
             setSelectedId(account.id);
             menu.open(event, account);

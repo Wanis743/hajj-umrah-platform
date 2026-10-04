@@ -43,6 +43,7 @@ import {
   type AutoMatch,
   type CandidateSet,
   candidatesFor,
+  isEligible,
   type LedgerRow,
   planAutoMatch,
   reconcile,
@@ -130,6 +131,14 @@ function toLedgerRow(line: JournalLine, entry: JournalEntry | undefined, label: 
 const matchesText = (needle: string, ...fields: readonly string[]): boolean =>
   fields.some((field) => field.toLowerCase().includes(needle));
 
+/**
+ * Which statement lines the bank side shows.
+ *
+ * Two of the three views are filters on this side; the third is a filter on the other
+ * one. `'ledger'` therefore shows every line of the statement rather than none — the
+ * board draws both books at once, so a view that narrowed the book has no business also
+ * emptying the bank.
+ */
 function filterTransactions(
   rows: readonly BankTransaction[],
   view: ReconcileView,
@@ -139,16 +148,33 @@ function filterTransactions(
   return rows.filter((row) => {
     // The matched view carries the ignored lines too: both are decisions, and a
     // line somebody deliberately set aside does not belong in tomorrow's queue.
-    const inView = view === 'open' ? row.state === 'unmatched' : row.state !== 'unmatched';
+    const inView =
+      view === 'ledger' ? true : view === 'open' ? row.state === 'unmatched' : row.state !== 'unmatched';
     if (!inView) return false;
     return needle === '' || matchesText(needle, row.description, row.reference, row.date, String(row.amount));
   });
 }
 
-function filterLedger(rows: readonly LedgerRow[], search: string): readonly LedgerRow[] {
+/**
+ * Which postings the book side shows.
+ *
+ * Everything, except under the one view whose name is a question about the book: a
+ * posted line nobody has reconciled is the half of the exercise the bank cannot answer,
+ * and `'ledger'` is how somebody asks to see only those. The other two views leave the
+ * book whole, because an unposted or already-reconciled row is context for the row
+ * beside it — its absence would read as a shorter ledger rather than as a filter, which
+ * is the same reason `ledgerColumns` greys those rows instead of dropping them.
+ */
+function filterLedger(
+  rows: readonly LedgerRow[],
+  view: ReconcileView,
+  search: string,
+): readonly LedgerRow[] {
   const needle = search.trim().toLowerCase();
-  if (needle === '') return rows;
-  return rows.filter((row) => matchesText(needle, row.line.memo, row.reference, row.date, String(row.amount)));
+  return rows.filter((row) => {
+    if (view === 'ledger' && !isEligible(row)) return false;
+    return needle === '' || matchesText(needle, row.line.memo, row.reference, row.date, String(row.amount));
+  });
 }
 
 export function useReconcileModel(view: ReconcileView, search: string, selection: ReconcileSelection): ReconcileModel {
@@ -224,7 +250,7 @@ export function useReconcileModel(view: ReconcileView, search: string, selection
   }, [ledgerRows]);
 
   const visible = useMemo(() => filterTransactions(transactions, view, search), [transactions, view, search]);
-  const visibleLedger = useMemo(() => filterLedger(ledgerRows, search), [ledgerRows, search]);
+  const visibleLedger = useMemo(() => filterLedger(ledgerRows, view, search), [ledgerRows, view, search]);
   const summary = useMemo(() => reconcile(statement, transactions, ledgerRows), [statement, transactions, ledgerRows]);
 
   const selected = useMemo(
