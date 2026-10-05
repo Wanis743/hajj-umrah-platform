@@ -3,14 +3,17 @@
  *
  * What the window looks like, and nothing else. Every read is `model.ts`, every figure is
  * `figures.ts`, what leaves is `report.ts`, and what a press means is `shell.ts`; this file
- * arranges four regions around one grid and hands each of them what the shell already worked
- * out.
+ * arranges four regions around a map and a ladder, and hands each of them what the shell
+ * already worked out.
  *
  * The layout is a sentence in order. The rail on the left is the question — by what, over what,
  * against what, ranked how — and beneath it the one figure that decides whether the answer is
- * about the business or about the tagging. The grid in the middle is the ranking and nothing
- * else. The pane on the right is either one member's case or the whole report's, and the status
- * bar restates the basis because the status bar is what a screenshot keeps.
+ * about the business or about the tagging. The middle is the answer twice: the treemap says
+ * what the business is made of, by area, and the ladder under it says which members carry the
+ * result and which lose money, by bars from a centre line. They share a selection, so picking
+ * a tile moves the rung and picking a rung lights the tile. The pane on the right is either
+ * one member's case or the whole report's, and the status bar restates the basis because the
+ * status bar is what a screenshot keeps.
  *
  * There is no dialog. Nothing in this window reaches the book, so there is nothing to be sure
  * about before it happens.
@@ -26,7 +29,7 @@ import {
 import { ProfitabilityRail, ProfitabilityStatus, ProfitabilityToolbar, RowMenu } from './chrome';
 import { MemberPane, SlicePane } from './detail';
 import type { MemberFigure } from './figures';
-import { ProfitabilityList } from './list';
+import { MemberTreemap, ProfitabilityList } from './list';
 import { DIMENSION_LABEL, type Question } from './question';
 import type { Provenance } from './report';
 import { useProfitabilityShell } from './shell';
@@ -164,17 +167,27 @@ export default function ProfitabilityApp({ runtime }: AppEntryProps) {
         aside={aside}
         status={status}
       >
-        <ProfitabilityList
-          rows={model.rows}
-          dimension={question.dimension}
-          filtered={model.hidden > 0 || question.search.trim() !== ''}
-          selectedKey={shell.selectedKey}
-          comparing={source.comparison !== null}
-          loading={cold}
-          onSelect={shell.pickMember}
-          onActivate={onActivate}
-          onContext={shell.openMenu}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, gap: 12 }}>
+          <div className="fx-card" style={{ flex: 'none', padding: 12 }}>
+            <MemberTreemap
+              rows={model.rows}
+              selectedKey={shell.selectedKey}
+              label={runtime.locale.t(DIMENSION_LABEL[question.dimension])}
+              onSelect={shell.pickMember}
+            />
+          </div>
+          <ProfitabilityList
+            rows={model.rows}
+            dimension={question.dimension}
+            filtered={model.hidden > 0 || question.search.trim() !== ''}
+            selectedKey={shell.selectedKey}
+            comparing={source.comparison !== null}
+            loading={cold}
+            onSelect={shell.pickMember}
+            onActivate={onActivate}
+            onContext={shell.openMenu}
+          />
+        </div>
       </AppFrame>
 
       {shell.menu === null ? null : (

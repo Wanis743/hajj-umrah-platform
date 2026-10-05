@@ -1,29 +1,43 @@
 /**
- * Profitability — the table.
+ * Profitability — the treemap and the contribution ladder.
  *
- * One row per member, and the unallocated remainder as the last row rather than as a
- * blank. A sheet whose members sum to less than the book and does not say why is a sheet
- * that gets reconciled by hand, badly — so the remainder is named, painted as a warning,
- * and carries its own figures like anything else.
+ * Two drawings of one set of members, because the window asks two questions that a table
+ * answers badly. "What is this business made of" is about proportion, and the treemap
+ * answers it by area: the largest contributor is literally the biggest thing on the
+ * screen. "Which members carry the result, and which lose money" is about sign and size
+ * together, and the ladder answers it with bars from a centre line — losses left, profits
+ * right, one scale across the set.
  *
- * **Nothing here sorts by column.** The ranking is part of the question the rail asks:
- * the grid prints members in the order the model ranked them, and the remainder after
- * them all. A click on the margin header that floated "no package at all" to the top of
- * the ranking would be reporting a competitor that does not exist.
+ * The unallocated remainder is in both, as a member rather than as a blank. A sheet whose
+ * members sum to less than the book and does not say why is a sheet that gets reconciled
+ * by hand, badly — so the remainder is named, painted as a warning, and carries its own
+ * figures like anything else.
  *
- * Colour is spent twice and no more: on a negative margin, and on the remainder row.
- * Not on a share, not on a variance — a cost that grew and a revenue that grew are both
- * positive numbers, and a grid that paints one of them red has picked a side the
- * arithmetic did not.
+ * **Nothing here sorts.** The ranking is part of the question the rail asks: the ladder
+ * prints members in the order the model ranked them and the remainder after them all, and
+ * the treemap lays them out by area, which is its own order. A control that floated "no
+ * package at all" to the top of the ranking would be reporting a competitor that does not
+ * exist.
+ *
+ * Colour is spent on the margin rate and nowhere else. The area already says how big a
+ * member is; spending the colour on size too would say one thing twice and leave the
+ * interesting fact unsaid — a package carrying a fifth of the revenue at a two per cent
+ * margin is what this window is for, and it is a large pale tile among large rich ones.
  */
-import type { MouseEvent } from 'react';
+import { type MouseEvent, useMemo } from 'react';
 import { ChartPie, Filter } from 'lucide-react';
-import { type Column, DataGrid, EmptyState, fmt, useLocale } from '@/platform/sdk';
+import {
+  EmptyState,
+  fmt,
+  Spinner,
+  type Tone,
+  toneColor,
+  Treemap,
+  type TreemapCell,
+  useLocale,
+} from '@/platform/sdk';
 import { type Dimension, isUntagged, type MemberFigure, variance } from './figures';
 import { DIMENSION_LABEL } from './question';
-
-/** The remainder is the one row with a tone: it is a warning about the report, not a member of it. */
-const rowTone = (row: MemberFigure) => (isUntagged(row) ? 'warning' : undefined);
 
 /**
  * Nothing to rank, in the words of whichever reason there was nothing.
@@ -146,10 +160,10 @@ function Share({ value }: { readonly value: number | null }) {
 interface ListProps {
   readonly rows: readonly MemberFigure[];
   readonly dimension: Dimension;
-  /** The grid is empty because the filter emptied it, not because the book is. */
+  /** The ladder is empty because the filter emptied it, not because the book is. */
   readonly filtered: boolean;
   readonly selectedKey: string | null;
-  /** A comparison was asked for, so the last two columns mean something. */
+  /** A comparison was asked for, so each rung can say how it moved. */
   readonly comparing: boolean;
   readonly loading: boolean;
   onSelect: (key: string | null) => void;
@@ -157,118 +171,241 @@ interface ListProps {
   onContext: (row: MemberFigure, event: MouseEvent) => void;
 }
 
-export function ProfitabilityList(props: ListProps) {
-  const { dimension, rows } = props;
-  const { t, tr, lang } = useLocale();
-  // The comparison pair is declared apart so one column order holds with a gap in it,
-  // rather than two orders that drift the moment either is edited.
-  const compared: readonly Column<MemberFigure>[] = props.comparing
-    ? [
-        {
-          id: 'prior',
-          header: tr('المقارنة', 'Comparaison', 'Prior'),
-          width: 156,
-          align: 'end',
-          mono: true,
-          render: (row) =>
-            row.prior === null ? (
-              <span style={{ color: 'var(--fx-text-disabled)' }}>—</span>
-            ) : (
-              <Money value={row.prior} />
-            ),
-        },
-        {
-          id: 'variance',
-          header: tr('الفرق', 'Écart', 'Variance'),
-          width: 156,
-          align: 'end',
-          mono: true,
-          render: (row) => {
-            const gap = variance(row);
-            return gap === null ? (
-              <span style={{ color: 'var(--fx-text-disabled)' }}>—</span>
-            ) : (
-              <Money value={gap} />
-            );
-          },
-        },
-      ]
-    : [];
-  const columns: readonly Column<MemberFigure>[] = [
-    {
-      id: 'member',
-      header: t(DIMENSION_LABEL[dimension]),
-      render: (row) => <MemberCell row={row} />,
-    },
-    {
-      id: 'revenue',
-      header: tr('الإيرادات', 'Produits', 'Revenue'),
-      width: 158,
-      align: 'end',
-      mono: true,
-      render: (row) => <Money value={row.revenue} />,
-    },
-    {
-      id: 'cost',
-      header: tr('التكاليف', 'Charges', 'Cost'),
-      width: 158,
-      align: 'end',
-      mono: true,
-      render: (row) => <Money value={row.cost} />,
-    },
-    {
-      id: 'margin',
-      header: tr('الهامش', 'Marge', 'Margin'),
-      width: 168,
-      align: 'end',
-      mono: true,
-      render: (row) => <Money value={row.margin} strong />,
-    },
-    {
-      id: 'rate',
-      header: tr('النسبة', 'Taux', 'Rate'),
-      width: 96,
-      align: 'end',
-      mono: true,
-      render: (row) => <Rate value={row.rate} />,
-    },
-    {
-      id: 'share',
-      header: tr('الحصة', 'Part', 'Share'),
-      width: 108,
-      align: 'end',
-      mono: true,
-      render: (row) => <Share value={row.share} />,
-    },
-    ...compared,
-    {
-      id: 'postings',
-      header: tr('قيود', 'Écritures', 'Postings'),
-      width: 100,
-      align: 'end',
-      mono: true,
-      render: (row) => fmt.integer(row.postings, lang),
-    },
-  ];
+/**
+ * What colour a member is worth, which is its rate and not its size.
+ *
+ * The treemap's area already says how big a member is. Spending the colour on the same
+ * fact would say it twice and leave the interesting one unsaid: a package carrying a
+ * fifth of the revenue at a two per cent margin is the finding this window exists for,
+ * and it is a large pale tile among large rich ones.
+ */
+const THIN_RATE = 0.1;
+
+function rateTone(row: MemberFigure): Tone {
+  if (isUntagged(row)) return 'warning';
+  if (row.margin < 0) return 'danger';
+  if (row.rate === null) return 'neutral';
+  return row.rate < THIN_RATE ? 'warning' : 'success';
+}
+
+/** The widest margin in the set. One scale, or the rungs compare nothing. */
+const scaleOf = (rows: readonly MemberFigure[]): number =>
+  rows.reduce((widest, row) => Math.max(widest, Math.abs(row.margin)), 0);
+
+export interface MemberTreemapProps {
+  readonly rows: readonly MemberFigure[];
+  readonly selectedKey: string | null;
+  readonly label: string;
+  onSelect: (key: string | null) => void;
+}
+
+/**
+ * The members by revenue, as area.
+ *
+ * This is the half of the window a ranking cannot do. "Which three things are the
+ * business" is a question about proportion, and a sorted list answers it by asking the
+ * reader to compare the first number with the sum of the rest. Here the biggest
+ * contributor is the biggest thing on the screen and the long tail is visibly a tail.
+ *
+ * Sized by revenue rather than by margin, and for a reason: a treemap's areas have to
+ * sum to something, and margins do not — a loss-making member would need negative area.
+ * Revenue is what there is a hundred per cent of, so revenue is the geometry and the
+ * margin rate is the colour.
+ *
+ * The remainder is in the map like anything else. A picture of "what the business is
+ * made of" that silently omits the untagged third of it is the one chart in this
+ * application that would be a lie.
+ */
+export function MemberTreemap({ rows, selectedKey, label, onSelect }: MemberTreemapProps) {
+  const { lang, tr } = useLocale();
+  const cells = useMemo<readonly TreemapCell[]>(
+    () =>
+      rows.map((row) => ({
+        label: row.label,
+        value: row.revenue,
+        color: toneColor(rateTone(row)),
+        secondary: row.rate === null ? tr('بلا إيراد', 'Sans produit', 'No revenue') : fmt.percent(row.rate, lang, 0),
+      })),
+    [rows, lang, tr],
+  );
+  // The treemap reports the label it drew, and the app thinks in keys. Built from the
+  // same array in the same order, so the two cannot disagree about which tile is which.
+  const keyOf = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const row of rows) if (!out.has(row.label)) out.set(row.label, row.key);
+    return out;
+  }, [rows]);
+  const selectedLabel = useMemo(
+    () => rows.find((row) => row.key === selectedKey)?.label ?? null,
+    [rows, selectedKey],
+  );
 
   return (
-    <DataGrid
-      rows={rows}
-      columns={columns}
-      rowKey={(row) => row.key}
-      loading={props.loading}
-      density="compact"
-      virtualized
-      selectedKeys={props.selectedKey === null ? undefined : new Set([props.selectedKey])}
-      onSelectionChange={(keys) => {
-        const [key] = [...keys];
-        props.onSelect(key ?? null);
-      }}
-      onActivate={props.onActivate}
-      onRowContextMenu={props.onContext}
-      rowTone={rowTone}
-      empty={<NothingHere dimension={dimension} filtered={props.filtered} />}
+    <Treemap
+      cells={cells}
+      height={200}
+      label={label}
+      selected={selectedLabel}
+      onSelect={(picked) => onSelect(keyOf.get(picked) ?? null)}
+      format={(value) => fmt.compact(value, lang)}
     />
+  );
+}
+
+interface RungProps {
+  readonly row: MemberFigure;
+  readonly scale: number;
+  readonly comparing: boolean;
+  readonly selected: boolean;
+  onSelect: () => void;
+  onActivate: () => void;
+  onContext: (event: MouseEvent) => void;
+}
+
+/**
+ * One member's margin, drawn from a centre line.
+ *
+ * Losses go left and profits go right, which is what makes a loss-making member findable
+ * in a list of two hundred without reading a single minus sign. The bar is `aria-hidden`:
+ * it draws a number that is already in the rung as text, and announcing it twice is worse
+ * than not announcing it at all.
+ */
+function Rung({ row, scale, comparing, selected, onSelect, onActivate, onContext }: RungProps) {
+  const { lang, tr } = useLocale();
+  const tone = rateTone(row);
+  const tint = toneColor(tone);
+  const extent = Math.min(1, Math.abs(row.margin) / (scale > 0 ? scale : 1)) * 50;
+  const gap = variance(row);
+  return (
+    <div
+      role="listitem"
+      onDoubleClick={onActivate}
+      onContextMenu={onContext}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(120px, 1.4fr) 150px 72px 96px',
+        alignItems: 'center',
+        gap: 12,
+        padding: '4px 8px',
+        borderRadius: 'var(--fx-radius-control)',
+        background: selected ? 'var(--fx-control)' : undefined,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        style={{
+          minWidth: 0,
+          padding: 0,
+          border: 'none',
+          background: 'none',
+          font: 'inherit',
+          color: 'inherit',
+          textAlign: 'start',
+          cursor: 'pointer',
+        }}
+      >
+        <MemberCell row={row} />
+      </button>
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'relative',
+          minWidth: 0,
+          height: 14,
+          borderRadius: 3,
+          background: 'var(--fx-control)',
+          overflow: 'hidden',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            insetBlock: 0,
+            insetInlineStart: row.margin >= 0 ? '50%' : `${50 - extent}%`,
+            width: `${extent}%`,
+            background: tint,
+            opacity: 0.85,
+          }}
+        />
+        <span
+          style={{
+            position: 'absolute',
+            insetBlock: 0,
+            insetInlineStart: 'calc(50% - 0.5px)',
+            width: 1,
+            background: 'var(--fx-stroke-strong)',
+          }}
+        />
+      </span>
+      <span className="fx-mono" style={{ textAlign: 'end', minWidth: 0 }}>
+        <Money value={row.margin} strong />
+        {comparing ? (
+          <span
+            style={{
+              display: 'block',
+              fontSize: 'var(--fx-caption)',
+              color: gap === null ? 'var(--fx-text-disabled)' : gap < 0 ? 'var(--fx-danger)' : 'var(--fx-success)',
+            }}
+          >
+            {gap === null ? tr('لا مقارنة', 'Sans comparaison', 'No prior') : fmt.money(gap, 'DZD', lang)}
+          </span>
+        ) : null}
+      </span>
+      <span className="fx-mono" style={{ textAlign: 'end' }}>
+        <Rate value={row.rate} />
+      </span>
+      <span className="fx-mono">
+        <Share value={row.share} />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The contribution ladder: every member's margin against one scale.
+ *
+ * **Nothing here sorts.** The order is part of the question the rail asks — the model
+ * ranked these, and the remainder comes after them all. Re-ranking by the rate would
+ * float a member with nine dinars of revenue and a ninety per cent margin above the one
+ * carrying the season, which is a true number and a false answer.
+ */
+export function ProfitabilityList(props: ListProps) {
+  const { dimension, rows } = props;
+  const { tr } = useLocale();
+
+  if (props.loading && rows.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (rows.length === 0) return <NothingHere dimension={dimension} filtered={props.filtered} />;
+
+  const scale = scaleOf(rows);
+
+  return (
+    <div
+      className="fx-scroll"
+      role="list"
+      aria-label={tr('سلّم المساهمة', 'Échelle des contributions', 'Contribution ladder')}
+      style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'grid', gap: 2, alignContent: 'start' }}
+    >
+      {rows.map((row) => (
+        <Rung
+          key={row.key}
+          row={row}
+          scale={scale}
+          comparing={props.comparing}
+          selected={row.key === props.selectedKey}
+          onSelect={() => props.onSelect(row.key)}
+          onActivate={() => props.onActivate(row)}
+          onContext={(event) => props.onContext(row, event)}
+        />
+      ))}
+    </div>
   );
 }
 

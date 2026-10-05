@@ -28,7 +28,6 @@ import {
   Gauge,
   Landmark,
   ListChecks,
-  PiggyBank,
   Scale,
   Timer,
   Wallet,
@@ -37,12 +36,16 @@ import {
   Button,
   Card,
   fmt,
+  HeroBand,
+  type HeroFact,
   InfoBar,
   KpiTile,
   PropertyRow,
   Section,
   type Tone,
   useLocale,
+  Waterfall,
+  type WaterfallStep,
 } from '@/platform/sdk';
 import { ExportButton } from '../shared/ExportButton';
 import type { Currency } from '../shared/ledger';
@@ -65,44 +68,69 @@ import { REPORTING, reported } from './rates';
 import { basisLine, type Provenance, rateLine } from './report';
 import type { Bill, Invoice } from './sources';
 
+export interface TreasuryHeroProps {
+  readonly outlook: Forecast;
+  readonly figures: Liquidity;
+  readonly horizon: number;
+  readonly today: string;
+}
+
 /**
- * The four figures a treasurer asks for by name, in the order they are asked for.
+ * The four figures a treasurer asks for by name, with the projection at display size.
  *
  * What is in the bank, what leaves, what should arrive, what that leaves at the end of the
- * horizon. The last one is the only one that is not a fact, and it is the only one that
- * carries a tone: a projection that goes negative is the whole point of the window, and a
- * projection merely smaller than this morning's balance is the thing to watch.
+ * horizon. The last one is the only one that is not a fact, and it is the only one the
+ * window is really for — so it is the first thing on the screen, in the tone of its own
+ * answer: negative is an emergency, merely smaller than this morning's balance is the
+ * thing to watch.
+ *
+ * The waterfall beside it is the same four numbers as a shape. It is drawn only when all
+ * four are statable: a bar chart with a hole where the riyals should be is a worse
+ * statement than no chart at all, and the rate bar in the pane already names the one
+ * missing row that would fix it. The figures are compact — `4,2 M` rather than
+ * `4 200 000,00 DZD` — because a bar label is ten pixels tall and the exact amount is in
+ * the facts beneath the headline.
  */
-function PositionTiles({ outlook }: { readonly outlook: Forecast }) {
+export function TreasuryHero({ outlook, figures, horizon, today }: TreasuryHeroProps) {
   const { tr, lang } = useLocale();
   const cash = (value: number | null) =>
     value === null ? tr('غير قابل للتحديد', 'Indéterminable', 'Not statable') : fmt.money(value, REPORTING, lang);
+  const { opening, outgoing, incoming, closing } = outlook;
+  const drawable = opening !== null && outgoing !== null && incoming !== null && closing !== null;
+  const steps: readonly WaterfallStep[] = drawable
+    ? [
+        { label: tr('البنوك', 'Banques', 'Bank'), value: opening, kind: 'total' },
+        { label: tr('يخرج', 'Sorties', 'Out'), value: -outgoing },
+        { label: tr('يدخل', 'Entrées', 'In'), value: incoming },
+        { label: tr('المتوقَّع', 'Projeté', 'Projected'), value: closing, kind: 'total' },
+      ]
+    : [];
+  const facts: readonly HeroFact[] = [
+    { label: tr('رصيد البنوك', 'Solde bancaire', 'Bank balance'), value: cash(opening) },
+    { label: tr('يخرج', 'Sorties', 'Out'), value: cash(outgoing), tone: 'warning' },
+    { label: tr('يدخل', 'Entrées', 'In'), value: cash(incoming), tone: 'success' },
+    {
+      label: tr('الفرق مع الدفتر', 'Écart au livre', 'Gap to book'),
+      value: cash(outlook.gap),
+      tone: gapTone(outlook.gap, figures.gaps),
+    },
+  ];
   return (
-    <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-      <KpiTile
-        label={tr('رصيد البنوك', 'Solde bancaire', 'Bank balance')}
-        value={cash(outlook.opening)}
-        icon={Banknote}
-      />
-      <KpiTile
-        label={tr('يخرج', 'Sorties', 'Out')}
-        value={cash(outlook.outgoing)}
-        icon={ArrowUpRight}
-        tone="warning"
-      />
-      <KpiTile
-        label={tr('يدخل', 'Entrées', 'In')}
-        value={cash(outlook.incoming)}
-        icon={ArrowDownRight}
-        tone="neutral"
-      />
-      <KpiTile
-        label={tr('الرصيد المتوقَّع', 'Solde projeté', 'Projected balance')}
-        value={cash(outlook.closing)}
-        icon={PiggyBank}
-        tone={runwayTone(outlook.closing, outlook.opening)}
-      />
-    </div>
+    <HeroBand
+      label={tr('الرصيد المتوقَّع', 'Solde projeté', 'Projected balance')}
+      value={cash(closing)}
+      tone={runwayTone(closing, opening)}
+      caption={tr(
+        `بعد ${fmt.integer(horizon, lang)} يومًا من ${today}`,
+        `À ${fmt.integer(horizon, lang)} jours du ${today}`,
+        `${fmt.integer(horizon, lang)} days from ${today}`,
+      )}
+      facts={facts}
+      figureWidth={300}
+      chart={
+        drawable ? <Waterfall steps={steps} height={176} format={(value) => fmt.compact(value, lang)} /> : undefined
+      }
+    />
   );
 }
 
@@ -214,7 +242,6 @@ export function PositionPane(props: PositionPaneProps) {
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <PositionTiles outlook={outlook} />
       <Card
         icon={Wallet}
         title={tr('الموقف النقدي', 'Position de trésorerie', 'Cash position')}

@@ -3,13 +3,14 @@
  *
  * What the window looks like, and nothing else. What a press means is `shell.ts`, every
  * read is `model.ts`, and every judgement is `variance.ts`; this file arranges four regions
- * around one register and hands each of them what the shell already worked out.
+ * around the variance board and hands each of them what the shell already worked out.
  *
  * The layout is the review conversation in order: the rail says which budget and how much
- * of it is consumed, the register says which accounts are off and by how much, the pane on
- * the right is the account somebody is about to change — or the plan's own summary when
- * nothing is selected — and the status bar names the basis, which is the sentence that
- * makes the rest of the numbers mean anything.
+ * of it is consumed, the board says which accounts are off and by how much — drawn, because
+ * a review is about the big gaps and a column of signed figures hides them among the small
+ * ones — the pane on the right is the account somebody is about to change, or the plan's own
+ * summary when nothing is selected, and the status bar names the basis, which is the
+ * sentence that makes the rest of the numbers mean anything.
  *
  * The one dialog is a field, not a confirmation: `budget.upsert` carries `ledger.post`, so
  * the kernel has already asked.
@@ -48,12 +49,13 @@ function windowTitle(budget: Budget | null, assessment: BudgetAssessment, locale
 }
 
 /**
- * The register, which is one of two grids.
+ * The body, which is a board or a register.
  *
- * The rollup is not a filtered variance grid, so it gets its own component rather than a
- * flag: five rows, no selection, no search. The variance and plan views *are* the same
- * grid — one boolean apart — because the moment they became two components they would
- * start disagreeing about column widths.
+ * The rollup is not a filtered variance report, so it gets its own component rather than a
+ * flag: five rows, no selection, no search, and a footed table is the right shape for five
+ * totals. The variance and plan views are the same board — one boolean apart — because the
+ * moment they became two components they would start disagreeing about the scale, and a
+ * shared scale is the only thing that makes one bar comparable with another.
  */
 interface BodyProps {
   readonly view: BudgetView;

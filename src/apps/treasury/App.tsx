@@ -3,15 +3,19 @@
  *
  * What the window looks like, and nothing else. Every read is `model.ts`, every figure is
  * `cash.ts`, every conversion is `rates.ts`, what leaves is `report.ts`, and what a press
- * means is `shell.ts`. This file arranges four regions around one grid and hands each of
- * them what the shell already worked out.
+ * means is `shell.ts`. This file arranges four regions around a hero and a grid, and hands
+ * each of them what the shell already worked out.
  *
  * The layout is a sentence in order. The toolbar names which of the three reports is on
- * screen. The rail on the left is the question — how far ahead, ranked how — and then, in
- * order, what was actually read, what it comes to, and how it falls either side of the
- * horizon. The grid in the middle is that ranking. The pane on the right is either the
- * whole position or one row's, and the status bar restates the date and the rate, because
- * the status bar is what a screenshot keeps.
+ * screen. The rail on the left is the question — how far ahead, ranked how. The band
+ * across the top is the answer: the projected balance at display size, in the tone of its
+ * own verdict, with the four figures it is made of drawn as a waterfall beside it. The
+ * grid underneath is the evidence for that answer, and it is demoted on purpose — a
+ * treasurer opening this window wants to know whether the cash lasts, and a window that
+ * opens on a twelve-column ranking has handed them the working and asked for the sum. The
+ * pane on the right is one row's case, or where the position's figures came from, and the
+ * status bar restates the date and the rate, because the status bar is what a screenshot
+ * keeps.
  *
  * There is no dialog. Nothing in this window reaches the book, so there is nothing to be
  * sure about before it happens.
@@ -26,7 +30,7 @@ import {
 } from '@/platform/sdk';
 import { type CashRow, LENS_LABEL } from './cash';
 import { RowMenu, TreasuryRail, TreasuryStatus, TreasuryToolbar } from './chrome';
-import { PositionPane, RowPane } from './detail';
+import { PositionPane, RowPane, TreasuryHero } from './detail';
 import { TreasuryList } from './list';
 import { type Question, timed } from './question';
 import { useTreasuryShell } from './shell';
@@ -173,17 +177,27 @@ export default function TreasuryApp({ runtime }: AppEntryProps) {
         aside={aside}
         status={status}
       >
-        <TreasuryList
-          rows={model.rows}
-          lens={question.lens}
-          filtered={model.hidden > 0 || question.search.trim() !== ''}
-          mixed={shell.mixed}
-          selectedKey={shell.selectedKey}
-          loading={cold}
-          onSelect={shell.pickRow}
-          onActivate={onActivate}
-          onContext={shell.openMenu}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, minWidth: 0, gap: 12 }}>
+          <TreasuryHero
+            outlook={model.outlook}
+            figures={model.figures}
+            horizon={question.horizon}
+            today={today}
+          />
+          <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <TreasuryList
+              rows={model.rows}
+              lens={question.lens}
+              filtered={model.hidden > 0 || question.search.trim() !== ''}
+              mixed={shell.mixed}
+              selectedKey={shell.selectedKey}
+              loading={cold}
+              onSelect={shell.pickRow}
+              onActivate={onActivate}
+              onContext={shell.openMenu}
+            />
+          </div>
+        </div>
       </AppFrame>
 
       {shell.menu === null ? null : (
