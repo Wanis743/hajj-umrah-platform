@@ -1,10 +1,15 @@
 /**
- * Period close — the four registers.
+ * Period close — the timeline and the three registers.
+ *
+ * The checklist is not a grid. A close is an ordered process with dependencies, and
+ * the three things anybody wants from it — what is finished, what can be signed now,
+ * what the next step is waiting on — are exactly what a table sorted by name
+ * destroys. So it is a timeline: the sequence in the order it runs, each step
+ * carrying its own gates, and the filled length of the rail *is* the progress.
  *
  * The checks grid is the one that carries an opinion. Every row states the finding, the
  * count behind it and — for the two control totals — the gap in money, and every row
- * that is not a pass offers the way to the app that can fix it. A checklist item that
- * cannot be certified says which name is blocking it rather than greying out silently.
+ * that is not a pass offers the way to the app that can fix it.
  *
  * The trail is deliberately flat: timestamps, actions, resources, who. It is read when
  * somebody is asked "when was March closed, and by whom", and nothing else.
@@ -23,7 +28,19 @@ import {
   ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
-import { Badge, Button, type Column, DataGrid, EmptyState, fmt, useLocale } from '@/platform/sdk';
+import {
+  Badge,
+  Button,
+  type Column,
+  DataGrid,
+  EmptyState,
+  Spinner,
+  Timeline,
+  type TimelineState,
+  type TimelineStep,
+  fmt,
+  useLocale,
+} from '@/platform/sdk';
 import { EPSILON, TASK_STATUS_LABEL, taskTone } from '../shared/ledger';
 import { CHECK_APP } from './actions';
 import {
@@ -164,98 +181,119 @@ interface TaskListProps {
   onContext: (row: ChecklistRow, event: MouseEvent) => void;
 }
 
+/**
+ * Which of the four states a row is in, from the two facts that decide it.
+ *
+ * The task's own status is not enough on its own. A task the server calls `pending`
+ * may be the next thing anybody can sign or may be four certifications away from
+ * being signable, and a checklist that drew both the same way is the checklist
+ * people stop reading. So `actionable` — the dependency walk's verdict — is what
+ * separates the step that is live from the steps queued behind it.
+ */
+function stateOf(row: ChecklistRow): TimelineState {
+  if (row.task.status === 'certified') return 'done';
+  if (row.task.status === 'blocked' || row.missing.length > 0) return 'blocked';
+  return row.actionable ? 'active' : 'waiting';
+}
+
+/**
+ * The close checklist, drawn as the sequence it is worked in.
+ *
+ * A period close is an ordered process with dependencies, and a grid sorted by name
+ * loses the only thing about it that matters: what is finished, what can be signed
+ * now, and what the next thing is waiting for. The rail carries that, and the
+ * filled length of it *is* the progress — not a percentage printed somewhere else
+ * that can disagree with the rows.
+ *
+ * Each step's gates are its own dependencies, each already evaluated, so "waiting
+ * on Bank reconciliation" is on the step rather than in a tooltip. A dependency
+ * naming a task that does not exist is a gate that can never close, and it says so
+ * in words: that is data somebody typed, and the only way it gets fixed is by being
+ * read.
+ *
+ * Every state has a glyph as well as a colour, because red-for-blocked and
+ * green-for-done is not a distinction everybody can make, and this is the screen
+ * where "blocked" has to be unmissable.
+ */
 export function TaskList({ rows, selectedId, loading, searching, onSelect, onActivate, onContext }: TaskListProps) {
   const { t, tr, lang } = useLocale();
-  const columns: readonly Column<ChecklistRow>[] = [
-    {
-      id: 'task',
-      header: tr('المهمة', 'Tâche', 'Task'),
-      sort: (a, b) => a.task.name.localeCompare(b.task.name),
-      render: (row) => (
-        <div style={{ display: 'grid', gap: 1, minWidth: 0, paddingInlineStart: row.depth * 14 }}>
-          <span className="fx-title-ellipsis" style={{ fontWeight: row.actionable ? 600 : 400 }}>
-            {row.task.name}
-          </span>
-          {row.unmet.length === 0 ? null : (
-            <span
-              style={{
-                color: row.missing.length > 0 ? 'var(--fx-danger)' : 'var(--fx-text-tertiary)',
-                fontSize: 'var(--fx-caption)',
-              }}
-            >
-              {`${tr('ينتظر', 'Attend', 'Waiting on')}: ${row.unmet.join(', ')}`}
-              {row.missing.length === 0
-                ? ''
-                : ` — ${tr('لا مهمة بهذا الاسم', 'aucune tâche de ce nom', 'no task by that name')}`}
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      id: 'status',
-      header: tr('الحالة', 'Statut', 'Status'),
-      width: 132,
-      sort: (a, b) => a.task.status.localeCompare(b.task.status),
-      render: (row) => <Badge tone={taskTone(row.task.status)}>{t(TASK_STATUS_LABEL[row.task.status])}</Badge>,
-    },
-    {
-      id: 'owner',
-      header: tr('المسؤول', 'Responsable', 'Owner'),
-      width: 200,
-      render: (row) =>
-        row.task.ownerId === null ? <span style={{ color: 'var(--fx-text-disabled)' }}>—</span> : row.task.ownerId,
-    },
-    {
-      id: 'updated',
-      header: tr('آخر تحديث', 'Mis à jour', 'Updated'),
-      width: 168,
-      mono: true,
-      sort: (a, b) => (a.task.updatedAt ?? '').localeCompare(b.task.updatedAt ?? ''),
-      render: (row) =>
-        row.task.updatedAt === null ? (
-          <span style={{ color: 'var(--fx-text-disabled)' }}>—</span>
-        ) : (
-          fmt.dateTime(row.task.updatedAt, lang)
-        ),
-    },
-  ];
+
+  if (loading && rows.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={BadgeCheck}
+        title={
+          searching
+            ? tr('لا نتائج', 'Aucun résultat', 'No matches')
+            : tr('لا مهام إقفال', 'Aucune tâche de clôture', 'No close tasks')
+        }
+        description={
+          searching
+            ? undefined
+            : tr(
+                'قائمة الإقفال فارغة: لا شيء يُوقَّع لهذا الشهر.',
+                'La checklist est vide : rien à signer pour ce mois.',
+                'The checklist is empty: nothing to sign off for this month.',
+              )
+        }
+      />
+    );
+  }
+
+  const byName = new Map(rows.map((row) => [row.task.name, row]));
+  const steps: readonly TimelineStep[] = rows.map((row) => ({
+    id: row.task.id,
+    title: row.task.name,
+    state: stateOf(row),
+    meta: (
+      <>
+        <Badge tone={taskTone(row.task.status)}>{t(TASK_STATUS_LABEL[row.task.status])}</Badge>
+        {row.task.ownerId === null ? null : <span>{row.task.ownerId}</span>}
+        {row.task.updatedAt === null ? null : (
+          <span className="fx-mono">{fmt.dateTime(row.task.updatedAt, lang)}</span>
+        )}
+      </>
+    ),
+    gates: row.task.dependencies.map((name) => ({
+      label:
+        byName.has(name)
+          ? name
+          : `${name} — ${tr('لا مهمة بهذا الاسم', 'aucune tâche de ce nom', 'no task by that name')}`,
+      ok: byName.get(name)?.task.status === 'certified',
+    })),
+  }));
 
   return (
-    <DataGrid
-      rows={rows}
-      columns={columns}
-      rowKey={(row) => row.task.id}
-      loading={loading}
-      density="compact"
-      selectedKeys={selectedId === null ? undefined : new Set([selectedId])}
-      onSelectionChange={(keys) => {
-        const list = [...keys];
-        onSelect(list.length === 0 ? null : list[0]);
+    <div
+      className="fx-scroll"
+      style={{ flex: 1, minHeight: 0, overflow: 'auto' }}
+      // Double-click signs the step and right-click opens the row menu, exactly as they
+      // did on the grid. The timeline owns the single click, so the delegation here is
+      // only for the two gestures it has no opinion about.
+      onDoubleClick={() => {
+        const row = rows.find((candidate) => candidate.task.id === selectedId);
+        if (row !== undefined) onActivate(row);
       }}
-      onActivate={onActivate}
-      onRowContextMenu={onContext}
-      rowTone={(row) => (row.task.status === 'blocked' ? 'danger' : undefined)}
-      empty={
-        <EmptyState
-          icon={BadgeCheck}
-          title={
-            searching
-              ? tr('لا نتائج', 'Aucun résultat', 'No matches')
-              : tr('لا مهام إقفال', 'Aucune tâche de clôture', 'No close tasks')
-          }
-          description={
-            searching
-              ? undefined
-              : tr(
-                  'قائمة الإقفال فارغة: لا شيء يُوقَّع لهذا الشهر.',
-                  'La checklist est vide : rien à signer pour ce mois.',
-                  'The checklist is empty: nothing to sign off for this month.',
-                )
-          }
-        />
-      }
-    />
+      onContextMenu={(event) => {
+        const row = rows.find((candidate) => candidate.task.id === selectedId);
+        if (row !== undefined) onContext(row, event);
+      }}
+    >
+      <Timeline
+        steps={steps}
+        selected={selectedId}
+        onSelect={onSelect}
+        label={tr('خطوات الإقفال', 'Étapes de clôture', 'Close checklist')}
+      />
+    </div>
   );
 }
 

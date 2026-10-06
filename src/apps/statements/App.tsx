@@ -50,20 +50,25 @@ function windowTitle(report: SavedReport, period: FiscalPeriod | null, locale: A
   return `${name} — ${locale.t(VIEW_LABEL[report.view])} · ${span}`;
 }
 /* ------------------------------------------------------------------ *
- * The grid
+ * The body
  * ------------------------------------------------------------------ *
- * Two grids rather than one with flags. The income statement and the balance sheet are the same
- * shape — a heading, its accounts, the line they add to — and the trial balance is not: it has
- * two columns per account, a posting count, and no structure to indent. One component switching
- * inside every cell would be two grids wearing a single name.
+ * A sheet and a register, rather than one component with flags. The income statement and the
+ * balance sheet are the same shape — a heading, its accounts, the line they add to — and they
+ * belong on paper. The trial balance is not that shape: two columns per account, a posting
+ * count, and no structure to indent. One component switching inside every cell would be two
+ * renderers wearing a single name.
  */
 
 interface BodyProps {
   readonly view: StatementView;
   readonly model: StatementsModel;
   readonly basis: Basis;
-  /** A comparison was asked for and exists, so the last two columns mean something. */
+  /** A comparison was asked for and exists, so the sheet carries a prior and a change. */
   readonly comparing: boolean;
+  /** What the running header prints, which only the shell knows. */
+  readonly title: string;
+  readonly period: string;
+  readonly footnote?: string;
   onSelect: (id: string | null) => void;
   onActivate: (row: StatementRow) => void;
   onContext: (row: StatementRow, event: MouseEvent) => void;
@@ -95,6 +100,9 @@ function StatementsBody(props: BodyProps) {
       selectedId={selectedId}
       comparing={props.comparing}
       loading={cold}
+      title={props.title}
+      period={props.period}
+      footnote={props.footnote}
       onSelect={props.onSelect}
       onActivate={props.onActivate}
       onContext={props.onContext}
@@ -205,6 +213,17 @@ export default function StatementsApp({ runtime }: AppEntryProps) {
           model={model}
           basis={report.basis}
           comparing={source.comparison !== null}
+          title={runtime.locale.t(VIEW_LABEL[report.view])}
+          period={
+            report.basis === 'book' || source.period === null
+              ? runtime.locale.tr('الدفتر بالكامل', 'Livre entier', 'Whole book')
+              : `${source.period.start} → ${source.period.end}`
+          }
+          footnote={
+            report.basis === 'book'
+              ? runtime.locale.tr('الأساس: الدفتر بالكامل', 'Base : livre entier', 'Basis: the whole book')
+              : runtime.locale.tr('الأساس: الفترة المحدّدة', 'Base : période choisie', 'Basis: the selected period')
+          }
           onSelect={shell.pickAccount}
           onActivate={onActivate}
           onContext={shell.openMenu}

@@ -1,26 +1,32 @@
 /**
- * Journal — the entry grid and the detail pane.
+ * Journal — the entry grid, the detail pane and the register.
  *
  * The grid is the book: one row per entry, the two totals in a footer, and a red
  * accent on any row whose sides disagree. It sorts and selects; it decides
  * nothing.
  *
- * The pane beside it is where an entry stops being a row. It loads the lines on
- * demand — `journalLines` is a separate query, keyed on the selected id, so
- * opening a book of 500 entries does not fetch 3000 lines nobody asked for — and
- * it is the one place in the app that checks the header against its own detail.
+ * Under it is the register, which is where an entry stops being a row. It loads
+ * the lines on demand — `journalLines` is a separate query, keyed on the selected
+ * id, so opening a book of 500 entries does not fetch 3000 lines nobody asked
+ * for — and it draws them the way double entry is drawn, debits facing credits
+ * with the two totals facing each other at the foot.
+ *
+ * The pane at the side keeps the header and the two discrepancies: the entry does
+ * not balance, or the header does not agree with its own lines. That second check
+ * is the one thing in this app nothing else does, and it is the reason the
+ * register foots the lines rather than reprinting the header's own pair.
  */
-import { AlertTriangle, ClipboardCopy, Copy, Scale, Send, Undo2 } from 'lucide-react';
+import { AlertTriangle, BookOpen, Scale } from 'lucide-react';
 import { type MouseEvent, useMemo } from 'react';
 import {
   Badge,
-  Button,
   type Column,
   DataGrid,
   EmptyState,
   InfoBar,
   KpiTile,
   PropertyRow,
+  Register,
   Sparkline,
   Spinner,
   fmt,
@@ -34,7 +40,6 @@ import {
   entryTone,
   isBalanced,
 } from '../shared/ledger';
-import type { JournalBusy } from './actions';
 import { type Tally, headerMatchesLines, lineTotals, totalsOf, volumeByDay } from './entries';
 
 const ROW_HEIGHT = 33;
@@ -200,40 +205,25 @@ export function EntryGrid({
 export interface EntryDetailProps {
   readonly entry: JournalEntry;
   readonly lines: readonly JournalLine[];
-  readonly loading: boolean;
-  readonly labelOf: (accountId: string | null) => string;
   readonly currency: Currency;
-  readonly busy: JournalBusy;
-  readonly onPost: () => void;
-  readonly onVoid: () => void;
-  readonly onDuplicate: () => void;
-  readonly onCopy: () => void;
 }
 
 /**
- * One entry, its lines, and what can still be done to it.
+ * One entry's header, and what is wrong with it.
  *
- * Post carries no confirmation of its own. `ledger.post` is privileged, so the
- * kernel raises consent before the RPC runs; a second dialog in front of it would
- * only train the reflex that clicks through both.
+ * The verbs are not here. They are in the ribbon, where the four of them sit in a
+ * labelled group with the entry's own reference beside them — a button that posts
+ * the books should be in the one place the window keeps its commands, not repeated
+ * in a side pane where a second copy can disagree with the first about whether it
+ * is allowed. What stays here is the header, and the two warnings that are the
+ * reason anybody reads a pane rather than a row: the entry does not balance, or
+ * the header does not agree with its own lines.
  */
-export function EntryDetail({
-  entry,
-  lines,
-  loading,
-  labelOf,
-  currency,
-  busy,
-  onPost,
-  onVoid,
-  onDuplicate,
-  onCopy,
-}: EntryDetailProps) {
+export function EntryDetail({ entry, lines, currency }: EntryDetailProps) {
   const { t, tr, lang } = useApp().locale;
   const sums = lineTotals(lines);
   const agrees = headerMatchesLines(entry, lines);
   const balanced = isBalanced(entry);
-  const canPost = entry.status !== 'posted' && entry.status !== 'void' && balanced;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minHeight: 0 }}>
@@ -287,122 +277,101 @@ export function EntryDetail({
           </PropertyRow>
         )}
       </div>
-
-      <EntryLines lines={lines} loading={loading} labelOf={labelOf} />
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        <Button
-          size="sm"
-          variant="accent"
-          icon={Send}
-          busy={busy === 'post'}
-          disabled={!canPost}
-          onClick={onPost}
-          title={
-            canPost
-              ? undefined
-              : balanced
-                ? tr('القيد ليس مسودة.', 'L’écriture n’est pas un brouillon.', 'The entry is not a draft.')
-                : tr('القيد غير متوازن.', 'L’écriture est déséquilibrée.', 'The entry does not balance.')
-          }
-        >
-          {tr('ترحيل', 'Comptabiliser', 'Post')}
-        </Button>
-        <Button
-          size="sm"
-          variant="danger"
-          icon={Undo2}
-          busy={busy === 'void'}
-          disabled={entry.status === 'void' || entry.status === 'draft'}
-          onClick={onVoid}
-        >
-          {tr('إلغاء', 'Annuler', 'Void')}
-        </Button>
-        <Button
-          size="sm"
-          icon={Copy}
-          disabled={lines.length === 0}
-          onClick={onDuplicate}
-          title={
-            lines.length === 0
-              ? tr(
-                  'السطور لم تُحمّل بعد.',
-                  'Les lignes ne sont pas encore chargées.',
-                  'The lines have not loaded yet.',
-                )
-              : undefined
-          }
-        >
-          {tr('تكرار', 'Dupliquer', 'Duplicate')}
-        </Button>
-        <Button size="sm" variant="subtle" icon={ClipboardCopy} onClick={onCopy}>
-          {tr('نسخ', 'Copier', 'Copy')}
-        </Button>
-      </div>
     </div>
   );
 }
 
-interface EntryLinesProps {
+export interface EntryRegisterProps {
+  readonly entry: JournalEntry | null;
   readonly lines: readonly JournalLine[];
   readonly loading: boolean;
   readonly labelOf: (accountId: string | null) => string;
+  readonly currency: Currency;
 }
 
 /**
- * The lines, as a list rather than a grid.
+ * The selected entry's lines, as the double-entry register they are.
  *
- * A 300px pane is too narrow for a sortable table, and the account label is the
- * long value: it gets its own row, with the amount beside it and the memo under.
+ * This used to be a stacked list in a 324-pixel gutter, and the comment above it
+ * said why: a pane that narrow is no place for a table. The answer was not a
+ * better list — it was to stop putting the lines in the gutter. Debits and credits
+ * face each other in facing columns because that is what double entry *is*, and
+ * the two totals facing each other at the foot are how a person checks the one
+ * fact that decides whether the entry can be posted at all.
+ *
+ * It is a real `<table>` with column headers and a footer, not a virtualised grid.
+ * `DataGrid` is the right instrument for ten thousand rows and the wrong one for
+ * four that have to add up: a screen reader on this register says "Cash, debit,
+ * 4,500" instead of reading four unrelated cells.
+ *
+ * The totals come from the lines and not from the header. The header carries its
+ * own pair, and when the two disagree the pane above says so — a register that
+ * footed the header's figures would be hiding exactly the discrepancy it exists
+ * to reveal.
  */
-function EntryLines({ lines, loading, labelOf }: EntryLinesProps) {
+export function EntryRegister({ entry, lines, loading, labelOf, currency }: EntryRegisterProps) {
   const { tr, lang } = useApp().locale;
+  const money = (value: number) => fmt.money(value, currency, lang);
+
+  if (entry === null) {
+    return (
+      <EmptyState
+        icon={BookOpen}
+        title={tr('لا قيد محدّد', 'Aucune écriture sélectionnée', 'No entry selected')}
+        description={tr(
+          'اختر قيدًا من الدفتر أعلاه لقراءة سطوره.',
+          'Choisissez une écriture dans le livre ci-dessus pour en lire les lignes.',
+          'Pick an entry from the book above to read its lines.',
+        )}
+      />
+    );
+  }
+
   if (loading && lines.length === 0) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <Spinner size={14} />
-        <span style={{ fontSize: 12, color: 'var(--fx-text-secondary)' }}>
+        <span style={{ fontSize: 'var(--fx-caption)', color: 'var(--fx-text-secondary)' }}>
           {tr('تحميل السطور…', 'Chargement des lignes…', 'Loading lines…')}
         </span>
       </div>
     );
   }
+
   if (lines.length === 0) {
     return (
-      <div style={{ fontSize: 12, color: 'var(--fx-text-secondary)', padding: '8px 0' }}>
-        {tr('لا سطور محمّلة.', 'Aucune ligne chargée.', 'No lines loaded.')}
-      </div>
+      <EmptyState
+        icon={Scale}
+        title={tr('لا سطور', 'Aucune ligne', 'No lines')}
+        description={tr(
+          'لا سطور محمّلة لهذا القيد.',
+          'Aucune ligne chargée pour cette écriture.',
+          'No lines are loaded for this entry.',
+        )}
+      />
     );
   }
+
+  const sums = lineTotals(lines);
+  const difference = sums.debit - sums.credit;
   return (
-    <div className="fx-scroll" style={{ flex: 1, minHeight: 96, overflowY: 'auto' }}>
-      {lines.map((line) => (
-        <div
-          key={line.id}
-          style={{
-            padding: '6px 0',
-            borderBottom: '1px solid var(--fx-stroke)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-            <span className="fx-title-ellipsis" style={{ flex: 1, fontSize: 12 }}>
-              {labelOf(line.accountId)}
-            </span>
-            <span className="fx-mono fx-num" style={{ fontSize: 12 }}>
-              {line.debit === 0 ? '' : fmt.amount(line.debit, lang)}
-            </span>
-            <span className="fx-mono fx-num" style={{ fontSize: 12, color: 'var(--fx-text-secondary)' }}>
-              {line.credit === 0 ? '' : fmt.amount(line.credit, lang)}
-            </span>
-          </div>
-          {line.memo === '' ? null : (
-            <span style={{ fontSize: 11, color: 'var(--fx-text-secondary)' }}>{line.memo}</span>
-          )}
-        </div>
-      ))}
+    <div className="fx-scroll" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      <Register
+        label={tr('سطور القيد', 'Lignes de l’écriture', 'Entry lines')}
+        lines={lines.map((line) => ({
+          id: line.id,
+          account: labelOf(line.accountId),
+          memo: line.memo === '' ? undefined : line.memo,
+          debit: line.debit === 0 ? undefined : money(line.debit),
+          credit: line.credit === 0 ? undefined : money(line.credit),
+        }))}
+        totals={{
+          debit: money(sums.debit),
+          credit: money(sums.credit),
+          balanced: Math.abs(difference) < 0.005,
+          difference: Math.abs(difference) < 0.005 ? undefined : money(difference),
+        }}
+      />
     </div>
   );
 }

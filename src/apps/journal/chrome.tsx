@@ -1,10 +1,18 @@
 /**
- * Journal — command bar, view rail, filter bar, status bar and the row menu.
+ * Journal — the ribbon, view rail, filter bar, status bar and the row menu.
  *
  * Stateless chrome: each piece takes what it shows and reports what was pressed.
  * The split matters more here than in most apps, because the filters are the
  * feature — a journal is a book you interrogate, not a list you scroll — and the
  * controls that narrow it deserve to be readable in one place.
+ *
+ * The command surface is a ribbon rather than a toolbar, and the reason is that
+ * posting is not one task. There is entering, there is approving, there is
+ * reversing, there is getting the thing out of the building — and a flat row of
+ * a dozen buttons says nothing about which of those a given button belongs to.
+ * The ribbon's labelled groups say it on the screen, so nobody has to learn it;
+ * the tabs separate what acts on the *entry* from what acts on the *view*, which
+ * is the distinction people actually get wrong when they void the wrong row.
  *
  * Two of the four filters cannot be pushed to the server: the broker's `where`
  * speaks equality, `in` and `is null`, so the period is a query and the date
@@ -17,23 +25,28 @@ import {
   CircleSlash,
   ClipboardCopy,
   Copy,
+  FileDown,
   FilePlus2,
   FolderOpen,
   Files,
   Layers,
   RefreshCw,
   Scale,
+  Search,
   Send,
   Undo2,
   X,
 } from 'lucide-react';
 import {
+  Badge,
   Button,
   Checkbox,
   Input,
   MenuFlyout,
   NavGroupLabel,
   NavItem,
+  Ribbon,
+  type RibbonTab,
   SearchBox,
   Select,
   StatusItem,
@@ -42,24 +55,27 @@ import {
   fmt,
   useApp,
 } from '@/platform/sdk';
-import { ExportButton } from '../shared/ExportButton';
-import type { Ref } from 'react';
+import { type Ref, useState } from 'react';
+import { EXPORT_FORMATS, EXPORT_FORMAT_LABELS, exportCommandId } from '../shared/export/commands';
 import {
   type Currency,
   ENTRY_STATUSES,
   ENTRY_STATUS_LABEL,
   type FiscalPeriod,
   type JournalEntry,
+  entryTone,
   isBalanced,
 } from '../shared/ledger';
 import type { JournalBusy } from './actions';
 import { type JournalFilter, PAGE_LIMIT, type Tally, type ViewId, isFiltered } from './entries';
 
 /* ------------------------------------------------------------------ *
- * Command bar
+ * Ribbon
  * ------------------------------------------------------------------ */
 
-export interface JournalToolbarProps {
+type RibbonTabId = 'entry' | 'book' | 'data';
+
+export interface JournalRibbonProps {
   readonly search: string;
   readonly onSearch: (next: string) => void;
   /** Held by the shell so Ctrl+F can put the caret here. */
@@ -69,9 +85,34 @@ export interface JournalToolbarProps {
   readonly loading: boolean;
   /** Nothing on screen means nothing to export. */
   readonly canExport: boolean;
+  /** The entry the four entry verbs would act on, or null when none is held. */
+  readonly selected: JournalEntry | null;
+  readonly onPost: () => void;
+  readonly onVoid: () => void;
+  readonly onDuplicate: () => void;
+  readonly onCopy: () => void;
 }
 
-export function JournalToolbar({
+/**
+ * The command surface, in three tabs.
+ *
+ * **Entry** acts on the one row that is selected, and every command in it is dark
+ * while nothing is. **Book** acts on the window — refresh, find, and the period
+ * controls that live in the rail. **Data** is the four export formats, one button
+ * each, because a format reachable only from a split button's menu is a format
+ * most people never discover.
+ *
+ * Post and Void are gated by the same two rules the detail pane uses, stated once
+ * here and once there: an entry that is already posted or already void cannot be
+ * posted, an unbalanced one cannot either, and a draft cannot be voided because
+ * there is nothing in the books to reverse. The buttons are disabled rather than
+ * hidden, so the shape of the ribbon does not move as the selection changes.
+ *
+ * The selected entry's reference sits at the end of the tab strip, which is where
+ * Word puts the filename and for the same reason: the commands above a document
+ * should say which document.
+ */
+export function JournalRibbon({
   search,
   onSearch,
   searchRef,
@@ -79,42 +120,160 @@ export function JournalToolbar({
   busy,
   loading,
   canExport,
-}: JournalToolbarProps) {
-  const { tr } = useApp().locale;
+  selected,
+  onPost,
+  onVoid,
+  onDuplicate,
+  onCopy,
+}: JournalRibbonProps) {
+  const { t, tr } = useApp().locale;
+  const [tab, setTab] = useState<RibbonTabId>('entry');
+  const held = selected !== null;
+  const canPost = held && selected.status !== 'posted' && selected.status !== 'void' && isBalanced(selected);
+  const canVoid = held && selected.status !== 'void' && selected.status !== 'draft';
+
+  const tabs: readonly RibbonTab<RibbonTabId>[] = [
+    {
+      id: 'entry',
+      label: tr('القيد', 'Écriture', 'Entry'),
+      groups: [
+        {
+          id: 'compose',
+          label: tr('إنشاء', 'Saisie', 'Compose'),
+          commands: [
+            {
+              id: 'new',
+              label: tr('قيد جديد', 'Nouvelle', 'New entry'),
+              icon: FilePlus2,
+              primary: true,
+              tone: 'accent',
+              onClick: () => onCommand('new'),
+            },
+            {
+              id: 'open',
+              label: tr('فتح مسودة', 'Ouvrir', 'Open draft'),
+              icon: FolderOpen,
+              disabled: busy === 'open',
+              onClick: () => onCommand('open'),
+            },
+          ],
+        },
+        {
+          id: 'books',
+          label: tr('الترحيل', 'Comptabilisation', 'Posting'),
+          commands: [
+            {
+              id: 'post',
+              label: tr('ترحيل', 'Comptabiliser', 'Post'),
+              icon: Send,
+              primary: true,
+              tone: 'success',
+              disabled: !canPost || busy === 'post',
+              onClick: onPost,
+            },
+            {
+              id: 'void',
+              label: tr('إلغاء', 'Annuler', 'Void'),
+              icon: Undo2,
+              tone: 'danger',
+              disabled: !canVoid,
+              onClick: onVoid,
+            },
+          ],
+        },
+        {
+          id: 'clipboard',
+          label: tr('نسخ', 'Copie', 'Copy'),
+          commands: [
+            {
+              id: 'duplicate',
+              label: tr('تكرار', 'Dupliquer', 'Duplicate'),
+              icon: Copy,
+              disabled: !held,
+              onClick: onDuplicate,
+            },
+            {
+              id: 'copy',
+              label: tr('نسخ القيد', 'Copier', 'Copy entry'),
+              icon: ClipboardCopy,
+              disabled: !held,
+              onClick: onCopy,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'book',
+      label: tr('الدفتر', 'Livre', 'Book'),
+      groups: [
+        {
+          id: 'page',
+          label: tr('الصفحة', 'Page', 'Page'),
+          commands: [
+            {
+              id: 'refresh',
+              label: tr('تحديث', 'Actualiser', 'Refresh'),
+              icon: RefreshCw,
+              primary: true,
+              disabled: loading,
+              onClick: () => onCommand('refresh'),
+            },
+            {
+              id: 'find',
+              label: tr('بحث', 'Rechercher', 'Find'),
+              icon: Search,
+              onClick: () => onCommand('find'),
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'data',
+      label: tr('البيانات', 'Données', 'Data'),
+      groups: [
+        {
+          id: 'export',
+          label: tr('تصدير المعروض', 'Exporter la vue', 'Export this view'),
+          commands: EXPORT_FORMATS.map((format, index) => ({
+            id: exportCommandId(format),
+            label: t(EXPORT_FORMAT_LABELS[format]),
+            icon: FileDown,
+            primary: index === 0,
+            disabled: !canExport || busy === 'export',
+            onClick: () => onCommand(exportCommandId(format)),
+          })),
+        },
+      ],
+    },
+  ];
+
   return (
-    <>
-      <Button size="sm" variant="accent" icon={FilePlus2} onClick={() => onCommand('new')}>
-        {tr('قيد جديد', 'Nouvelle écriture', 'New entry')}
-      </Button>
-      <Button size="sm" icon={FolderOpen} busy={busy === 'open'} onClick={() => onCommand('open')}>
-        {tr('فتح مسودة', 'Ouvrir', 'Open draft')}
-      </Button>
-      <ToolbarSeparator />
-      <Button size="sm" icon={RefreshCw} busy={loading} onClick={() => onCommand('refresh')}>
-        {tr('تحديث', 'Actualiser', 'Refresh')}
-      </Button>
-      <ToolbarSeparator />
-      <SearchBox
-        ref={searchRef}
-        value={search}
-        onChange={onSearch}
-        width={230}
-        placeholder={tr('المرجع أو الوصف أو المصدر', 'Référence, libellé, origine', 'Reference, description, source')}
-      />
-      <ToolbarSpacer />
-      <ExportButton
-        size="sm"
-        busy={busy === 'export'}
-        disabled={!canExport}
-        onCommand={onCommand}
-        label={tr('تصدير', 'Exporter', 'Export')}
-        title={tr(
-          'تصدير القيود المعروضة (Ctrl+E)',
-          'Exporter les écritures affichées (Ctrl+E)',
-          'Export the visible entries (Ctrl+E)',
-        )}
-      />
-    </>
+    <Ribbon
+      tabs={tabs}
+      tab={tab}
+      onTab={setTab}
+      aside={
+        <>
+          <SearchBox
+            ref={searchRef}
+            value={search}
+            onChange={onSearch}
+            width={230}
+            placeholder={tr('المرجع أو الوصف أو المصدر', 'Référence, libellé, origine', 'Reference, description, source')}
+          />
+          {selected === null ? null : (
+            <>
+              <span className="fx-mono fx-title-ellipsis" style={{ fontSize: 'var(--fx-caption)', maxWidth: 220 }}>
+                {selected.reference === '' ? selected.date : selected.reference}
+              </span>
+              <Badge tone={entryTone(selected.status)}>{t(ENTRY_STATUS_LABEL[selected.status])}</Badge>
+            </>
+          )}
+        </>
+      }
+    />
   );
 }
 

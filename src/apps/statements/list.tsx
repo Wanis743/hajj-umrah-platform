@@ -1,10 +1,13 @@
 /**
- * Statements — the two grids.
+ * Statements — the sheet and the trial-balance register.
  *
- * The income statement and the balance sheet share one grid, because they are the same shape:
- * a heading, the accounts under it, the line those accounts add to, and at the foot the one
- * figure the exercise exists to produce. The trial balance gets its own, because it is the
- * only statement with two columns per row and no structure at all.
+ * The income statement and the balance sheet share one renderer, because they are the same
+ * shape: a heading, the accounts under it, the line those accounts add to, and at the foot
+ * the one figure the exercise exists to produce. Both are printed on a page — paper width,
+ * centred, with a running header — because their final form is a printed page and a
+ * statement laid out edge to edge in a window cannot be checked against the copy in the
+ * binder. The trial balance gets a grid instead: it is the only statement with two columns
+ * per row and no structure at all, which is to say it is a register and not a statement.
  *
  * **Nothing here sorts.** A statement's row order *is* its meaning — a subtotal that has
  * floated three rows up from the accounts it closes is a subtotal of nothing, and the trial
@@ -14,11 +17,20 @@
  * Structure is carried by indentation and weight, which is how a printed statement carries
  * it. Colour is spent on one row only: a check line that does not come out at zero. Not on
  * losses, not on variances — an expense that grew and a revenue that grew are both positive
- * numbers, and a grid that paints one of them red has picked a side the arithmetic did not.
+ * numbers, and a sheet that paints one of them red has picked a side the arithmetic did not.
  */
-import type { MouseEvent } from 'react';
+import { type CSSProperties, type MouseEvent } from 'react';
 import { Scale, Table2 } from 'lucide-react';
-import { type Column, DataGrid, EmptyState, fmt, useLocale } from '@/platform/sdk';
+import {
+  type Column,
+  DataGrid,
+  DocumentPage,
+  EmptyState,
+  Spinner,
+  fmt,
+  toneColor,
+  useLocale,
+} from '@/platform/sdk';
 import { ACCOUNT_TYPE_LABEL } from '../shared/ledger';
 import type { Basis } from './balances';
 import { rowLabel, type StatementRow } from './statement';
@@ -100,80 +112,145 @@ function Figure({ row, value }: { readonly row: StatementRow; readonly value: nu
 interface StatementListProps {
   readonly rows: readonly StatementRow[];
   readonly basis: Basis;
-  /** The account the pane is describing, which may be filtered out of the grid. */
+  /** The account the pane is describing, which may be filtered out of the sheet. */
   readonly selectedId: string | null;
-  /** A comparison was asked for, so the last two columns mean something. */
+  /** A comparison was asked for, so the sheet carries two money columns and a change. */
   readonly comparing: boolean;
   readonly loading: boolean;
+  /** Printed in the running header: which statement, over what period, on what basis. */
+  readonly title: string;
+  readonly period: string;
+  readonly footnote?: string;
   onSelect: (accountId: string | null) => void;
   onActivate: (row: StatementRow) => void;
   onContext: (row: StatementRow, event: MouseEvent) => void;
 }
 
+/** The cell geometry, declared once so the head, the body and the rule agree. */
+const CELL: CSSProperties = { padding: '3px 0', fontSize: 'var(--fx-body)', verticalAlign: 'baseline' };
+const NUM: CSSProperties = { ...CELL, textAlign: 'end', width: 150, whiteSpace: 'nowrap', paddingInlineStart: 16 };
+const HEAD: CSSProperties = {
+  padding: '0 0 6px',
+  fontSize: 'var(--fx-caption)',
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: 'var(--fx-text-tertiary)',
+  borderBottom: '1px solid var(--fx-divider)',
+};
+
+/**
+ * The income statement and the balance sheet, on a sheet of paper.
+ *
+ * These are the one output in the suite whose final form is a printed page. A
+ * statement laid out edge to edge in a resizable window is a statement nobody can
+ * check against the copy in the binder: the line breaks are different, the columns
+ * are somewhere else, and the eye has to re-find every figure. So the column is
+ * fixed at paper width on a desk surface, with the margins and the running header
+ * the print will have.
+ *
+ * It is a real `<table>` with column headers and `scope`, which is what the grid
+ * could not be. A statement's rows are not peers — a heading, the accounts under
+ * it, the line those accounts add to — and the one instrument that can say so to a
+ * screen reader is markup. `DataGrid` is right for ten thousand rows of anything;
+ * this is sixty rows of something with a shape.
+ *
+ * **Nothing here sorts.** A statement's row order *is* its meaning: a subtotal that
+ * has floated three rows up from the accounts it closes is a subtotal of nothing.
+ * Structure is carried by indentation and weight, which is how a printed statement
+ * carries it, and colour is spent on one row only — a check line that does not come
+ * out at zero.
+ */
 export function StatementList(props: StatementListProps) {
-  const { rows, selectedId } = props;
+  const { rows, selectedId, comparing } = props;
   const { tr } = useLocale();
-  // The comparison pair is declared apart so one column order holds with a gap in it, rather
-  // than two orders that drift the moment either is edited.
-  const compared: readonly Column<StatementRow>[] = props.comparing
-    ? [
-        {
-          id: 'prior',
-          header: tr('المقارنة', 'Comparaison', 'Prior'),
-          width: 170,
-          align: 'end',
-          mono: true,
-          render: (row) => <Figure row={row} value={row.prior} />,
-        },
-        {
-          id: 'variance',
-          header: tr('الفرق', 'Écart', 'Variance'),
-          width: 170,
-          align: 'end',
-          mono: true,
-          render: (row) => <Figure row={row} value={moved(row)} />,
-        },
-      ]
-    : [];
-  const columns: readonly Column<StatementRow>[] = [
-    {
-      id: 'line',
-      header: tr('السطر', 'Ligne', 'Line'),
-      render: (row) => <RowName row={row} />,
-    },
-    {
-      id: 'amount',
-      header: tr('المبلغ', 'Montant', 'Amount'),
-      width: 190,
-      align: 'end',
-      mono: true,
-      render: (row) => <Figure row={row} value={row.amount} />,
-    },
-    ...compared,
-  ];
   // Resolved against every row rather than remembered as a key, because the account the pane
   // describes can be hidden by the search box while still being the selected one.
   const selectedRow = selectedId === null ? undefined : rows.find((row) => row.figure?.accountId === selectedId);
 
+  if (props.loading && rows.length === 0) {
+    return (
+      <div style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (rows.length === 0) return <NothingHere basis={props.basis} />;
+
   return (
-    <DataGrid
-      rows={rows}
-      columns={columns}
-      rowKey={(row) => row.id}
-      loading={props.loading}
-      density="compact"
-      virtualized
-      selectedKeys={selectedRow === undefined ? undefined : new Set([selectedRow.id])}
-      onSelectionChange={(keys) => {
-        const [key] = [...keys];
-        const row = key === undefined ? undefined : rows.find((item) => item.id === key);
-        props.onSelect(row?.figure?.accountId ?? null);
-      }}
-      onActivate={props.onActivate}
-      onRowContextMenu={props.onContext}
-      rowTone={rowTone}
-      empty={<NothingHere basis={props.basis} />}
-    />
+    <DocumentPage
+      label={props.title}
+      header={
+        <>
+          <span style={{ fontWeight: 600, color: 'var(--fx-text-primary)' }}>{props.title}</span>
+          <span style={{ marginInlineStart: 'auto' }}>{props.period}</span>
+        </>
+      }
+      footer={props.footnote === undefined ? undefined : <span>{props.footnote}</span>}
+    >
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th scope="col" style={{ ...HEAD, textAlign: 'start' }}>
+              {tr('السطر', 'Ligne', 'Line')}
+            </th>
+            <th scope="col" style={{ ...HEAD, textAlign: 'end', paddingInlineStart: 16 }}>
+              {tr('المبلغ', 'Montant', 'Amount')}
+            </th>
+            {comparing ? (
+              <>
+                <th scope="col" style={{ ...HEAD, textAlign: 'end', paddingInlineStart: 16 }}>
+                  {tr('المقارنة', 'Comparaison', 'Prior')}
+                </th>
+                <th scope="col" style={{ ...HEAD, textAlign: 'end', paddingInlineStart: 16 }}>
+                  {tr('الفرق', 'Écart', 'Change')}
+                </th>
+              </>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const tone = rowTone(row);
+            const held = selectedRow !== undefined && row.id === selectedRow.id;
+            return (
+              <tr
+                key={row.id}
+                aria-selected={held}
+                onClick={() => props.onSelect(row.figure?.accountId ?? null)}
+                onDoubleClick={() => props.onActivate(row)}
+                onContextMenu={(event) => props.onContext(row, event)}
+                style={{
+                  background: held ? 'var(--fx-control)' : undefined,
+                  color: tone === undefined ? undefined : toneColor(tone),
+                  cursor: row.figure === null ? 'default' : 'pointer',
+                  // A closing line is ruled above, the way it is on paper.
+                  borderTop: row.kind === 'total' ? '1px solid var(--fx-divider)' : undefined,
+                }}
+              >
+                <th scope="row" style={{ ...CELL, textAlign: 'start', fontWeight: 400 }}>
+                  <RowName row={row} />
+                </th>
+                <td className="fx-mono" style={NUM}>
+                  <Figure row={row} value={row.amount} />
+                </td>
+                {comparing ? (
+                  <>
+                    <td className="fx-mono" style={NUM}>
+                      <Figure row={row} value={row.prior} />
+                    </td>
+                    <td className="fx-mono" style={NUM}>
+                      <Figure row={row} value={moved(row)} />
+                    </td>
+                  </>
+                ) : null}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </DocumentPage>
   );
 }
 /* ------------------------------------------------------------------ *
