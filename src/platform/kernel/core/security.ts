@@ -56,6 +56,12 @@ const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
     'settings.write',
     'power',
     'net.query',
+    'crm.write',
+    'dms.write',
+    'bi.write',
+    'model.write',
+    'model.publish',
+    'spine.handoff',
   ],
   admin: [
     'fs.read',
@@ -77,6 +83,12 @@ const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
     'settings.write',
     'power',
     'net.query',
+    'crm.write',
+    'dms.write',
+    'bi.write',
+    'model.write',
+    'model.publish',
+    'spine.handoff',
   ],
   finance_manager: [
     'fs.read',
@@ -95,6 +107,11 @@ const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
     'shell.launch',
     'settings.write',
     'net.query',
+    'crm.write',
+    'dms.write',
+    'model.write',
+    'model.publish',
+    'spine.handoff',
   ],
   accountant: [
     'fs.read',
@@ -112,6 +129,9 @@ const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
     'shell.launch',
     'settings.write',
     'net.query',
+    'dms.write',
+    'model.write',
+    'spine.handoff',
   ],
   auditor: [
     'fs.read',
@@ -124,6 +144,7 @@ const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
     'window.manage',
     'shell.launch',
     'net.query',
+    'spine.handoff',
   ],
   staff: [
     'fs.read',
@@ -136,8 +157,19 @@ const ROLE_CAPABILITIES: Readonly<Record<string, readonly Capability[]>> = {
     'window.manage',
     'shell.launch',
     'settings.write',
+    'crm.write',
+    'dms.write',
+    'spine.handoff',
   ],
-  viewer: ['fs.read', 'registry.read', 'ledger.read', 'notify', 'window.manage', 'shell.launch'],
+  viewer: [
+    'fs.read',
+    'registry.read',
+    'ledger.read',
+    'notify',
+    'window.manage',
+    'shell.launch',
+    'spine.handoff',
+  ],
 };
 
 /** Every principal gets these, regardless of role — they are not privileges. */
