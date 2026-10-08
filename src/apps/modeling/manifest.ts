@@ -42,6 +42,7 @@ export const modelingManifest = defineApp({
     'ledger.read',
     'model.write',
     'model.publish',
+    'fs.read',
     'fs.write',
     'clipboard',
     'notify',

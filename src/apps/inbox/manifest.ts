@@ -54,6 +54,7 @@ export const inboxManifest = defineApp({
     'eventlog.read',
     'ledger.post',
     'spine.handoff',
+    'fs.read',
     'fs.write',
     'clipboard',
     'notify',

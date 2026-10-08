@@ -48,7 +48,15 @@ export const biManifest = defineApp({
    * `bi_events` is a governance history — who published what, and what it broke
    * — and the app reads it through `biEvents`, not the kernel's audit channel.
    */
-  capabilities: ['ledger.read', 'bi.write', 'fs.write', 'clipboard', 'shell.launch'],
+  capabilities: [
+    'ledger.read',
+    'bi.write',
+    'fs.read',
+    'fs.write',
+    'clipboard',
+    'notify',
+    'shell.launch',
+  ],
 
   /**
    * The widest default in the platform, and it has to be: a dashboard is a

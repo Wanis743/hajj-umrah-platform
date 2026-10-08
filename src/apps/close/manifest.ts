@@ -48,6 +48,7 @@ export const closeManifest = defineApp({
     'ledger.post',
     'ledger.close',
     'eventlog.read',
+    'fs.read',
     'fs.write',
     'clipboard',
     'notify',

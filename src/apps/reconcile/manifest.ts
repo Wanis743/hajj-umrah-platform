@@ -40,7 +40,15 @@ export const reconcileManifest = defineApp({
   icon: 'check-circle',
   accent: 'mint',
   density: 'compact',
-  capabilities: ['ledger.read', 'ledger.post', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
+  capabilities: [
+    'ledger.read',
+    'ledger.post',
+    'fs.read',
+    'fs.write',
+    'clipboard',
+    'notify',
+    'shell.launch',
+  ],
   defaultSize: { w: 1320, h: 800 },
   minSize: { w: 900, h: 540 },
   keywords: [

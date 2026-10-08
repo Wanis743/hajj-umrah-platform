@@ -53,6 +53,7 @@ export const crmManifest = defineApp({
     'ledger.read',
     'crm.write',
     'ledger.post',
+    'fs.read',
     'fs.write',
     'clipboard',
     'notify',

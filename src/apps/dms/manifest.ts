@@ -50,7 +50,15 @@ export const dmsManifest = defineApp({
    * it and why — and the app reads it through `dmsDocument360`, not through the
    * kernel's audit channel.
    */
-  capabilities: ['ledger.read', 'dms.write', 'fs.write', 'clipboard', 'notify', 'shell.launch'],
+  capabilities: [
+    'ledger.read',
+    'dms.write',
+    'fs.read',
+    'fs.write',
+    'clipboard',
+    'notify',
+    'shell.launch',
+  ],
 
   /**
    * Wider than Customers because the library grid carries a document number, a
